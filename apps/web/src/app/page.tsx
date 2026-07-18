@@ -41,6 +41,7 @@ export default function Home() {
     emitAcceptCall,
     emitDeclineCall,
     emitEndCall,
+    emitCallSignal,
     isLoading,
     loginPhone,
     verifyOtp,
@@ -222,6 +223,92 @@ export default function Home() {
     };
   }, []);
 
+  // WebRTC Connection Setup and track binding
+  useEffect(() => {
+    if (!callModal || !callModal.isConnected || !callStream) {
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+        peerConnectionRef.current = null;
+      }
+      return;
+    }
+
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    });
+
+    callStream.getTracks().forEach(track => pc.addTrack(track, callStream));
+
+    pc.ontrack = (event) => {
+      console.log('Received remote track', event.streams[0]);
+      if (partnerVideoRef.current && event.streams[0]) {
+        partnerVideoRef.current.srcObject = event.streams[0];
+      }
+    };
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        const targetId = activeChat?.otherMember?.id || incomingCall?.callerId;
+        if (targetId) {
+          emitCallSignal(targetId, { candidate: event.candidate });
+        }
+      }
+    };
+
+    peerConnectionRef.current = pc;
+
+    // Caller initiates the offer
+    if (!incomingCall) {
+      pc.createOffer().then(async (offer) => {
+        await pc.setLocalDescription(offer);
+        const targetId = activeChat?.otherMember?.id;
+        if (targetId) {
+          emitCallSignal(targetId, { offer });
+        }
+      });
+    }
+
+    return () => {
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+        peerConnectionRef.current = null;
+      }
+    };
+  }, [callModal?.isConnected, callStream]);
+
+  // Handle incoming ICE candidates and SDP offers/answers
+  useEffect(() => {
+    const handleCallSignal = async (e: Event) => {
+      const data = (e as CustomEvent).detail;
+      const pc = peerConnectionRef.current;
+      if (!pc) return;
+
+      try {
+        if (data.offer) {
+          await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+          const answer = await pc.createAnswer();
+          await pc.setLocalDescription(answer);
+          const targetId = incomingCall?.callerId || activeChat?.otherMember?.id;
+          if (targetId) {
+            emitCallSignal(targetId, { answer });
+          }
+        } else if (data.answer) {
+          await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        } else if (data.candidate) {
+          await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+        }
+      } catch (err) {
+        console.error('Error handling WebRTC signaling:', err);
+      }
+    };
+
+    window.addEventListener('call_signal', handleCallSignal);
+    return () => window.removeEventListener('call_signal', handleCallSignal);
+  }, [incomingCall, activeChat]);
+
   // SWIPE EVENT TRACKERS (Mobile Gestures)
   const touchStartCoordsRef = useRef<{ x: number; y: number } | null>(null);
   const [swipedChatId, setSwipedChatId] = useState<string | null>(null);
@@ -230,6 +317,7 @@ export default function Home() {
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const waveCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
 
   // Auto scroll to bottom of chat
   useEffect(() => {
@@ -1769,6 +1857,33 @@ export default function Home() {
                     >
                       <Camera className="w-5 h-5" />
                     </button>
+
+                    {/* Send gallery picture */}
+                    <button
+                      type="button"
+                      onClick={() => document.getElementById('chat-gallery-input')?.click()}
+                      title="Send Image from Gallery"
+                      className="w-11 h-11 bg-slate-900 border border-slate-850 hover:border-indigo-500/50 rounded-2xl flex items-center justify-center text-slate-400 hover:text-white transition-colors shrink-0"
+                    >
+                      <ImageIcon className="w-5 h-5" />
+                    </button>
+                    <input 
+                      type="file" 
+                      id="chat-gallery-input" 
+                      accept="image/*" 
+                      className="hidden" 
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.onload = () => {
+                            const base64 = reader.result as string;
+                            sendMessage(base64, undefined);
+                          };
+                          reader.readAsDataURL(file);
+                        }
+                      }}
+                    />
 
                     <div className="flex-1 relative flex items-center bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100 border border-slate-805 dark:border-slate-805 light:border-slate-200 rounded-2xl focus-within:border-indigo-500/40 transition-colors">
                       <input

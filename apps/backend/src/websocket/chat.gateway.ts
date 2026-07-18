@@ -362,6 +362,23 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
+  @SubscribeMessage('call_signal')
+  handleCallSignal(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { chatId: string; recipientId: string; offer?: any; answer?: any; candidate?: any },
+  ) {
+    const userId = client.data.userId;
+    if (!userId) return;
+
+    this.server.to(`user:${data.recipientId}`).emit('call_signal', {
+      chatId: data.chatId,
+      senderId: userId,
+      offer: data.offer,
+      answer: data.answer,
+      candidate: data.candidate,
+    });
+  }
+
   @SubscribeMessage('decline_call')
   handleDeclineCall(
     @ConnectedSocket() client: Socket,

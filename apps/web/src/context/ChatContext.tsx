@@ -100,6 +100,7 @@ interface ChatContextType {
   emitAcceptCall: () => void;
   emitDeclineCall: () => void;
   emitEndCall: (recipientId: string) => void;
+  emitCallSignal: (recipientId: string, signalData: { offer?: any; answer?: any; candidate?: any }) => void;
   isLoading: boolean;
   loginPhone: (phoneNumber: string) => Promise<{ success: boolean; otp?: string; error?: string }>;
   verifyOtp: (phoneNumber: string, otp: string) => Promise<{ success: boolean; error?: string }>;
@@ -393,6 +394,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       window.dispatchEvent(new CustomEvent('call_ended', { detail: data }));
     });
 
+    socket.on('call_signal', (data: any) => {
+      window.dispatchEvent(new CustomEvent('call_signal', { detail: data }));
+    });
+
     return () => {
       socket.disconnect();
       socketRef.current = null;
@@ -547,6 +552,18 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       socketRef.current.emit('end_call', {
         chatId: activeChatId,
         recipientId
+      });
+    }
+  };
+
+  const emitCallSignal = (recipientId: string, signalData: { offer?: any; answer?: any; candidate?: any }) => {
+    if (socketRef.current && activeChatId) {
+      socketRef.current.emit('call_signal', {
+        chatId: activeChatId,
+        recipientId,
+        offer: signalData.offer || null,
+        answer: signalData.answer || null,
+        candidate: signalData.candidate || null
       });
     }
   };
@@ -771,6 +788,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         emitAcceptCall,
         emitDeclineCall,
         emitEndCall,
+        emitCallSignal,
         isLoading,
         loginPhone,
         verifyOtp,
