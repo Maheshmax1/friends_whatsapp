@@ -79,6 +79,7 @@ export interface Story {
   name: string;
   avatar: string;
   text: string;
+  mediaUrl?: string;
   time: string;
 }
 
@@ -100,7 +101,7 @@ interface ChatContextType {
   selectChat: (chatId: string) => void;
   sendMessage: (content: string, replyToId?: string) => void;
   sendTyping: (isTyping: boolean) => void;
-  postStatus: (text: string) => void;
+  postStatus: (text: string, mediaUrl?: string) => void;
   fetchContacts: () => Promise<void>;
   addContact: (phoneNumber: string, nickname?: string) => Promise<{ success: boolean; error?: string }>;
   searchUsers: (query: string) => Promise<User[]>;
@@ -144,6 +145,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       // Join socket chat room
       if (socketRef.current) {
         socketRef.current.emit('join_chat', { chatId: activeChatId });
+        socketRef.current.emit('read_all_messages', { chatId: activeChatId });
       }
     }
   }, [activeChatId]);
@@ -267,6 +269,35 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
+    socket.on('messages_read_bulk', (data: { chatId: string; readerId: string }) => {
+      if (activeChatIdRef.current === data.chatId) {
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.senderId !== data.readerId) {
+              return { ...m, status: 'READ' };
+            }
+            return m;
+          })
+        );
+      }
+      setChats((prev) =>
+        prev.map((chat) => (chat.id === data.chatId ? { ...chat, unreadCount: 0 } : chat))
+      );
+    });
+
+    socket.on('messages_delivered_bulk', (data: { chatId: string; recipientId: string }) => {
+      if (activeChatIdRef.current === data.chatId) {
+        setMessages((prev) =>
+          prev.map((m) => {
+            if (m.senderId !== data.recipientId && m.status === 'SENT') {
+              return { ...m, status: 'DELIVERED' };
+            }
+            return m;
+          })
+        );
+      }
+    });
+
     socket.on('load_statuses', (loaded: Story[]) => {
       setStatuses(loaded);
     });
@@ -382,10 +413,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     socketRef.current.emit('typing', { chatId: activeChatId, isTyping });
   };
 
-  const postStatus = (text: string) => {
+  const postStatus = (text: string, mediaUrl?: string) => {
     if (socketRef.current && user) {
       socketRef.current.emit('post_status', {
         text,
+        mediaUrl: mediaUrl || '',
         name: user.displayName || user.username,
         avatar: user.avatarUrl || '',
         userId: user.id

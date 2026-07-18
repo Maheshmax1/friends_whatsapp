@@ -66,6 +66,23 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         data: { isOnline: true, lastSeen: new Date() },
       });
 
+      const chatIds = chats.map(c => c.id);
+      await this.prisma.message.updateMany({
+        where: {
+          chatId: { in: chatIds },
+          senderId: { not: userId },
+          status: 'SENT',
+        },
+        data: { status: 'DELIVERED' },
+      });
+
+      for (const chatId of chatIds) {
+        this.server.to(`chat:${chatId}`).emit('messages_delivered_bulk', {
+          chatId,
+          recipientId: userId,
+        });
+      }
+
       this.server.emit('user_status', { userId, isOnline: true });
       client.emit('load_statuses', this.statuses);
       console.log(`Socket connected: ${client.id} (User: ${userId})`);
@@ -130,13 +147,29 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
     const type = (data.type || 'TEXT') as any;
 
+    let initialStatus: 'SENT' | 'DELIVERED' | 'READ' = 'SENT';
+    const chat = await this.prisma.chat.findUnique({
+      where: { id: data.chatId },
+      include: { members: true },
+    });
+    if (chat) {
+      const otherMembers = chat.members.filter(m => m.userId !== userId);
+      const isAnyOtherMemberOnline = otherMembers.some(m => {
+        const sockets = this.activeUsers.get(m.userId);
+        return sockets && sockets.length > 0;
+      });
+      if (isAnyOtherMemberOnline) {
+        initialStatus = 'DELIVERED';
+      }
+    }
+
     const message = await this.prisma.message.create({
       data: {
         chatId: data.chatId,
         senderId: userId,
         content: data.content,
         type,
-        status: 'SENT',
+        status: initialStatus,
         replyToId: data.replyToId || null,
       },
       include: {
@@ -262,7 +295,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('post_status')
   handlePostStatus(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { text: string; name: string; avatar: string; userId: string },
+    @MessageBody() data: { text: string; name: string; avatar: string; userId: string; mediaUrl?: string },
   ) {
     const newStatus = {
       id: Math.random().toString(),
@@ -270,6 +303,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       name: data.name,
       avatar: data.avatar || data.name.slice(0, 2).toUpperCase(),
       text: data.text,
+      mediaUrl: data.mediaUrl || '',
       time: 'Just now'
     };
     this.statuses.unshift(newStatus);
@@ -277,6 +311,29 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.statuses = this.statuses.slice(0, 25);
     }
     this.server.emit('status_posted', newStatus);
+  }
+
+  @SubscribeMessage('read_all_messages')
+  async handleReadAllMessages(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { chatId: string },
+  ) {
+    const userId = client.data.userId;
+    if (!userId) return;
+
+    await this.prisma.message.updateMany({
+      where: {
+        chatId: data.chatId,
+        senderId: { not: userId },
+        status: { not: 'READ' },
+      },
+      data: { status: 'READ' },
+    });
+
+    client.to(`chat:${data.chatId}`).emit('messages_read_bulk', {
+      chatId: data.chatId,
+      readerId: userId,
+    });
   }
 
   @SubscribeMessage('read_receipt')

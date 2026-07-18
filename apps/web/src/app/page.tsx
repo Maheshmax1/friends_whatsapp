@@ -140,6 +140,9 @@ export default function Home() {
   // STATUS & STORIES
   const [activeStory, setActiveStory] = useState<Story | null>(null);
   const [storyProgress, setStoryProgress] = useState(0);
+  const [showStoryCreator, setShowStoryCreator] = useState(false);
+  const [storyCreatorText, setStoryCreatorText] = useState('');
+  const [storyCreatorImage, setStoryCreatorImage] = useState('');
 
   // USER PROFILE ACTION STATES (Mute, Block)
   const [isMuted, setIsMuted] = useState(false);
@@ -1035,10 +1038,9 @@ export default function Home() {
             <div className="flex gap-3 overflow-x-auto pb-1 select-none">
               <div 
                 onClick={() => {
-                  const text = window.prompt("Post a new status update:");
-                  if (text && text.trim()) {
-                    postStatus(text.trim());
-                  }
+                  setStoryCreatorText('');
+                  setStoryCreatorImage('');
+                  setShowStoryCreator(true);
                 }}
                 className="flex flex-col items-center shrink-0 cursor-pointer group"
               >
@@ -1559,20 +1561,7 @@ export default function Home() {
 
                           </div>
 
-                          {/* 9. HOVER / LONG-PRESS EMOJI REACTION SELECTION PILL (Float panel) */}
-                          {hoveredMessageId === message.id && (
-                            <div className="absolute -top-9 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-800 rounded-full px-2 py-1 shadow-xl hidden lg:flex gap-1.5 z-40 animate-in fade-in slide-in-from-bottom-2 duration-100 select-none">
-                              {['❤️', '👍', '😂', '🔥', '😢'].map((emoji) => (
-                                <button
-                                  key={emoji}
-                                  onClick={() => toggleReaction(message.id, emoji)}
-                                  className="hover:scale-125 transition-transform text-xs"
-                                >
-                                  {emoji}
-                                </button>
-                              ))}
-                            </div>
-                          )}
+
 
                           {!isCurrentUser && hoveredMessageId === message.id && (
                             <div className="flex shrink-0 gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -2435,6 +2424,102 @@ export default function Home() {
         </div>
       )}
 
+      {/* MODAL: CREATE STORY */}
+      {showStoryCreator && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-805 rounded-[32px] p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-white">
+            <div className="flex justify-between items-center mb-5">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-400">New Status Update</h3>
+              <button 
+                onClick={() => setShowStoryCreator(false)}
+                className="w-7 h-7 rounded-full hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+              >
+                <X className="w-4.5 h-4.5" />
+              </button>
+            </div>
+
+            <form 
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (storyCreatorText.trim()) {
+                  postStatus(storyCreatorText.trim(), storyCreatorImage);
+                  setShowStoryCreator(false);
+                  setStoryCreatorText('');
+                  setStoryCreatorImage('');
+                }
+              }}
+              className="space-y-4"
+            >
+              {/* Image selector */}
+              <div>
+                <label className="block text-slate-400 text-[10px] font-semibold uppercase tracking-wider mb-2">Status Background Image</label>
+                <div className="relative">
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.readAsDataURL(file);
+                        reader.onloadend = () => {
+                          setStoryCreatorImage(reader.result as string);
+                        };
+                      }
+                    }}
+                    className="hidden"
+                    id="story-image-upload"
+                  />
+                  <label 
+                    htmlFor="story-image-upload"
+                    className="w-full bg-slate-955 border border-slate-850 hover:border-indigo-500/50 rounded-xl py-2.5 px-3.5 text-xs outline-none text-slate-400 hover:text-white transition-colors cursor-pointer flex items-center justify-between"
+                  >
+                    <span className="truncate max-w-[200px]">
+                      {storyCreatorImage ? 'Image Selected (Cover)' : 'Choose Image File...'}
+                    </span>
+                    <ImageIcon className="w-4 h-4 text-slate-500" />
+                  </label>
+                </div>
+                
+                {storyCreatorImage && (
+                  <div className="mt-3 w-full h-32 rounded-xl overflow-hidden border border-slate-800 relative shadow-inner">
+                    <img src={storyCreatorImage} alt="Story preview" className="w-full h-full object-cover" />
+                    <button
+                      type="button"
+                      onClick={() => setStoryCreatorImage('')}
+                      className="absolute top-1.5 right-1.5 bg-black/75 hover:bg-black p-1 rounded-full text-slate-400 hover:text-white transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Status text */}
+              <div>
+                <label className="block text-slate-400 text-[10px] font-semibold uppercase tracking-wider mb-2">Status Description Text</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Code, coffee, repeat..."
+                  value={storyCreatorText}
+                  onChange={(e) => setStoryCreatorText(e.target.value)}
+                  className="w-full bg-slate-955 border border-slate-850 focus:border-indigo-500/60 rounded-xl py-2.5 px-3.5 text-xs outline-none transition-all text-white"
+                />
+              </div>
+
+              <button
+                type="submit"
+                disabled={!storyCreatorText.trim()}
+                className={`w-full py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all mt-2 ${themeStyle.primary}`}
+              >
+                Post Status Update
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
       {/* MODAL: ADD CONTACT */}
       {showAddContact && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center px-4">
@@ -2529,36 +2614,50 @@ export default function Home() {
               </div>
             </div>
 
-            <div className="absolute top-6 left-4 right-4 flex justify-between items-center z-30">
+            <div className="absolute top-6 left-4 right-4 flex justify-between items-center z-30 bg-black/20 backdrop-blur-sm p-2 rounded-2xl">
               <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center font-bold text-slate-950 text-xs">
-                  {activeStory.avatar}
+                <div className="w-9 h-9 rounded-full bg-indigo-650 flex items-center justify-center font-bold text-white text-xs overflow-hidden shrink-0 border border-indigo-500/30">
+                  {activeStory.avatar.length > 2 && activeStory.avatar.startsWith('data:') ? (
+                    <img src={activeStory.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                  ) : (
+                    <span>{activeStory.avatar.slice(0, 2).toUpperCase()}</span>
+                  )}
                 </div>
                 <div>
                   <h4 className="text-xs font-semibold text-white leading-none">{activeStory.name}</h4>
-                  <span className="text-[9px] text-slate-400 font-light mt-1 block">{activeStory.time}</span>
+                  <span className="text-[9px] text-slate-300 font-light mt-1 block">{activeStory.time}</span>
                 </div>
               </div>
               <button 
                 onClick={() => setActiveStory(null)} 
-                className="w-8 h-8 rounded-full bg-slate-900/60 hover:bg-slate-900 flex items-center justify-center text-white transition-colors"
+                className="w-8 h-8 rounded-full bg-slate-900/60 hover:bg-slate-900 flex items-center justify-center text-white transition-colors border border-slate-800"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-indigo-900/40 via-purple-955/20 to-slate-950 relative">
-              <div className="absolute top-1/3 left-10 text-indigo-500/10 pointer-events-none transform -rotate-12"><MessageSquare className="w-24 h-24" /></div>
-              <div className="absolute bottom-1/3 right-10 text-pink-500/10 pointer-events-none transform rotate-12"><Heart className="w-24 h-24" /></div>
+            <div className="flex-1 flex flex-col items-center justify-center relative bg-slate-950">
+              {activeStory.mediaUrl ? (
+                <>
+                  <img src={activeStory.mediaUrl} alt="Story" className="absolute inset-0 w-full h-full object-cover z-0" />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/10 to-black/20 z-10 pointer-events-none" />
+                </>
+              ) : (
+                <>
+                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/40 via-purple-955/20 to-slate-950 z-0" />
+                  <div className="absolute top-1/3 left-10 text-indigo-500/10 pointer-events-none transform -rotate-12"><MessageSquare className="w-24 h-24" /></div>
+                  <div className="absolute bottom-1/3 right-10 text-pink-500/10 pointer-events-none transform rotate-12"><Heart className="w-24 h-24" /></div>
+                </>
+              )}
 
-              <div className="max-w-md relative z-10 space-y-4">
-                <p className="text-xl md:text-2xl font-extrabold text-white leading-relaxed select-text">
-                  "{activeStory.text}"
+              <div className="absolute bottom-12 left-4 right-4 z-20 text-center">
+                <p className="text-xs md:text-sm font-normal text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.8)] leading-relaxed select-text bg-slate-900/80 backdrop-blur-md rounded-2xl py-2.5 px-4 inline-block max-w-[90%] border border-slate-800/60 shadow-lg">
+                  {activeStory.text}
                 </p>
               </div>
             </div>
 
-            <div className="p-4 bg-slate-955 border-t border-slate-900 flex justify-center text-slate-500 text-[10px] font-light">
+            <div className="p-4 bg-slate-955 border-t border-slate-900 flex justify-center text-slate-500 text-[10px] font-light z-30">
               Press Escape or click close button to exit
             </div>
           </div>
