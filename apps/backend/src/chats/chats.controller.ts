@@ -60,4 +60,12 @@ export class ChatsController {
   ) {
     return this.chatsService.deleteMessageForMe(messageId, userId);
   }
+
+  @Post('group')
+  async createGroupChat(
+    @GetUser('sub') userId: string,
+    @Body() body: { name: string; memberIds: string[]; description?: string },
+  ) {
+    return this.chatsService.createGroupChat(userId, body);
+  }
 }

@@ -18,6 +18,17 @@ interface User {
   allowNotifications: boolean;
 }
 
+interface MessageReaction {
+  id: string;
+  emoji: string;
+  userId: string;
+  user: {
+    id: string;
+    username: string;
+    displayName: string | null;
+  };
+}
+
 interface Message {
   id: string;
   chatId: string;
@@ -45,6 +56,7 @@ interface Message {
     displayName: string | null;
     avatarUrl: string | null;
   };
+  reactions?: MessageReaction[];
 }
 
 interface Chat {
@@ -89,6 +101,8 @@ interface ChatContextType {
   deleteMessageEveryone: (messageId: string) => void;
   editMessage: (messageId: string, content: string) => void;
   updateProfileSettings: (data: { displayName?: string; bio?: string; avatarUrl?: string; showLastSeen?: boolean; showReadReceipts?: boolean; allowNotifications?: boolean }) => Promise<void>;
+  createGroupChat: (name: string, memberIds: string[], description?: string) => Promise<string | null>;
+  toggleReaction: (messageId: string, emoji: string) => void;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -196,6 +210,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setMessages((prev) => prev.map((m) => (m.id === deleted.id ? deleted : m)));
       }
       fetchChats();
+    });
+
+    socket.on('message_reaction_toggled', (data: { messageId: string; chatId: string; reactions: MessageReaction[] }) => {
+      if (activeChatIdRef.current === data.chatId) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === data.messageId ? { ...m, reactions: data.reactions } : m))
+        );
+      }
     });
 
     socket.on('typing', (data: { chatId: string; userId: string; isTyping: boolean }) => {
@@ -467,7 +489,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       if (res.ok) {
         setMessages((prev) => prev.filter((m) => m.id !== messageId));
-        await fetchChats(); // Refresh last message preview
+        await fetchChats();
       }
     } catch (err) {
       console.error('Error deleting message for me:', err);
@@ -507,6 +529,35 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const createGroupChat = async (name: string, memberIds: string[], description?: string): Promise<string | null> => {
+    if (!accessToken) return null;
+    try {
+      const res = await fetch(`${API_URL}/chats/group`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ name, memberIds, description }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await fetchChats();
+        setActiveChatId(data.id);
+        return data.id;
+      }
+      return null;
+    } catch (err) {
+      console.error('Error creating group chat:', err);
+      return null;
+    }
+  };
+
+  const toggleReaction = (messageId: string, emoji: string) => {
+    if (!socketRef.current || !activeChatId) return;
+    socketRef.current.emit('toggle_reaction', { chatId: activeChatId, messageId, emoji });
+  };
+
   const activeChat = chats.find((c) => c.id === activeChatId) || null;
 
   return (
@@ -539,6 +590,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         deleteMessageEveryone,
         editMessage,
         updateProfileSettings,
+        createGroupChat,
+        toggleReaction,
       }}
     >
       {children}

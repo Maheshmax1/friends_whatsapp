@@ -270,4 +270,64 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       userId,
     });
   }
+
+  @SubscribeMessage('toggle_reaction')
+  async handleToggleReaction(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { chatId: string; messageId: string; emoji: string },
+  ) {
+    const userId = client.data.userId;
+    if (!userId) return { success: false };
+
+    const existing = await this.prisma.messageReaction.findUnique({
+      where: {
+        messageId_userId: {
+          messageId: data.messageId,
+          userId,
+        },
+      },
+    });
+
+    if (existing) {
+      if (existing.emoji === data.emoji) {
+        await this.prisma.messageReaction.delete({
+          where: { id: existing.id },
+        });
+      } else {
+        await this.prisma.messageReaction.update({
+          where: { id: existing.id },
+          data: { emoji: data.emoji },
+        });
+      }
+    } else {
+      await this.prisma.messageReaction.create({
+        data: {
+          messageId: data.messageId,
+          userId,
+          emoji: data.emoji,
+        },
+      });
+    }
+
+    const reactions = await this.prisma.messageReaction.findMany({
+      where: { messageId: data.messageId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+          },
+        },
+      },
+    });
+
+    this.server.to(`chat:${data.chatId}`).emit('message_reaction_toggled', {
+      messageId: data.messageId,
+      chatId: data.chatId,
+      reactions,
+    });
+
+    return { success: true, reactions };
+  }
 }

@@ -73,6 +73,7 @@ model User {
   callPartic         CallParticipant[]
   starredMessages    StarredMessage[]
   deletedForMe       DeletedForMeMessage[]
+  reactions          MessageReaction[]
 }
 
 model Session {
@@ -148,6 +149,7 @@ model Message {
   attachments Attachment[]
   starredBy   StarredMessage[]
   deletedBy   DeletedForMeMessage[]
+  reactions   MessageReaction[]
 }
 
 model StarredMessage {
@@ -170,6 +172,18 @@ model DeletedForMeMessage {
   createdAt DateTime @default(now())
 
   @@unique([userId, messageId])
+}
+
+model MessageReaction {
+  id        String   @id @default(uuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  emoji     String
+  createdAt DateTime @default(now())
+
+  @@unique([messageId, userId])
 }
 
 model Attachment {

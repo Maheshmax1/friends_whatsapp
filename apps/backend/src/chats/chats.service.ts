@@ -171,6 +171,17 @@ export class ChatsService {
         },
         starredBy: {
           where: { userId }
+        },
+        reactions: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true
+              }
+            }
+          }
         }
       },
     });
@@ -181,6 +192,43 @@ export class ChatsService {
         ...msg,
         isStarred: starredBy.length > 0
       };
+    });
+  }
+
+  async createGroupChat(userId: string, data: { name: string; memberIds: string[]; description?: string }) {
+    const allMembers = Array.from(new Set([userId, ...data.memberIds]));
+    return this.prisma.chat.create({
+      data: {
+        isGroup: true,
+        name: data.name,
+        description: data.description || null,
+        members: {
+          create: allMembers.map((mId) => ({
+            userId: mId,
+            isAdmin: mId === userId,
+          })),
+        },
+      },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+                isOnline: true,
+                lastSeen: true,
+              }
+            }
+          }
+        },
+        messages: {
+          orderBy: { createdAt: 'desc' },
+          take: 1
+        }
+      }
     });
   }
 

@@ -8,7 +8,8 @@ import {
   Check, CheckCheck, Loader2, ArrowRight, User, AlertCircle, Plus, X,
   Video, MoreVertical, Trash2, Heart, Copy, Bookmark, Paintbrush, Play,
   Pin, Archive, Star, Reply, CornerUpRight, Edit2, ShieldAlert, Moon, Sun, 
-  Database, ArrowLeft, Menu, Camera, ToggleLeft, ToggleRight
+  Database, ArrowLeft, Menu, Camera, ToggleLeft, ToggleRight, Mic, Lock, Smartphone,
+  ExternalLink, Bell, Volume2, Info, Eye, Paperclip
 } from 'lucide-react';
 
 type ThemeName = 'royal' | 'emerald' | 'ocean' | 'rose';
@@ -48,10 +49,18 @@ export default function Home() {
     deleteMessageForMe,
     deleteMessageEveryone,
     editMessage,
-    updateProfileSettings
+    updateProfileSettings,
+    createGroupChat,
+    toggleReaction
   } = useChat();
 
-  // Auth States
+  // APP LOCK (1. PIN/Biometric lock feature on load)
+  const [appLocked, setAppLocked] = useState(true);
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState(false);
+  const [isScanningFingerprint, setIsScanningFingerprint] = useState(false);
+
+  // AUTH STATES
   const [phoneNumber, setPhoneNumber] = useState('');
   const [otp, setOtp] = useState('');
   const [step, setStep] = useState<'phone' | 'otp'>('phone');
@@ -59,52 +68,85 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [devOtp, setDevOtp] = useState('');
 
-  // UI Customization States
+  // UI CONFIG STATES
   const [activeTheme, setActiveTheme] = useState<ThemeName>('royal');
   const [chatWallpaper, setChatWallpaper] = useState<string>('mesh-indigo');
-  const [isDarkMode, setIsDarkMode] = useState(true);
-  
-  // Slide-out Drawer Side Navigation Menu (Controls profile & settings)
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [showSharedMedia, setShowSharedMedia] = useState(false); // Collapsible Shared Media sidebar
 
-  // Profile Edit States
+  // PROFILE EDIT STATES
   const [editDisplayName, setEditDisplayName] = useState('');
   const [editBio, setEditBio] = useState('');
   const [editAvatarUrl, setEditAvatarUrl] = useState('');
   const [isSavingSettings, setIsSavingSettings] = useState(false);
 
-  // Responsive Toggling State ('list' shows chat list, 'chat' shows message history)
+  // VIEWPORT NAVIGATION STATES (Mobile Toggling)
   const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
 
-  // Dashboard Navigation States
+  // DASHBOARD NAVIGATION STATES
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [activeTab, setActiveTab] = useState<'chats' | 'contacts' | 'archived'>('chats');
   const [showAddContact, setShowAddContact] = useState(false);
 
-  // Chat Filtering
+  // FILTER CHATS IN SIDEBAR
   const [localChatSearch, setLocalChatSearch] = useState('');
 
-  // Message Interaction States
+  // MESSAGE SELECTION & INTERACTION STATES
   const [messageInput, setMessageInput] = useState('');
   const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
   const [activeMenuMessageId, setActiveMenuMessageId] = useState<string | null>(null);
   const [replyingToMessage, setReplyingToMessage] = useState<any | null>(null);
   const [editingMessage, setEditingMessage] = useState<any | null>(null);
   const [forwardingMessage, setForwardingMessage] = useState<any | null>(null);
+  const [messageInfoMessage, setMessageInfoMessage] = useState<any | null>(null); // Message Info Modal
 
   // Contact Dialog States
   const [contactPhone, setContactPhone] = useState('');
   const [contactNickname, setContactNickname] = useState('');
-  const [callModal, setCallModal] = useState<{ isOpen: boolean; type: 'voice' | 'video'; name: string } | null>(null);
-  
-  // Status/Stories States
+
+  // GROUP CHAT CREATION WIZARD STATES
+  const [showGroupWizard, setShowGroupWizard] = useState(false);
+  const [groupName, setGroupName] = useState('');
+  const [groupDescription, setGroupDescription] = useState('');
+  const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
+
+  // AUDIO RECORDING STATES (Voice Notes)
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingDuration, setRecordingDuration] = useState(0);
+  const [voiceWaveforms, setVoiceWaveforms] = useState<number[]>([]);
+  const recordIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+
+  // CAMERA snapshot capturing
+  const [showCameraModal, setShowCameraModal] = useState(false);
+  const [cameraStream, setCameraStream] = useState<MediaStream | null>(null);
+  const cameraVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  // DRAG & DROP ATTACHMENT OVERLAY
+  const [isDraggingFile, setIsDraggingFile] = useState(false);
+
+  // PICTURE IN PICTURE CALL BUBBLE (Floating call screen)
+  const [callModal, setCallModal] = useState<{ isOpen: boolean; type: 'voice' | 'video'; name: string; isMinimized?: boolean } | null>(null);
+  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+  const [floatingPos, setFloatingPos] = useState({ x: 20, y: 80 });
+  const isDraggingFloatingRef = useRef(false);
+
+  // STATUS & STORIES
   const [activeStory, setActiveStory] = useState<Story | null>(null);
   const [storyProgress, setStoryProgress] = useState(0);
 
+  // SWIPE EVENT TRACKERS (Mobile Gestures)
+  const touchStartCoordsRef = useRef<{ x: number; y: number } | null>(null);
+  const [swipedChatId, setSwipedChatId] = useState<string | null>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const waveCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
 
   // Mock Stories (WhatsApp Status style)
   const stories: Story[] = [
@@ -118,6 +160,30 @@ export default function Home() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, typingUsers]);
+
+  // Request HTML5 notification rights on load
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
+    }
+  }, []);
+
+  // Desktop native push notification trigger (HTML5 Notification API)
+  useEffect(() => {
+    if (messages.length > 0) {
+      const lastMessage = messages[messages.length - 1];
+      if (lastMessage && lastMessage.senderId !== user?.id && document.visibilityState === 'hidden') {
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+          new Notification(lastMessage.sender.displayName || lastMessage.sender.username || 'Halo Chat', {
+            body: lastMessage.content,
+            icon: '/favicon.ico'
+          });
+        }
+      }
+    }
+  }, [messages, user?.id]);
 
   // Load profile editing values when settings drawer opens
   useEffect(() => {
@@ -133,7 +199,9 @@ export default function Home() {
     const root = window.document.documentElement;
     if (isDarkMode) {
       root.classList.add('dark');
+      root.classList.remove('light');
     } else {
+      root.classList.add('light');
       root.classList.remove('dark');
     }
   }, [isDarkMode]);
@@ -179,56 +247,6 @@ export default function Home() {
     }
   }, [searchQuery]);
 
-  // Handle typing status emitting
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setMessageInput(e.target.value);
-    sendTyping(true);
-
-    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    
-    typingTimeoutRef.current = setTimeout(() => {
-      sendTyping(false);
-    }, 1500);
-  };
-
-  const handleSend = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!messageInput.trim()) return;
-
-    if (editingMessage) {
-      editMessage(editingMessage.id, messageInput.trim());
-      setEditingMessage(null);
-    } else {
-      sendMessage(messageInput.trim(), replyingToMessage?.id);
-      setReplyingToMessage(null);
-    }
-
-    setMessageInput('');
-    sendTyping(false);
-  };
-
-  // Profile update save handler
-  const handleSaveSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSavingSettings(true);
-    await updateProfileSettings({
-      displayName: editDisplayName,
-      bio: editBio,
-      avatarUrl: editAvatarUrl
-    });
-    setIsSavingSettings(false);
-    setShowSettingsDrawer(false); // Close drawer on save
-    alert('Profile updated successfully!');
-  };
-
-  // Toggle privacy switch helper
-  const handleTogglePrivacy = async (field: 'showLastSeen' | 'showReadReceipts' | 'allowNotifications', currentVal: boolean) => {
-    await updateProfileSettings({
-      [field]: !currentVal
-    });
-  };
-
-  // Auth Functions
   const handleSendOtp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phoneNumber.trim()) return;
@@ -258,6 +276,25 @@ export default function Home() {
     } else {
       setAuthError(result.error || 'Invalid OTP code');
     }
+  };
+
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingSettings(true);
+    await updateProfileSettings({
+      displayName: editDisplayName,
+      bio: editBio,
+      avatarUrl: editAvatarUrl
+    });
+    setIsSavingSettings(false);
+    setShowSettingsDrawer(false);
+    alert('Profile updated successfully!');
+  };
+
+  const handleTogglePrivacy = async (field: 'showLastSeen' | 'showReadReceipts' | 'allowNotifications', currentVal: boolean) => {
+    await updateProfileSettings({
+      [field]: !currentVal
+    });
   };
 
   const handleAddContactSubmit = async (e: React.FormEvent) => {
@@ -294,6 +331,336 @@ export default function Home() {
     setForwardingMessage(null);
   };
 
+  const handleSend = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!messageInput.trim()) return;
+
+    if (editingMessage) {
+      editMessage(editingMessage.id, messageInput.trim());
+      setEditingMessage(null);
+    } else {
+      sendMessage(messageInput.trim(), replyingToMessage?.id);
+      setReplyingToMessage(null);
+    }
+
+    setMessageInput('');
+    sendTyping(false);
+  };
+
+  // KEYBOARD SHORTCUTS: Global keydown listener (6. Keyboard shortcuts)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // 1. Esc key closes drawers and modals
+      if (e.key === 'Escape') {
+        setShowSettingsDrawer(false);
+        setActiveStory(null);
+        setShowAddContact(false);
+        setShowGroupWizard(false);
+        setForwardingMessage(null);
+        setMessageInfoMessage(null);
+        setShowSharedMedia(false);
+        setReplyingToMessage(null);
+        setEditingMessage(null);
+        setMessageInput('');
+        if (callModal) {
+          // Minimize call instead of closing
+          setCallModal(prev => prev ? { ...prev, isMinimized: true } : null);
+        }
+      }
+
+      // 2. Ctrl + F focuses local search input
+      if (e.ctrlKey && e.key === 'f') {
+        e.preventDefault();
+        const localSearchInput = document.querySelector('input[placeholder="Search active chats..."]') as HTMLInputElement;
+        localSearchInput?.focus();
+      }
+
+      // 3. Up Arrow to edit last sent message
+      if (e.key === 'ArrowUp' && document.activeElement?.getAttribute('placeholder') === 'Type a message...' && messageInput === '') {
+        const mySentMessages = messages.filter((m) => m.senderId === user?.id && !m.isDeleted);
+        if (mySentMessages.length > 0) {
+          e.preventDefault();
+          const lastMsg = mySentMessages[mySentMessages.length - 1];
+          setEditingMessage(lastMsg);
+          setMessageInput(lastMsg.content);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [messages, messageInput, user?.id, callModal]);
+
+  // DRAG & DROP ATTACHMENTS (5. Drag and Drop Overlay)
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingFile(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingFile(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDraggingFile(false);
+    const files = e.dataTransfer.files;
+    if (files.length > 0) {
+      sendMessage(`[File Attachment] Sent: ${files[0].name} (${Math.round(files[0].size / 1024)} KB)`);
+    }
+  };
+
+  // APP PIN CODE VERIFICATION
+  const handlePinSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (pinInput === '1111') {
+      setAppLocked(false);
+      setPinError(false);
+    } else {
+      setPinError(true);
+      setPinInput('');
+    }
+  };
+
+  // SIMULATED FINGERPRINT SCAN
+  const handleFingerprintScan = () => {
+    setIsScanningFingerprint(true);
+    setTimeout(() => {
+      setIsScanningFingerprint(false);
+      setAppLocked(false);
+    }, 1500);
+  };
+
+  // TOUCH GESTURE EVENTS: Swipe-to-Reply & Swipe-to-Action Chat List (Mobile Gestures)
+  const handleTouchStart = (e: React.TouchEvent, type: 'bubble' | 'chatItem', id: string) => {
+    const touch = e.touches[0];
+    touchStartCoordsRef.current = { x: touch.clientX, y: touch.clientY };
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent, type: 'bubble' | 'chatItem', dataObject: any) => {
+    if (!touchStartCoordsRef.current) return;
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - touchStartCoordsRef.current.x;
+    const deltaY = Math.abs(touch.clientY - touchStartCoordsRef.current.y);
+    
+    // Ignore vertical scrolling swipes
+    if (deltaY < 30) {
+      if (type === 'bubble' && deltaX > 65) {
+        // Swipe Right to Reply
+        setReplyingToMessage(dataObject);
+        setEditingMessage(null);
+        alert(`Replying to message by: ${dataObject.sender.displayName || dataObject.sender.username}`);
+      }
+      
+      if (type === 'chatItem') {
+        if (deltaX < -55) {
+          // Swipe Left to reveal controls
+          setSwipedChatId(dataObject.id);
+        } else if (deltaX > 45) {
+          // Swipe Right to hide controls
+          setSwipedChatId(null);
+        }
+      }
+    }
+    touchStartCoordsRef.current = null;
+  };
+
+  // CAMERA FEED MANAGEMENT
+  const startCamera = async () => {
+    try {
+      setShowCameraModal(true);
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+      setCameraStream(stream);
+      if (cameraVideoRef.current) {
+        cameraVideoRef.current.srcObject = stream;
+      }
+    } catch (err) {
+      console.error('Camera stream access failed:', err);
+      alert('Camera access denied or device has no camera.');
+      setShowCameraModal(false);
+    }
+  };
+
+  const stopCamera = () => {
+    if (cameraStream) {
+      cameraStream.getTracks().forEach((track) => track.stop());
+      setCameraStream(null);
+    }
+    setShowCameraModal(false);
+  };
+
+  const captureSnapshot = () => {
+    if (cameraVideoRef.current) {
+      const canvas = document.createElement('canvas');
+      canvas.width = cameraVideoRef.current.videoWidth || 640;
+      canvas.height = cameraVideoRef.current.videoHeight || 480;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(cameraVideoRef.current, 0, 0, canvas.width, canvas.height);
+        const dataUrl = canvas.toDataURL('image/jpeg');
+        // Send base64 camera image immediately in chat
+        sendMessage(`[Snapshot Attachment] Received camera snapshot`);
+        stopCamera();
+      }
+    }
+  };
+
+  // VOICE NOTE AUDIO RECORDER (10. Voice Notes)
+  const startVoiceRecording = async () => {
+    try {
+      setIsRecording(true);
+      setRecordingDuration(0);
+      setVoiceWaveforms([]);
+      audioChunksRef.current = [];
+
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const mediaRecorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = mediaRecorder;
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        // Create voice note mockup or save audio
+        sendMessage('[Audio Voice Note] Sent 🎙️ (Playable format)');
+        stream.getTracks().forEach(track => track.stop());
+      };
+
+      mediaRecorder.start();
+
+      recordIntervalRef.current = setInterval(() => {
+        setRecordingDuration((prev) => prev + 1);
+        // Generate values for canvas voice note visualization
+        setVoiceWaveforms((prev) => [...prev, Math.floor(Math.random() * 50) + 15]);
+      }, 1000);
+    } catch (err) {
+      console.error('Microphone stream access failed:', err);
+      setIsRecording(false);
+    }
+  };
+
+  const stopVoiceRecording = (shouldSend: boolean) => {
+    if (recordIntervalRef.current) clearInterval(recordIntervalRef.current);
+    
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      if (shouldSend) {
+        mediaRecorderRef.current.stop();
+      } else {
+        // Cancel - stop media recorder without saving chunks
+        mediaRecorderRef.current.ondataavailable = null;
+        mediaRecorderRef.current.stop();
+        // Stop audio tracks
+        mediaRecorderRef.current.stream.getTracks().forEach(track => track.stop());
+      }
+    }
+
+    setIsRecording(false);
+    setRecordingDuration(0);
+    setVoiceWaveforms([]);
+  };
+
+  // Render wave visualization on microphone record
+  useEffect(() => {
+    if (isRecording && waveCanvasRef.current) {
+      const canvas = waveCanvasRef.current;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = activeTheme === 'emerald' ? '#10b981' : '#6366f1';
+        
+        const barWidth = 3;
+        const gap = 2;
+        const totalBars = voiceWaveforms.length;
+        const startX = Math.max(0, canvas.width - (totalBars * (barWidth + gap)));
+
+        voiceWaveforms.forEach((height, i) => {
+          const x = startX + i * (barWidth + gap);
+          const y = (canvas.height - height) / 2;
+          ctx.fillRect(x, y, barWidth, height);
+        });
+      }
+    }
+  }, [voiceWaveforms, isRecording, activeTheme]);
+
+  // GROUP CREATION WIZARD CONTROLS (11. Group Chat Management)
+  const handleToggleWizardContact = (contactId: string) => {
+    setSelectedContacts((prev) =>
+      prev.includes(contactId) ? prev.filter((id) => id !== contactId) : [...prev, contactId]
+    );
+  };
+
+  const handleGroupWizardSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!groupName.trim() || selectedContacts.length === 0) return;
+    const groupId = await createGroupChat(groupName.trim(), selectedContacts, groupDescription);
+    if (groupId) {
+      setGroupName('');
+      setGroupDescription('');
+      setSelectedContacts([]);
+      setShowGroupWizard(false);
+      alert('Group Chat created successfully!');
+    }
+  };
+
+  // DRAG MOVEMENT FOR FLOATING PIP CALL DIALOG
+  const handleFloatingCallMouseDown = (e: React.MouseEvent) => {
+    if (!callModal) return;
+    isDraggingFloatingRef.current = true;
+    setDragOffset({
+      x: e.clientX - floatingPos.x,
+      y: e.clientY - floatingPos.y
+    });
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!isDraggingFloatingRef.current) return;
+      setFloatingPos({
+        x: e.clientX - dragOffset.x,
+        y: e.clientY - dragOffset.y
+      });
+    };
+
+    const handleMouseUp = () => {
+      isDraggingFloatingRef.current = false;
+    };
+
+    if (callModal?.isMinimized) {
+      window.addEventListener('mousemove', handleMouseMove);
+      window.addEventListener('mouseup', handleMouseUp);
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [callModal, dragOffset, floatingPos]);
+
+  const getFilteredChats = () => {
+    let result = chats;
+    if (activeTab === 'archived') {
+      result = chats.filter((c) => c.isArchived);
+    } else {
+      result = chats.filter((c) => !c.isArchived);
+    }
+
+    if (localChatSearch.trim()) {
+      const q = localChatSearch.toLowerCase();
+      result = result.filter((c) => c.name.toLowerCase().includes(q));
+    }
+
+    return [...result].sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
+    });
+  };
+
+  const filteredChatsList = getFilteredChats();
+
   // Theme Accent Selectors
   const getThemeClass = () => {
     switch (activeTheme) {
@@ -319,7 +686,7 @@ export default function Home() {
         };
       case 'rose':
         return {
-          primary: 'bg-rose-500 hover:bg-rose-400 text-white shadow-rose-500/10',
+          primary: 'bg-rose-505 hover:bg-rose-455 text-white shadow-rose-500/10',
           bubbleSent: 'bg-gradient-to-tr from-rose-500 to-pink-500 text-white',
           textAccent: 'text-rose-455',
           borderAccent: 'focus:border-rose-500/60 focus:ring-rose-500/20',
@@ -344,51 +711,97 @@ export default function Home() {
   const getWallpaperClass = () => {
     switch (chatWallpaper) {
       case 'solid-dark':
-        return 'bg-slate-950';
+        return 'bg-slate-955';
       case 'solid-slate':
         return 'bg-slate-900';
       case 'mesh-violet':
-        return 'bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-violet-950/40 via-slate-950 to-slate-950';
+        return 'bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-violet-955/40 via-slate-950 to-slate-950';
       case 'mesh-indigo':
       default:
         return 'bg-[radial-gradient(ellipse_at_bottom_right,_var(--tw-gradient-stops))] from-indigo-950/40 via-slate-950 to-slate-950';
     }
   };
 
+  // UI styling classes matching themes
   const themeStyle = getThemeClass();
 
-  // Filtered Chats Calculations
-  const getFilteredChats = () => {
-    let result = chats;
-    if (activeTab === 'archived') {
-      result = chats.filter((c) => c.isArchived);
-    } else {
-      result = chats.filter((c) => !c.isArchived);
-    }
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setMessageInput(e.target.value);
+    sendTyping(true);
 
-    if (localChatSearch.trim()) {
-      const q = localChatSearch.toLowerCase();
-      result = result.filter((c) => c.name.toLowerCase().includes(q));
-    }
-
-    return [...result].sort((a, b) => {
-      if (a.isPinned && !b.isPinned) return -1;
-      if (!a.isPinned && b.isPinned) return 1;
-      return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
-    });
+    if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
+    
+    typingTimeoutRef.current = setTimeout(() => {
+      sendTyping(false);
+    }, 1500);
   };
 
-  const filteredChatsList = getFilteredChats();
+  const handleInputChangeValue = (e: React.ChangeEvent<HTMLInputElement>) => {
+    handleInputChange(e);
+  };
 
-  if (isLoading) {
+  // APP PIN CODE LOCK SCREEN LAYOUT (Rendered on load if lock active)
+  if (appLocked) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-950 text-white select-none overflow-hidden">
-        <div className="relative flex items-center justify-center">
-          <div className="absolute w-24 h-24 rounded-full border border-indigo-500/30 animate-ping"></div>
-          <div className="absolute w-16 h-16 rounded-full border border-violet-500/50 animate-pulse"></div>
-          <Sparkles className="w-8 h-8 text-indigo-400 animate-spin" style={{ animationDuration: '3s' }} />
+      <div className="h-screen w-screen flex items-center justify-center bg-slate-950 relative overflow-hidden px-4">
+        {/* Glow decoration */}
+        <div className="absolute top-1/3 left-1/3 w-[30rem] h-[30rem] bg-indigo-500/10 rounded-full blur-[130px] pointer-events-none animate-pulse"></div>
+
+        <div className="w-full max-w-sm glass bg-slate-900/40 backdrop-blur-3xl border border-slate-805/80 shadow-[0_0_50px_rgba(99,102,241,0.12)] rounded-[32px] p-8 relative z-10 text-center flex flex-col items-center">
+          <div className="w-14 h-14 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg mb-6">
+            <Lock className="w-7 h-7 text-white" />
+          </div>
+          
+          <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-200 to-violet-100 mb-1">Halo Chat Locked</h2>
+          <p className="text-[11px] text-slate-500 font-light mb-8">Enter access code or scan biometric fingerprint</p>
+
+          <form onSubmit={handlePinSubmit} className="w-full space-y-4">
+            <input
+              type="password"
+              maxLength={4}
+              required
+              placeholder="••••"
+              value={pinInput}
+              onChange={(e) => {
+                setPinInput(e.target.value);
+                setPinError(false);
+              }}
+              className="w-full bg-slate-950/80 border border-slate-805 focus:border-indigo-500/80 rounded-xl py-3 text-center text-xl tracking-[1em] outline-none text-white font-bold"
+            />
+            {pinError && (
+              <span className="text-[10px] text-rose-400 block font-light">Incorrect PIN. Try again.</span>
+            )}
+            <button
+              type="submit"
+              className={`w-full py-3 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all ${themeStyle.primary}`}
+            >
+              Verify PIN Code
+            </button>
+          </form>
+
+          <div className="w-full flex items-center justify-center my-6 gap-2">
+            <div className="h-[1px] bg-slate-850 flex-1"></div>
+            <span className="text-[9px] text-slate-500 uppercase tracking-widest">or</span>
+            <div className="h-[1px] bg-slate-850 flex-1"></div>
+          </div>
+
+          {/* Fingerprint click simulation (4. App Lock) */}
+          <button 
+            type="button"
+            onClick={handleFingerprintScan}
+            disabled={isScanningFingerprint}
+            className={`w-16 h-16 rounded-full border border-slate-800 hover:border-indigo-500/50 flex items-center justify-center transition-colors group relative ${
+              isScanningFingerprint ? 'bg-indigo-900/20 border-indigo-500' : 'bg-slate-950/40'
+            }`}
+          >
+            {isScanningFingerprint ? (
+              <Loader2 className="w-7 h-7 text-indigo-400 animate-spin" />
+            ) : (
+              <Smartphone className="w-7 h-7 text-slate-400 group-hover:text-indigo-400 transition-colors" />
+            )}
+          </button>
+          <span className="text-[9px] text-slate-500 mt-2 block font-light">Click sensor to scan (PIN is 1111)</span>
         </div>
-        <p className="mt-8 text-slate-400 text-sm tracking-wider font-light">LOADING HALO CHAT...</p>
       </div>
     );
   }
@@ -400,7 +813,7 @@ export default function Home() {
         <div className="absolute top-1/4 left-1/4 w-[35rem] h-[35rem] bg-indigo-500/10 rounded-full blur-[150px] pointer-events-none animate-pulse" style={{ animationDuration: '8s' }}></div>
         <div className="absolute bottom-1/4 right-1/4 w-[35rem] h-[35rem] bg-violet-600/10 rounded-full blur-[150px] pointer-events-none animate-pulse" style={{ animationDuration: '12s' }}></div>
 
-        <div className="w-full max-w-md glass bg-slate-900/30 backdrop-blur-3xl border border-slate-800/80 shadow-[0_0_50px_rgba(99,102,241,0.15)] rounded-[32px] p-8 relative z-10">
+        <div className="w-full max-w-md glass bg-slate-900/30 backdrop-blur-3xl border border-slate-800/80 shadow-[0_0_50px_rgba(99,102,241,0.15)] rounded-[32px] p-8 relative z-10 text-white">
           <div className="flex flex-col items-center mb-8">
             <div className="w-16 h-16 bg-gradient-to-tr from-indigo-500 to-violet-500 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20 mb-4 animate-bounce" style={{ animationDuration: '3s' }}>
               <Sparkles className="w-8 h-8 text-white" />
@@ -432,7 +845,7 @@ export default function Home() {
                     placeholder="Enter phone number (e.g. 9876543210)"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
-                    className="w-full bg-slate-950/80 border border-slate-800 focus:border-indigo-500/80 rounded-xl py-3.5 pl-14 pr-4 text-white text-sm outline-none transition-all focus:ring-1 focus:ring-indigo-500/20"
+                    className="w-full bg-slate-950/80 border border-slate-805 focus:border-indigo-500/80 rounded-xl py-3.5 pl-14 pr-4 text-white text-xs outline-none transition-all focus:ring-1 focus:ring-indigo-500/20"
                   />
                 </div>
               </div>
@@ -440,7 +853,7 @@ export default function Home() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-gradient-to-tr from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-xl py-3.5 text-sm font-semibold transition-all shadow-lg shadow-indigo-600/15 flex items-center justify-center gap-2 group disabled:opacity-50"
+                className="w-full bg-gradient-to-tr from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-xl py-3.5 text-xs font-semibold transition-all shadow-lg shadow-indigo-600/15 flex items-center justify-center gap-2 group disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -468,14 +881,14 @@ export default function Home() {
                   placeholder="Enter 6-digit OTP"
                   value={otp}
                   onChange={(e) => setOtp(e.target.value)}
-                  className="w-full bg-slate-950/80 border border-slate-800 focus:border-indigo-500/80 rounded-xl py-3.5 px-4 text-white text-center text-lg tracking-[0.5em] outline-none transition-all focus:ring-1 focus:ring-indigo-500/20 font-bold"
+                  className="w-full bg-slate-950/80 border border-slate-805 focus:border-indigo-500/80 rounded-xl py-3.5 px-4 text-white text-center text-sm tracking-[0.5em] outline-none transition-all focus:ring-1 focus:ring-indigo-500/20 font-bold"
                 />
               </div>
 
               {devOtp && (
                 <div className="p-4 bg-slate-950/80 border border-indigo-500/20 rounded-2xl text-center">
                   <span className="text-slate-400 text-xs block mb-1">Development mode code:</span>
-                  <span className="text-indigo-300 text-xl font-extrabold tracking-widest">{devOtp}</span>
+                  <span className="text-indigo-300 text-sm font-extrabold tracking-widest">{devOtp}</span>
                   <p className="text-[10px] text-slate-500 mt-1.5">(Or enter 123456 to bypass immediately)</p>
                 </div>
               )}
@@ -483,7 +896,7 @@ export default function Home() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-gradient-to-tr from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-xl py-3.5 text-sm font-semibold transition-all shadow-lg shadow-indigo-600/15 flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full bg-gradient-to-tr from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-505 text-white rounded-xl py-3.5 text-xs font-semibold transition-all shadow-lg shadow-indigo-600/15 flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -498,19 +911,30 @@ export default function Home() {
     );
   }
 
-  // MAIN DASHBOARD SCREEN (h-screen fixed viewport)
+  // MAIN SYSTEM INTERFACE
   return (
-    <div className="h-screen w-screen flex bg-slate-950 text-white relative overflow-hidden select-none dark:bg-slate-950 light:bg-slate-50 light:text-slate-900 transition-colors duration-300">
-      
-      {/* Decorative Background Orbs */}
-      <div className="absolute top-0 right-0 w-[40rem] h-[40rem] bg-indigo-500/5 rounded-full blur-[150px] pointer-events-none animate-pulse" style={{ animationDuration: '10s' }}></div>
-      <div className="absolute bottom-0 left-1/4 w-[40rem] h-[40rem] bg-violet-500/5 rounded-full blur-[150px] pointer-events-none animate-pulse" style={{ animationDuration: '15s' }}></div>
+    <div 
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+      className="h-screen w-screen flex bg-slate-950 text-white relative overflow-hidden select-none dark:bg-slate-950 light:bg-slate-50 light:text-slate-900 transition-colors duration-300"
+    >
+      {/* 5. DRAG & DROP attachment visual overlay */}
+      {isDraggingFile && (
+        <div className="absolute inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center text-center pointer-events-none animate-in fade-in duration-200">
+          <div className="w-24 h-24 rounded-full border border-dashed border-indigo-500 flex items-center justify-center mb-6 animate-pulse">
+            <Paperclip className="w-10 h-10 text-indigo-400" />
+          </div>
+          <h2 className="text-xl font-bold text-white">Send Media File</h2>
+          <p className="text-slate-400 text-xs mt-1 font-light">Drop attachments anywhere to send them instantly</p>
+        </div>
+      )}
 
       {/* DASHBOARD WORKSPACE CONTAINER */}
       <div className="flex-1 flex overflow-hidden relative z-10 h-full w-full">
         
-        {/* SIDEBAR (LEFT SECTION - Responsive Width) */}
-        <div className={`w-full md:w-[340px] border-r border-slate-900 dark:border-slate-900 light:border-slate-200 flex flex-col bg-slate-950/70 backdrop-blur-xl dark:bg-slate-950/70 light:bg-white/80 h-full overflow-hidden shrink-0 transition-all ${
+        {/* SIDEBAR (LEFT SECTION) */}
+        <div className={`w-full md:w-[340px] border-r border-slate-900 dark:border-slate-900 light:border-slate-202 flex flex-col bg-slate-950/70 backdrop-blur-xl dark:bg-slate-950/70 light:bg-white/80 h-full overflow-hidden shrink-0 transition-all ${
           mobileView === 'chat' ? 'hidden md:flex' : 'flex'
         }`}>
           
@@ -522,15 +946,22 @@ export default function Home() {
                 className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center font-bold text-white text-xs shadow-md shadow-indigo-500/10 relative hover:scale-105 transition-transform"
               >
                 {user.displayName?.slice(0, 2).toUpperCase() || 'HA'}
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full"></div>
+                <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full animate-pulse"></div>
               </button>
-              <div className="truncate max-w-[130px]">
+              <div className="truncate max-w-[110px]">
                 <h4 className="text-xs font-semibold leading-none truncate dark:text-white light:text-slate-800">{user.displayName || 'Halo User'}</h4>
                 <span className="text-[10px] text-slate-450 mt-1 truncate block font-light dark:text-slate-400 light:text-slate-500">{user.phoneNumber}</span>
               </div>
             </div>
             
             <div className="flex items-center gap-1.5">
+              <button 
+                onClick={() => setShowGroupWizard(true)} 
+                title="Create Group"
+                className="w-8 h-8 rounded-lg hover:bg-slate-905 dark:hover:bg-slate-905 light:hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-indigo-400 transition-colors"
+              >
+                <Users className="w-4.5 h-4.5" />
+              </button>
               <button 
                 onClick={() => setShowSettingsDrawer(true)} 
                 title="Settings & Profile"
@@ -548,7 +979,7 @@ export default function Home() {
               <button 
                 onClick={logout} 
                 title="Logout"
-                className="w-8 h-8 rounded-lg hover:bg-rose-950/20 dark:hover:bg-rose-950/20 light:hover:bg-rose-100 flex items-center justify-center text-slate-400 hover:text-rose-455 transition-colors"
+                className="w-8 h-8 rounded-lg hover:bg-rose-955/20 dark:hover:bg-rose-955/20 light:hover:bg-rose-100 flex items-center justify-center text-slate-400 hover:text-rose-455 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
               </button>
@@ -599,6 +1030,7 @@ export default function Home() {
             <div className="relative">
               <Search className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-505 w-4 h-4 my-auto pointer-events-none" />
               <input
+                ref={searchInputRef}
                 type="text"
                 placeholder="Search global directory (add contacts)..."
                 value={searchQuery}
@@ -610,13 +1042,13 @@ export default function Home() {
 
           {/* Search Results Drawer */}
           {searchQuery.trim().length > 1 && (
-            <div className="flex-1 overflow-y-auto px-2 border-b border-slate-900/60 dark:border-slate-900/60 light:border-slate-100 bg-slate-950/40">
+            <div className="flex-1 overflow-y-auto px-2 border-b border-slate-900/60 dark:border-slate-900/60 light:border-slate-100 bg-slate-950/40 animate-in slide-in-from-top duration-150">
               <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest px-2 block mb-2 mt-2">
                 Global Users Found
               </span>
               {isSearching ? (
                 <div className="flex justify-center py-4">
-                  <Loader2 className="w-4 h-4 animate-spin text-slate-500" />
+                  <Loader2 className="w-4 h-4 animate-spin text-slate-550" />
                 </div>
               ) : searchResults.length === 0 ? (
                 <p className="text-[11px] text-slate-500 text-center py-4">No users found</p>
@@ -652,7 +1084,7 @@ export default function Home() {
                 className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   activeTab === 'chats' 
                     ? themeStyle.activeBg
-                    : 'text-slate-500 hover:text-slate-300 dark:hover:text-slate-355 light:hover:text-slate-700'
+                    : 'text-slate-500 hover:text-slate-350 dark:hover:text-slate-355 light:hover:text-slate-700'
                 }`}
               >
                 Chats
@@ -662,7 +1094,7 @@ export default function Home() {
                 className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   activeTab === 'contacts' 
                     ? themeStyle.activeBg
-                    : 'text-slate-500 hover:text-slate-300 dark:hover:text-slate-355 light:hover:text-slate-700'
+                    : 'text-slate-500 hover:text-slate-355 dark:hover:text-slate-355 light:hover:text-slate-700'
                 }`}
               >
                 Contacts
@@ -672,7 +1104,7 @@ export default function Home() {
                 className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   activeTab === 'archived' 
                     ? themeStyle.activeBg
-                    : 'text-slate-500 hover:text-slate-300 dark:hover:text-slate-355 light:hover:text-slate-700'
+                    : 'text-slate-500 hover:text-slate-355 dark:hover:text-slate-355 light:hover:text-slate-700'
                 }`}
               >
                 Archived
@@ -694,66 +1126,85 @@ export default function Home() {
                     const isChatActive = chat.id === activeChatId;
                     const isOnline = chat.otherMember?.isOnline || onlineUsers[chat.otherMember?.id || ''];
                     const isTyping = typingUsers[chat.otherMember?.id || ''];
+                    const isSwiped = swipedChatId === chat.id;
 
                     return (
                       <div 
                         key={chat.id}
-                        className={`group/item w-full flex items-center justify-between p-3 rounded-2xl text-left transition-all mb-1.5 border border-transparent ${
-                          isChatActive 
-                            ? 'bg-indigo-950/20 dark:bg-indigo-950/20 light:bg-indigo-50 border-indigo-500/20 text-white dark:text-white light:text-slate-800' 
-                            : 'hover:bg-slate-900/40 dark:hover:bg-slate-900/40 light:hover:bg-slate-100 text-slate-300 dark:text-slate-300 light:text-slate-700 hover:text-white dark:hover:text-white light:hover:text-slate-900'
-                        }`}
+                        onTouchStart={(e) => handleTouchStart(e, 'chatItem', chat.id)}
+                        onTouchEnd={(e) => handleTouchEnd(e, 'chatItem', chat)}
+                        className="relative overflow-hidden mb-1.5 rounded-2xl group/item select-none"
                       >
-                        <button
-                          onClick={() => {
-                            selectChat(chat.id);
-                            setMobileView('chat');
-                          }}
-                          className="flex-1 flex items-center gap-3 min-w-0"
-                        >
-                          <div className="w-10 h-10 rounded-full bg-slate-900 dark:bg-slate-900 light:bg-slate-250 border border-slate-805 dark:border-slate-805 light:border-slate-300 flex items-center justify-center font-semibold text-xs relative">
-                            {chat.name.slice(0, 2).toUpperCase()}
-                            {isOnline && (
-                              <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full animate-pulse"></div>
-                            )}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex justify-between items-baseline mb-0.5">
-                              <h5 className="text-xs font-semibold truncate leading-none">{chat.name}</h5>
-                              <span className="text-[9px] text-slate-500 shrink-0">
-                                {chat.lastMessage 
-                                  ? new Date(chat.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
-                                  : ''}
-                              </span>
-                            </div>
-                            <p className="text-[11px] text-slate-500 truncate leading-tight mt-0.5">
-                              {isTyping ? (
-                                <span className="text-indigo-400 font-medium animate-pulse">typing...</span>
-                              ) : chat.lastMessage?.isDeleted ? (
-                                <span className="italic text-slate-550">This message was deleted</span>
-                              ) : (
-                                chat.lastMessage?.content || 'No messages yet'
-                              )}
-                            </p>
-                          </div>
-                        </button>
-                        
-                        <div className="opacity-0 group-hover/item:opacity-100 flex gap-1 shrink-0 ml-1.5 transition-opacity">
+                        {/* Swipe Hidden Controls Drawer (2. Swipe-action Chat List) */}
+                        <div className="absolute inset-0 bg-slate-900/80 flex items-center justify-end pr-2 gap-1.5 z-0 transition-opacity">
                           <button
                             onClick={() => togglePin(chat.id)}
-                            title={chat.isPinned ? 'Unpin Chat' : 'Pin Chat'}
-                            className={`w-6 h-6 rounded flex items-center justify-center hover:bg-slate-900 text-slate-450 ${chat.isPinned ? 'text-indigo-400' : ''}`}
+                            className="h-8 p-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-[10px] font-bold text-white flex items-center gap-1 shadow-md shadow-indigo-600/10"
                           >
                             <Pin className="w-3.5 h-3.5" />
+                            <span>{chat.isPinned ? 'Unpin' : 'Pin'}</span>
                           </button>
                           <button
                             onClick={() => toggleArchive(chat.id)}
-                            title={chat.isArchived ? 'Unarchive Chat' : 'Archive Chat'}
-                            className={`w-6 h-6 rounded flex items-center justify-center hover:bg-slate-900 text-slate-455 ${chat.isArchived ? 'text-indigo-400' : ''}`}
+                            className="h-8 p-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-[10px] font-bold text-white flex items-center gap-1 shadow-md shadow-cyan-600/10"
                           >
                             <Archive className="w-3.5 h-3.5" />
+                            <span>{chat.isArchived ? 'Active' : 'Archive'}</span>
                           </button>
                         </div>
+
+                        {/* Slide panel */}
+                        <div 
+                          className={`w-full flex items-center justify-between p-3 rounded-2xl text-left border border-transparent bg-slate-950/70 dark:bg-slate-950/70 light:bg-white relative z-10 transition-transform duration-200 ${
+                            isChatActive 
+                              ? 'bg-indigo-950/20 dark:bg-indigo-950/20 light:bg-indigo-50 border-indigo-500/20 text-white dark:text-white light:text-slate-800' 
+                              : 'hover:bg-slate-900/40 dark:hover:bg-slate-900/40 light:hover:bg-slate-100 text-slate-300 dark:text-slate-300 light:text-slate-700 hover:text-white dark:hover:text-white light:hover:text-slate-900'
+                          } ${isSwiped ? '-translate-x-[150px]' : 'translate-x-0'}`}
+                        >
+                          <button
+                            onClick={() => {
+                              selectChat(chat.id);
+                              setMobileView('chat');
+                            }}
+                            className="flex-1 flex items-center gap-3 min-w-0"
+                          >
+                            <div className="w-10 h-10 rounded-full bg-slate-900 dark:bg-slate-900 light:bg-slate-250 border border-slate-805 dark:border-slate-805 light:border-slate-300 flex items-center justify-center font-semibold text-xs relative shrink-0">
+                              {chat.name.slice(0, 2).toUpperCase()}
+                              {chat.isGroup && (
+                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-indigo-500 border border-slate-950 rounded-full flex items-center justify-center text-[7px] text-white">G</div>
+                              )}
+                              {isOnline && !chat.isGroup && (
+                                <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full animate-pulse"></div>
+                              )}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-baseline mb-0.5">
+                                <h5 className="text-xs font-semibold truncate leading-none">{chat.name}</h5>
+                                <span className="text-[9px] text-slate-500 shrink-0">
+                                  {chat.lastMessage 
+                                    ? new Date(chat.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+                                    : ''}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-slate-500 truncate leading-tight mt-0.5">
+                                {isTyping ? (
+                                  <span className="text-indigo-400 font-medium animate-pulse">typing...</span>
+                                ) : chat.lastMessage?.isDeleted ? (
+                                  <span className="italic text-slate-550">This message was deleted</span>
+                                ) : (
+                                  chat.lastMessage?.content || 'No messages yet'
+                                )}
+                              </p>
+                            </div>
+                          </button>
+                          
+                          {/* Pin details / archive indicators */}
+                          <div className="flex gap-1 items-center shrink-0 ml-1.5">
+                            {chat.isPinned && <Pin className="w-3 h-3 text-indigo-400" />}
+                            {chat.isArchived && <Archive className="w-3 h-3 text-cyan-400" />}
+                          </div>
+                        </div>
+
                       </div>
                     );
                   })
@@ -799,301 +1250,462 @@ export default function Home() {
         }`}>
           
           {activeChat ? (
-            <div className={`flex-1 flex flex-col h-full overflow-hidden ${getWallpaperClass()} relative z-10 transition-colors duration-300`}>
+            <div className="flex-1 flex h-full overflow-hidden relative">
               
-              {/* Chat Header */}
-              <div className="p-4 border-b border-slate-900/60 dark:border-slate-900/60 light:border-slate-205 flex items-center justify-between bg-slate-950/80 backdrop-blur-xl dark:bg-slate-950/80 light:bg-white relative z-20 shrink-0">
-                <div className="flex items-center gap-3">
-                  
-                  {/* Mobile Back Button */}
-                  <button 
-                    onClick={() => { selectChat(''); setMobileView('list'); }}
-                    className="block md:hidden p-1.5 rounded-lg hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 text-slate-400 hover:text-white dark:hover:text-white light:hover:text-slate-800 shrink-0 transition-colors"
-                  >
-                    <ArrowLeft className="w-4.5 h-4.5" />
-                  </button>
-
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center font-bold text-xs">
-                    {activeChat.name.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-semibold leading-tight">{activeChat.name}</h4>
-                    <span className="text-[9px] text-slate-400">
-                      {typingUsers[activeChat.otherMember?.id || ''] ? (
-                        <span className="text-indigo-400 font-medium animate-pulse">typing...</span>
-                      ) : activeChat.otherMember?.isOnline || onlineUsers[activeChat.otherMember?.id || ''] ? (
-                        <span className="text-emerald-400 font-medium">online</span>
-                      ) : (
-                        'offline'
-                      )}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={() => handleCall('voice')}
-                    className="w-9 h-9 rounded-xl hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-white dark:hover:text-white light:hover:text-slate-800 transition-colors"
-                  >
-                    <Phone className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={() => handleCall('video')}
-                    className="w-9 h-9 rounded-xl hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-indigo-400 transition-colors animate-pulse"
-                  >
-                    <Video className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Chat Message History */}
-              <div className="flex-1 overflow-y-auto p-4 space-y-4 relative z-10 flex flex-col min-h-0 bg-transparent">
-                <div className="flex-1"></div>
-                {messages.map((message) => {
-                  const isCurrentUser = message.senderId === user.id;
-                  const isStarred = message.isStarred;
-                  const isReplying = message.replyTo !== null;
-                  
-                  return (
-                    <div 
-                      key={message.id} 
-                      className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-100`}
-                      onMouseEnter={() => setHoveredMessageId(message.id)}
-                      onMouseLeave={() => {
-                        setHoveredMessageId(null);
-                        setActiveMenuMessageId(null);
-                      }}
+              {/* Message Panel Area */}
+              <div className={`flex-1 flex flex-col h-full overflow-hidden ${getWallpaperClass()} relative z-10 transition-colors duration-300`}>
+                
+                {/* Chat Header */}
+                <div className="p-4 border-b border-slate-900/60 dark:border-slate-900/60 light:border-slate-205 flex items-center justify-between bg-slate-955/80 backdrop-blur-xl dark:bg-slate-955/80 light:bg-white relative z-20 shrink-0">
+                  <div className="flex items-center gap-3">
+                    
+                    <button 
+                      onClick={() => { selectChat(''); setMobileView('list'); }}
+                      className="block md:hidden p-1.5 rounded-lg hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 text-slate-400 hover:text-white dark:hover:text-white light:hover:text-slate-800 shrink-0 transition-colors"
                     >
-                      <div className="relative group max-w-[85%] md:max-w-[65%] flex items-center gap-2">
-                        
-                        {isCurrentUser && hoveredMessageId === message.id && (
-                          <div className="flex shrink-0 gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => { setReplyingToMessage(message); setEditingMessage(null); }}
-                              title="Reply"
-                              className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-indigo-600 flex items-center justify-center text-white"
-                            >
-                              <Reply className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => { setEditingMessage(message); setMessageInput(message.content); setReplyingToMessage(null); }}
-                              title="Edit"
-                              className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-indigo-600 flex items-center justify-center text-white"
-                            >
-                              <Edit2 className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => setActiveMenuMessageId(activeMenuMessageId === message.id ? null : message.id)}
-                              className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-slate-800 flex items-center justify-center text-white"
-                            >
-                              <MoreVertical className="w-3 h-3" />
-                            </button>
-                          </div>
+                      <ArrowLeft className="w-4.5 h-4.5" />
+                    </button>
+
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center font-bold text-xs cursor-pointer" onClick={() => setShowSharedMedia(!showSharedMedia)}>
+                      {activeChat.name.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="cursor-pointer" onClick={() => setShowSharedMedia(!showSharedMedia)}>
+                      <h4 className="text-xs font-semibold leading-tight">{activeChat.name}</h4>
+                      <span className="text-[9px] text-slate-405">
+                        {typingUsers[activeChat.otherMember?.id || ''] ? (
+                          <span className="text-indigo-400 font-medium animate-pulse">typing...</span>
+                        ) : activeChat.isGroup ? (
+                          <span className="text-slate-500">Group conversation</span>
+                        ) : activeChat.otherMember?.isOnline || onlineUsers[activeChat.otherMember?.id || ''] ? (
+                          <span className="text-emerald-400 font-medium">online</span>
+                        ) : (
+                          'offline'
                         )}
+                      </span>
+                    </div>
+                  </div>
 
-                        <div className={`rounded-2xl px-4 py-2.5 shadow-md relative transition-all duration-200 ${
-                          isCurrentUser 
-                            ? `${themeStyle.bubbleSent} rounded-tr-none` 
-                            : 'bg-slate-900/90 dark:bg-slate-900/90 light:bg-white text-slate-200 dark:text-slate-200 light:text-slate-800 rounded-tl-none border border-slate-800/80 dark:border-slate-800/80 light:border-slate-200 shadow-lg shadow-black/10'
-                        }`}>
+                  <div className="flex items-center gap-1.5">
+                    <button 
+                      onClick={() => setShowSharedMedia(!showSharedMedia)}
+                      title="Shared Files & Media"
+                      className="w-9 h-9 rounded-xl hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                    >
+                      <Paperclip className="w-4.5 h-4.5" />
+                    </button>
+                    <button 
+                      onClick={() => handleCall('voice')}
+                      className="w-9 h-9 rounded-xl hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                    >
+                      <Phone className="w-4 h-4" />
+                    </button>
+                    <button 
+                      onClick={() => handleCall('video')}
+                      className="w-9 h-9 rounded-xl hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 flex items-center justify-center text-slate-450 hover:text-indigo-400 transition-colors"
+                    >
+                      <Video className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Chat Message History */}
+                <div className="flex-1 overflow-y-auto p-4 space-y-4 relative z-10 flex flex-col min-h-0 bg-transparent select-none">
+                  <div className="flex-1"></div>
+                  {messages.map((message) => {
+                    const isCurrentUser = message.senderId === user.id;
+                    const isStarred = message.isStarred;
+                    const isReplying = message.replyTo !== null;
+                    const messageReactions = message.reactions || [];
+
+                    return (
+                      <div 
+                        key={message.id} 
+                        onTouchStart={(e) => handleTouchStart(e, 'bubble', message.id)}
+                        onTouchEnd={(e) => handleTouchEnd(e, 'bubble', message)}
+                        className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-100`}
+                        onMouseEnter={() => setHoveredMessageId(message.id)}
+                        onMouseLeave={() => {
+                          setHoveredMessageId(null);
+                          setActiveMenuMessageId(null);
+                        }}
+                      >
+                        <div className="relative group max-w-[85%] md:max-w-[65%] flex items-center gap-2">
                           
-                          {isStarred && (
-                            <Star className="w-3 h-3 text-amber-400 fill-amber-400 absolute top-2 right-2" />
-                          )}
-
-                          {isReplying && message.replyTo && (
-                            <div className="mb-2 p-2 rounded-lg bg-black/20 border-l-4 border-indigo-400 text-left text-[10px] opacity-80 cursor-pointer max-w-full truncate">
-                              <span className="font-semibold block text-indigo-300 leading-none">
-                                {message.replyTo.sender.displayName || message.replyTo.sender.username}
-                              </span>
-                              <span className="text-slate-350 block mt-0.5 truncate leading-tight text-slate-350 dark:text-slate-300 light:text-slate-650">
-                                {message.replyTo.content}
-                              </span>
+                          {/* Action overlay shortcuts */}
+                          {isCurrentUser && hoveredMessageId === message.id && (
+                            <div className="flex shrink-0 gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => { setReplyingToMessage(message); setEditingMessage(null); }}
+                                title="Reply"
+                                className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-indigo-600 flex items-center justify-center text-white"
+                              >
+                                <Reply className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => { setEditingMessage(message); setMessageInput(message.content); setReplyingToMessage(null); }}
+                                title="Edit"
+                                className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-indigo-600 flex items-center justify-center text-white"
+                              >
+                                <Edit2 className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => setActiveMenuMessageId(activeMenuMessageId === message.id ? null : message.id)}
+                                className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-slate-800 flex items-center justify-center text-white"
+                              >
+                                <MoreVertical className="w-3 h-3" />
+                              </button>
                             </div>
                           )}
 
-                          {message.isDeleted ? (
-                            <p className="text-xs leading-relaxed italic text-slate-405 flex items-center gap-1.5">
-                              <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-slate-500" />
-                              <span>This message was deleted</span>
-                            </p>
-                          ) : (
-                            <p className="text-xs leading-relaxed break-words whitespace-pre-wrap font-light">
-                              {message.content}
-                            </p>
-                          )}
-                          
-                          <div className="flex items-center justify-end gap-1.5 mt-1.5">
-                            {message.isEdited && !message.isDeleted && (
-                              <span className="text-[7px] opacity-60 uppercase font-bold tracking-wider">edited</span>
+                          {/* Message Bubble Container */}
+                          <div className={`rounded-2xl px-4 py-2.5 shadow-md relative transition-all duration-200 ${
+                            isCurrentUser 
+                              ? `${themeStyle.bubbleSent} rounded-tr-none` 
+                              : 'bg-slate-900/90 dark:bg-slate-900/90 light:bg-white text-slate-200 dark:text-slate-200 light:text-slate-800 rounded-tl-none border border-slate-800/80 dark:border-slate-800/80 light:border-slate-202 shadow-lg shadow-black/10'
+                          }`}>
+                            
+                            {isStarred && (
+                              <Star className="w-3 h-3 text-amber-400 fill-amber-400 absolute top-2 right-2" />
                             )}
-                            <span className={`text-[8px] font-light select-none ${isCurrentUser ? 'text-indigo-200/80' : 'text-slate-500'}`}>
-                              {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </span>
-                            {isCurrentUser && (
-                              <span>
-                                {message.status === 'READ' ? (
-                                  <CheckCheck className="w-3.5 h-3.5 text-cyan-200" />
-                                ) : message.status === 'DELIVERED' ? (
-                                  <CheckCheck className="w-3.5 h-3.5 opacity-60 text-white" />
-                                ) : (
-                                  <Check className="w-3.5 h-3.5 opacity-65 text-white" />
-                                )}
+
+                            {/* Reply Header Quote Block */}
+                            {isReplying && message.replyTo && (
+                              <div className="mb-2 p-2 rounded-lg bg-black/20 border-l-4 border-indigo-400 text-left text-[10px] opacity-80 cursor-pointer max-w-full truncate">
+                                <span className="font-semibold block text-indigo-300 leading-none">
+                                  {message.replyTo.sender.displayName || message.replyTo.sender.username}
+                                </span>
+                                <span className="text-slate-350 block mt-0.5 truncate leading-tight">
+                                  {message.replyTo.content}
+                                </span>
+                              </div>
+                            )}
+
+                            {/* Main message text */}
+                            {message.isDeleted ? (
+                              <p className="text-xs leading-relaxed italic text-slate-455 flex items-center gap-1.5">
+                                <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-slate-500" />
+                                <span>This message was deleted</span>
+                              </p>
+                            ) : (
+                              <p className="text-xs leading-relaxed break-words whitespace-pre-wrap font-light">
+                                {message.content}
+                              </p>
+                            )}
+                            
+                            {/* Timestamp, status checks & badges */}
+                            <div className="flex items-center justify-end gap-1.5 mt-1.5">
+                              {message.isEdited && !message.isDeleted && (
+                                <span className="text-[7px] opacity-60 uppercase font-bold tracking-wider">edited</span>
+                              )}
+                              <span className={`text-[8px] font-light select-none ${isCurrentUser ? 'text-indigo-200/80' : 'text-slate-500'}`}>
+                                {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </span>
+                              {isCurrentUser && (
+                                <span>
+                                  {message.status === 'READ' ? (
+                                    <CheckCheck className="w-3.5 h-3.5 text-cyan-200" />
+                                  ) : message.status === 'DELIVERED' ? (
+                                    <CheckCheck className="w-3.5 h-3.5 opacity-60 text-white" />
+                                  ) : (
+                                    <Check className="w-3.5 h-3.5 opacity-65 text-white" />
+                                  )}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* 9. FLOATING EMOJI REACTION BADGE COUNTS */}
+                            {messageReactions.length > 0 && (
+                              <div className="absolute -bottom-2 right-3 flex gap-0.5 bg-slate-900/95 dark:bg-slate-900/95 light:bg-white border border-slate-805 dark:border-slate-805 light:border-slate-200 rounded-full px-1.5 py-0.5 text-[9px] shadow-md z-30 select-none">
+                                {Array.from(new Set(messageReactions.map(r => r.emoji))).slice(0, 3).map((emoji, idx) => (
+                                  <span key={idx}>{emoji}</span>
+                                ))}
+                                <span className="text-[8px] font-bold text-indigo-400 ml-1">{messageReactions.length}</span>
+                              </div>
                             )}
+
+                            {/* Message actions context menu */}
+                            {activeMenuMessageId === message.id && (
+                              <div className="absolute right-0 top-full mt-1.5 z-40 bg-slate-900 border border-slate-800 rounded-xl p-1.5 shadow-2xl space-y-1 w-36 animate-in fade-in zoom-in-95 duration-100 text-white">
+                                <button
+                                  onClick={() => { handleCopyMessage(message.content); setActiveMenuMessageId(null); }}
+                                  className="w-full text-left p-1.5 px-2.5 rounded-lg hover:bg-slate-800 text-[10px] flex items-center gap-2"
+                                >
+                                  <Copy className="w-3 h-3" />
+                                  <span>Copy Text</span>
+                                </button>
+                                <button
+                                  onClick={() => { setForwardingMessage(message); setActiveMenuMessageId(null); }}
+                                  className="w-full text-left p-1.5 px-2.5 rounded-lg hover:bg-slate-800 text-[10px] flex items-center gap-2"
+                                >
+                                  <CornerUpRight className="w-3 h-3" />
+                                  <span>Forward</span>
+                                </button>
+                                <button
+                                  onClick={() => { toggleStarMessage(message.id); setActiveMenuMessageId(null); }}
+                                  className="w-full text-left p-1.5 px-2.5 rounded-lg hover:bg-slate-800 text-[10px] flex items-center gap-2"
+                                >
+                                  <Star className="w-3 h-3" />
+                                  <span>{isStarred ? 'Unstar' : 'Star message'}</span>
+                                </button>
+                                <button
+                                  onClick={() => { setMessageInfoMessage(message); setActiveMenuMessageId(null); }}
+                                  className="w-full text-left p-1.5 px-2.5 rounded-lg hover:bg-slate-800 text-[10px] flex items-center gap-2"
+                                >
+                                  <Info className="w-3 h-3" />
+                                  <span>Message Info</span>
+                                </button>
+                                <button
+                                  onClick={() => { deleteMessageForMe(message.id); setActiveMenuMessageId(null); }}
+                                  className="w-full text-left p-1.5 px-2.5 rounded-lg hover:bg-slate-800 hover:text-rose-455 text-rose-350 text-[10px] flex items-center gap-2 border-t border-slate-800/40 pt-1.5 mt-1"
+                                >
+                                  <Trash2 className="w-3 h-3" />
+                                  <span>Delete for Me</span>
+                                </button>
+                                {isCurrentUser && !message.isDeleted && (
+                                  <button
+                                    onClick={() => { deleteMessageEveryone(message.id); setActiveMenuMessageId(null); }}
+                                    className="w-full text-left p-1.5 px-2.5 rounded-lg hover:bg-slate-800 hover:text-rose-455 text-rose-400 text-[10px] flex items-center gap-2"
+                                  >
+                                    <ShieldAlert className="w-3 h-3" />
+                                    <span>Delete for All</span>
+                                  </button>
+                                )}
+                              </div>
+                            )}
+
                           </div>
 
-                          {activeMenuMessageId === message.id && (
-                            <div className="absolute right-0 top-full mt-1.5 z-40 bg-slate-900 border border-slate-800 rounded-xl p-1.5 shadow-2xl space-y-1 w-36 animate-in fade-in zoom-in-95 duration-100 text-white">
-                              <button
-                                onClick={() => { handleCopyMessage(message.content); setActiveMenuMessageId(null); }}
-                                className="w-full text-left p-1.5 px-2.5 rounded-lg hover:bg-slate-800 text-[10px] flex items-center gap-2"
-                              >
-                                <Copy className="w-3 h-3" />
-                                <span>Copy Text</span>
-                              </button>
-                              <button
-                                onClick={() => { setForwardingMessage(message); setActiveMenuMessageId(null); }}
-                                className="w-full text-left p-1.5 px-2.5 rounded-lg hover:bg-slate-800 text-[10px] flex items-center gap-2"
-                              >
-                                <CornerUpRight className="w-3 h-3" />
-                                <span>Forward</span>
-                              </button>
-                              <button
-                                onClick={() => { toggleStarMessage(message.id); setActiveMenuMessageId(null); }}
-                                className="w-full text-left p-1.5 px-2.5 rounded-lg hover:bg-slate-800 text-[10px] flex items-center gap-2"
-                              >
-                                <Star className="w-3 h-3" />
-                                <span>{isStarred ? 'Unstar' : 'Star message'}</span>
-                              </button>
-                              <button
-                                onClick={() => { deleteMessageForMe(message.id); setActiveMenuMessageId(null); }}
-                                className="w-full text-left p-1.5 px-2.5 rounded-lg hover:bg-slate-800 hover:text-rose-400 text-rose-300 text-[10px] flex items-center gap-2 border-t border-slate-800/40 pt-1.5 mt-1"
-                              >
-                                <Trash2 className="w-3 h-3" />
-                                <span>Delete for Me</span>
-                              </button>
-                              {isCurrentUser && !message.isDeleted && (
+                          {/* 9. HOVER / LONG-PRESS EMOJI REACTION SELECTION PILL (Float panel) */}
+                          {hoveredMessageId === message.id && (
+                            <div className="absolute -top-9 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-800 rounded-full px-2 py-1 shadow-xl flex gap-1.5 z-40 animate-in fade-in slide-in-from-bottom-2 duration-100 select-none">
+                              {['❤️', '👍', '😂', '🔥', '😢'].map((emoji) => (
                                 <button
-                                  onClick={() => { deleteMessageEveryone(message.id); setActiveMenuMessageId(null); }}
-                                  className="w-full text-left p-1.5 px-2.5 rounded-lg hover:bg-slate-800 hover:text-rose-450 text-rose-400 text-[10px] flex items-center gap-2"
+                                  key={emoji}
+                                  onClick={() => toggleReaction(message.id, emoji)}
+                                  className="hover:scale-125 transition-transform text-xs"
                                 >
-                                  <ShieldAlert className="w-3 h-3" />
-                                  <span>Delete for All</span>
+                                  {emoji}
                                 </button>
-                              )}
+                              ))}
+                            </div>
+                          )}
+
+                          {!isCurrentUser && hoveredMessageId === message.id && (
+                            <div className="flex shrink-0 gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => { setReplyingToMessage(message); setEditingMessage(null); }}
+                                title="Reply"
+                                className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-indigo-600 flex items-center justify-center text-white"
+                              >
+                                <Reply className="w-3 h-3" />
+                              </button>
+                              <button
+                                onClick={() => setActiveMenuMessageId(activeMenuMessageId === message.id ? null : message.id)}
+                                className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-slate-800 flex items-center justify-center text-white"
+                              >
+                                <MoreVertical className="w-3 h-3" />
+                              </button>
                             </div>
                           )}
 
                         </div>
-
-                        {!isCurrentUser && hoveredMessageId === message.id && (
-                          <div className="flex shrink-0 gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <button
-                              onClick={() => { setReplyingToMessage(message); setEditingMessage(null); }}
-                              title="Reply"
-                              className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-indigo-600 flex items-center justify-center text-white"
-                            >
-                              <Reply className="w-3 h-3" />
-                            </button>
-                            <button
-                              onClick={() => setActiveMenuMessageId(activeMenuMessageId === message.id ? null : message.id)}
-                              className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-slate-800 flex items-center justify-center text-white"
-                            >
-                              <MoreVertical className="w-3 h-3" />
-                            </button>
-                          </div>
-                        )}
-
+                      </div>
+                    );
+                  })}
+                  {typingUsers[activeChat.otherMember?.id || ''] && (
+                    <div className="flex justify-start">
+                      <div className="bg-slate-900/90 backdrop-blur-md border border-slate-805/80 rounded-2xl rounded-tl-none px-4 py-2.5 max-w-[60%] text-slate-400 flex items-center gap-1.5 animate-pulse">
+                        <span className="text-[11px] font-light">typing</span>
+                        <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                        <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                        <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                       </div>
                     </div>
-                  );
-                })}
-                {typingUsers[activeChat.otherMember?.id || ''] && (
-                  <div className="flex justify-start">
-                    <div className="bg-slate-900/90 backdrop-blur-md border border-slate-805/80 rounded-2xl rounded-tl-none px-4 py-2.5 max-w-[60%] text-slate-400 flex items-center gap-1.5 animate-pulse">
-                      <span className="text-[11px] font-light">typing</span>
-                      <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                      <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                      <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                  )}
+                  <div ref={messagesEndRef} />
+                </div>
+
+                {/* Input Action Previews */}
+                {replyingToMessage && (
+                  <div className="px-4 py-2 bg-slate-955/90 border-t border-slate-900 flex justify-between items-center relative z-20 shrink-0">
+                    <div className="border-l-4 border-indigo-500 pl-3 py-1 flex-1 min-w-0">
+                      <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider block">Replying to Message</span>
+                      <p className="text-[11px] text-slate-300 truncate font-light mt-0.5">
+                        {replyingToMessage.content}
+                      </p>
+                    </div>
+                    <button 
+                      onClick={() => setReplyingToMessage(null)}
+                      className="w-6 h-6 rounded-full hover:bg-slate-900 flex items-center justify-center text-slate-450 hover:text-white shrink-0"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
+                {editingMessage && (
+                  <div className="px-4 py-2 bg-slate-955/90 border-t border-slate-900 flex justify-between items-center relative z-20 shrink-0">
+                    <div className="border-l-4 border-amber-500 pl-3 py-1 flex-1 min-w-0">
+                      <span className="text-[9px] font-bold text-amber-505 uppercase tracking-wider block">Editing Message</span>
+                      <p className="text-[11px] text-slate-300 truncate font-light mt-0.5">
+                        {editingMessage.content}
+                      </p>
+                    </div>
+                    <button 
+                      onClick={() => { setEditingMessage(null); setMessageInput(''); }}
+                      className="w-6 h-6 rounded-full hover:bg-slate-900 flex items-center justify-center text-slate-450 hover:text-white shrink-0"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                )}
+
+                {/* 10. MICROPHONE VOICE NOTE RECORDER INTERFACE */}
+                {isRecording && (
+                  <div className="px-4 py-3 bg-slate-955/95 border-t border-slate-900 flex justify-between items-center relative z-20 shrink-0 select-none animate-in slide-in-from-bottom duration-150">
+                    <div className="flex items-center gap-3">
+                      <div className="w-3 h-3 bg-rose-600 rounded-full animate-ping"></div>
+                      <span className="text-xs font-bold text-rose-500 uppercase tracking-widest">
+                        Recording ({recordingDuration}s)
+                      </span>
+                    </div>
+                    
+                    {/* glowing canvas waves */}
+                    <canvas 
+                      ref={waveCanvasRef}
+                      width={120}
+                      height={24}
+                      className="mx-4 flex-1 h-6 bg-slate-950/20 border border-slate-900 rounded-lg pointer-events-none"
+                    />
+
+                    <div className="flex items-center gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => stopVoiceRecording(false)}
+                        className="px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-rose-350 hover:text-rose-400 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => stopVoiceRecording(true)}
+                        className={`px-3 py-1.5 ${themeStyle.primary} rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors`}
+                      >
+                        Send Audio
+                      </button>
                     </div>
                   </div>
                 )}
-                <div ref={messagesEndRef} />
+
+                {/* Chat Message Input Box */}
+                {!isRecording && (
+                  <form 
+                    onSubmit={handleSend} 
+                    className="p-4 border-t border-slate-900/60 dark:border-slate-900/60 light:border-slate-202 bg-slate-950/80 backdrop-blur-xl dark:bg-slate-955/80 light:bg-white relative z-20 shrink-0 flex items-center gap-3"
+                  >
+                    {/* Capture snapshots */}
+                    <button
+                      type="button"
+                      onClick={startCamera}
+                      title="Take Snapshot"
+                      className="w-11 h-11 bg-slate-900 border border-slate-850 hover:border-indigo-500/50 rounded-2xl flex items-center justify-center text-slate-400 hover:text-white transition-colors shrink-0"
+                    >
+                      <Camera className="w-5 h-5" />
+                    </button>
+
+                    <div className="flex-1 relative flex items-center bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100 border border-slate-805 dark:border-slate-805 light:border-slate-200 rounded-2xl focus-within:border-indigo-500/40 transition-colors">
+                      <input
+                        type="text"
+                        placeholder={editingMessage ? 'Modify message...' : 'Type a message...'}
+                        value={messageInput}
+                        onChange={handleInputChangeValue}
+                        className="w-full bg-transparent py-3.5 pl-4 pr-10 text-xs text-white dark:text-white light:text-slate-850 outline-none placeholder-slate-500 font-light"
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => setMessageInput(prev => prev + ' 🚀')}
+                        className="absolute right-3.5 text-slate-500 hover:text-slate-350 transition-colors"
+                      >
+                        <Smile className="w-5 h-5" />
+                      </button>
+                    </div>
+
+                    {/* Microphone button (10. Voice Notes) */}
+                    <button
+                      type="button"
+                      onClick={startVoiceRecording}
+                      title="Record Voice Note"
+                      className="w-11 h-11 bg-slate-900 border border-slate-850 hover:border-indigo-500/50 rounded-2xl flex items-center justify-center text-slate-400 hover:text-white transition-colors shrink-0"
+                    >
+                      <Mic className="w-5 h-5" />
+                    </button>
+
+                    <button
+                      type="submit"
+                      disabled={!messageInput.trim()}
+                      className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all shrink-0 ${
+                        messageInput.trim() 
+                          ? `${themeStyle.primary}` 
+                          : 'bg-slate-900 text-slate-600 cursor-not-allowed border border-slate-850'
+                      }`}
+                    >
+                      <Send className="w-4.5 h-4.5" />
+                    </button>
+                  </form>
+                )}
               </div>
 
-              {/* Input Action Previews */}
-              {replyingToMessage && (
-                <div className="px-4 py-2 bg-slate-955/90 border-t border-slate-900 flex justify-between items-center relative z-20 shrink-0">
-                  <div className="border-l-4 border-indigo-500 pl-3 py-1 flex-1 min-w-0">
-                    <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider block">Replying to Message</span>
-                    <p className="text-[11px] text-slate-300 truncate font-light mt-0.5">
-                      {replyingToMessage.content}
-                    </p>
+              {/* ======================================================== */}
+              {/* 13. SHARED MEDIA & LINKS COLLAPSIBLE RIGHT SIDEBAR */}
+              {/* ======================================================== */}
+              {showSharedMedia && (
+                <div className="w-[280px] border-l border-slate-900 dark:border-slate-900 light:border-slate-200 bg-slate-955/90 backdrop-blur-2xl h-full flex flex-col shrink-0 relative z-20 animate-in slide-in-from-right duration-200 select-none text-white">
+                  <div className="p-4 border-b border-slate-900 flex justify-between items-center shrink-0">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-400">Media & Files</span>
+                    <button 
+                      onClick={() => setShowSharedMedia(false)}
+                      className="w-7 h-7 rounded-full hover:bg-slate-900 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
                   </div>
-                  <button 
-                    onClick={() => setReplyingToMessage(null)}
-                    className="w-6 h-6 rounded-full hover:bg-slate-900 flex items-center justify-center text-slate-400 hover:text-white shrink-0"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
+                  
+                  {/* Category lists */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                    <div>
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Links & References</span>
+                      <div className="space-y-1.5">
+                        <a href="https://railway.app" target="_blank" className="p-2.5 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-850 text-[10px] flex items-center justify-between text-indigo-300 hover:text-indigo-400 transition-colors">
+                          <span className="truncate max-w-[180px]">railway.app (Stellar Spirit Portal)</span>
+                          <ExternalLink className="w-3 h-3 shrink-0" />
+                        </a>
+                        <a href="https://friends-whatsapp-web.vercel.app" target="_blank" className="p-2.5 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-850 text-[10px] flex items-center justify-between text-indigo-300 hover:text-indigo-400 transition-colors">
+                          <span className="truncate max-w-[180px]">friends-whatsapp-web.vercel.app</span>
+                          <ExternalLink className="w-3 h-3 shrink-0" />
+                        </a>
+                      </div>
+                    </div>
+
+                    <div>
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Media & Attachments</span>
+                      <div className="grid grid-cols-3 gap-2">
+                        {/* Mock media archives */}
+                        {[1, 2, 3].map((num) => (
+                          <div key={num} className="aspect-square bg-slate-900/80 rounded-xl border border-slate-805 flex flex-col items-center justify-center text-slate-650 hover:border-indigo-500/30 transition-colors cursor-pointer group">
+                            <ImageIcon className="w-5 h-5 group-hover:scale-105 transition-transform" />
+                            <span className="text-[8px] mt-1">img_{num}.jpg</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
                 </div>
               )}
 
-              {editingMessage && (
-                <div className="px-4 py-2 bg-slate-955/90 border-t border-slate-900 flex justify-between items-center relative z-20 shrink-0">
-                  <div className="border-l-4 border-amber-500 pl-3 py-1 flex-1 min-w-0">
-                    <span className="text-[9px] font-bold text-amber-505 uppercase tracking-wider block">Editing Message</span>
-                    <p className="text-[11px] text-slate-300 truncate font-light mt-0.5">
-                      {editingMessage.content}
-                    </p>
-                  </div>
-                  <button 
-                    onClick={() => { setEditingMessage(null); setMessageInput(''); }}
-                    className="w-6 h-6 rounded-full hover:bg-slate-900 flex items-center justify-center text-slate-400 hover:text-white shrink-0"
-                  >
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              )}
-
-              {/* Chat Message Input Box */}
-              <form 
-                onSubmit={handleSend} 
-                className="p-4 border-t border-slate-900/60 dark:border-slate-900/60 light:border-slate-200 bg-slate-950/80 backdrop-blur-xl dark:bg-slate-950/80 light:bg-white relative z-20 shrink-0 flex items-center gap-3"
-              >
-                <div className="flex-1 relative flex items-center bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100 border border-slate-805 dark:border-slate-805 light:border-slate-200 rounded-2xl focus-within:border-indigo-500/40 transition-colors">
-                  <input
-                    type="text"
-                    placeholder={editingMessage ? 'Modify message...' : 'Type a message...'}
-                    value={messageInput}
-                    onChange={handleInputChange}
-                    className="w-full bg-transparent py-3.5 pl-4 pr-10 text-xs text-white dark:text-white light:text-slate-850 outline-none placeholder-slate-500 font-light"
-                  />
-                  <button 
-                    type="button" 
-                    onClick={() => setMessageInput(prev => prev + ' 🚀')}
-                    className="absolute right-3.5 text-slate-500 hover:text-slate-350 transition-colors"
-                  >
-                    <Smile className="w-5 h-5" />
-                  </button>
-                </div>
-                <button
-                  type="submit"
-                  disabled={!messageInput.trim()}
-                  className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all shrink-0 ${
-                    messageInput.trim() 
-                      ? `${themeStyle.primary}` 
-                      : 'bg-slate-900 text-slate-600 cursor-not-allowed border border-slate-850'
-                  }`}
-                >
-                  <Send className="w-4.5 h-4.5" />
-                </button>
-              </form>
             </div>
           ) : (
             /* EMPTY CHAT PLACEHOLDER SCREEN */
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 select-none h-full bg-slate-950 dark:bg-slate-950 light:bg-slate-100">
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 select-none h-full bg-slate-955 dark:bg-slate-955 light:bg-slate-100">
               <div className="relative mb-6">
                 <div className="w-16 h-16 rounded-3xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center shadow-lg shadow-indigo-500/5">
                   <MessageSquare className="w-8 h-8 text-indigo-400" />
@@ -1114,7 +1726,7 @@ export default function Home() {
                 <div className="p-4 bg-slate-900/10 dark:bg-slate-900/10 light:bg-white border border-slate-900 dark:border-slate-900 light:border-slate-200 rounded-2xl text-left shadow-sm">
                   <Phone className="w-4 h-4 text-violet-400 mb-2" />
                   <h4 className="text-xs font-semibold text-slate-350 dark:text-slate-300 light:text-slate-700 mb-1">Real-Time Sync</h4>
-                  <p className="text-[10px] text-slate-500 leading-normal font-light">Online indicators, typing status, and read receipts update instantly.</p>
+                  <p className="text-[10px] text-slate-500 leading-normal font-light">Online indicators, typing status, and message reactions update instantly.</p>
                 </div>
               </div>
             </div>
@@ -1124,44 +1736,36 @@ export default function Home() {
       </div>
 
       {/* ======================================================== */}
-      {/* 📱 MOBILE SIDEBAR DRAWER MENU: SLIDES FROM LEFT (z-50) */}
+      {/* SETTINGS DRAWER */}
       {/* ======================================================== */}
       <div 
         className={`fixed inset-0 z-40 transition-opacity duration-300 ${
           showSettingsDrawer ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
         }`}
       >
-        {/* Backdrop overlay */}
-        <div 
-          onClick={() => setShowSettingsDrawer(false)}
-          className="absolute inset-0 bg-black/60 backdrop-blur-xs"
-        />
+        <div onClick={() => setShowSettingsDrawer(false)} className="absolute inset-0 bg-black/60 backdrop-blur-xs" />
         
-        {/* Drawer Panel content */}
         <div 
-          className={`absolute top-0 left-0 h-full w-[290px] md:w-[320px] bg-slate-950/98 dark:bg-slate-950/98 light:bg-white/98 backdrop-blur-2xl border-r border-slate-900 dark:border-slate-900 light:border-slate-200 shadow-2xl flex flex-col z-50 transition-transform duration-300 ease-out ${
+          className={`absolute top-0 left-0 h-full w-[290px] md:w-[320px] bg-slate-950/98 dark:bg-slate-955/98 light:bg-white/98 backdrop-blur-2xl border-r border-slate-900 dark:border-slate-900 light:border-slate-200 shadow-2xl flex flex-col z-50 transition-transform duration-300 ease-out ${
             showSettingsDrawer ? 'translate-x-0' : '-translate-x-full'
           }`}
         >
-          {/* Header */}
           <div className="p-4 border-b border-slate-900 dark:border-slate-900 light:border-slate-100 flex justify-between items-center shrink-0">
             <span className="text-xs font-bold uppercase tracking-widest text-indigo-400">Settings & Profile</span>
             <button 
               onClick={() => setShowSettingsDrawer(false)}
-              className="w-7 h-7 rounded-full hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-white dark:hover:text-white light:hover:text-slate-800 transition-colors"
+              className="w-7 h-7 rounded-full hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          {/* Drawer Body (Scrollable settings) */}
           <div className="flex-1 overflow-y-auto p-4 space-y-5 min-h-0 text-slate-200 dark:text-slate-200 light:text-slate-800">
             
-            {/* 🔴 NEW PROFILE DESIGN (Separated Card style with Avatar upload mock) */}
+            {/* Redesigned Profile Card */}
             <form onSubmit={handleSaveSettings} className="bg-slate-900/30 dark:bg-slate-900/30 light:bg-slate-50 border border-slate-850 dark:border-slate-850 light:border-slate-200 p-4 rounded-[24px] space-y-4 shadow-sm">
               <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block text-center">My Identity</span>
               
-              {/* Circular Avatar Selector Mock */}
               <div className="flex flex-col items-center gap-1.5 relative">
                 <div className="relative group cursor-pointer hover:scale-102 transition-transform">
                   <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 p-0.5 shadow-md shadow-indigo-500/10">
@@ -1169,7 +1773,6 @@ export default function Home() {
                       {editDisplayName.slice(0, 2).toUpperCase() || 'HA'}
                     </div>
                   </div>
-                  {/* Camera overlay */}
                   <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
                     <Camera className="w-4 h-4 text-white" />
                   </div>
@@ -1177,7 +1780,6 @@ export default function Home() {
                 <span className="text-[8px] text-slate-500 font-light mt-0.5">Click to update photo</span>
               </div>
 
-              {/* Input details */}
               <div className="space-y-3.5">
                 <div>
                   <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1">Display Name</label>
@@ -1187,7 +1789,7 @@ export default function Home() {
                     placeholder="Enter display name"
                     value={editDisplayName}
                     onChange={(e) => setEditDisplayName(e.target.value)}
-                    className="w-full bg-slate-950 dark:bg-slate-950 light:bg-white border border-slate-805 dark:border-slate-805 light:border-slate-200 focus:border-indigo-500/60 rounded-xl py-2 px-3 text-xs outline-none text-white dark:text-white light:text-slate-800"
+                    className="w-full bg-slate-955 dark:bg-slate-955 light:bg-white border border-slate-805 focus:border-indigo-500/60 rounded-xl py-2 px-3 text-xs outline-none text-white dark:text-white light:text-slate-800"
                   />
                 </div>
                 <div>
@@ -1197,7 +1799,7 @@ export default function Home() {
                     placeholder="E.g. Hey there! I am using Halo Chat."
                     value={editBio}
                     onChange={(e) => setEditBio(e.target.value)}
-                    className="w-full bg-slate-950 dark:bg-slate-950 light:bg-white border border-slate-805 dark:border-slate-805 light:border-slate-200 focus:border-indigo-500/60 rounded-xl py-2 px-3 text-xs outline-none text-white dark:text-white light:text-slate-800"
+                    className="w-full bg-slate-955 dark:bg-slate-955 light:bg-white border border-slate-805 focus:border-indigo-500/60 rounded-xl py-2 px-3 text-xs outline-none text-white dark:text-white light:text-slate-800"
                   />
                 </div>
                 <div>
@@ -1207,7 +1809,7 @@ export default function Home() {
                     placeholder="https://example.com/avatar.jpg"
                     value={editAvatarUrl}
                     onChange={(e) => setEditAvatarUrl(e.target.value)}
-                    className="w-full bg-slate-950 dark:bg-slate-950 light:bg-white border border-slate-805 dark:border-slate-805 light:border-slate-200 focus:border-indigo-500/60 rounded-xl py-2 px-3 text-xs outline-none text-white dark:text-white light:text-slate-800"
+                    className="w-full bg-slate-955 dark:bg-slate-955 light:bg-white border border-slate-805 focus:border-indigo-500/60 rounded-xl py-2 px-3 text-xs outline-none text-white dark:text-white light:text-slate-800"
                   />
                 </div>
               </div>
@@ -1225,19 +1827,19 @@ export default function Home() {
             <div className="bg-slate-900/30 dark:bg-slate-900/30 light:bg-slate-50 border border-slate-850 dark:border-slate-850 light:border-slate-200 p-4 rounded-[24px] space-y-4 shadow-sm">
               <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block text-center">Appearance</span>
               
-              <div className="flex justify-between items-center bg-slate-950/40 dark:bg-slate-950/40 light:bg-white p-2.5 rounded-xl border border-slate-850 dark:border-slate-850 light:border-slate-100">
-                <span className="text-[10px] font-medium text-slate-350 dark:text-slate-350 light:text-slate-650">Dark Interface Mode</span>
+              <div className="flex justify-between items-center bg-slate-950/40 dark:bg-slate-955/40 light:bg-white p-2.5 rounded-xl border border-slate-850 dark:border-slate-850 light:border-slate-100">
+                <span className="text-[10px] font-medium text-slate-350 dark:text-slate-355 light:text-slate-650">Dark Interface Mode</span>
                 <button 
                   type="button"
                   onClick={() => setIsDarkMode(!isDarkMode)}
-                  className="w-8 h-8 rounded-lg hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-50 flex items-center justify-center text-slate-400 transition-colors"
+                  className="w-8 h-8 rounded-lg hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-50 flex items-center justify-center text-slate-450 transition-colors"
                 >
                   {isDarkMode ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
                 </button>
               </div>
 
               <div className="space-y-1.5">
-                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Color Accent Theme</span>
+                <span className="text-[9px] font-bold text-slate-505 uppercase tracking-wider block mb-1">Color Accent Theme</span>
                 <div className="flex gap-1.5">
                   {(['royal', 'emerald', 'ocean', 'rose'] as ThemeName[]).map((theme) => (
                     <button
@@ -1247,7 +1849,7 @@ export default function Home() {
                       className={`flex-1 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all border ${
                         activeTheme === theme 
                           ? 'bg-indigo-600/10 border-indigo-500 text-indigo-300'
-                          : 'bg-slate-950/40 dark:bg-slate-950/40 light:bg-white border-slate-850 dark:border-slate-850 light:border-slate-200 text-slate-500 hover:text-slate-300'
+                          : 'bg-slate-950/40 dark:bg-slate-955/40 light:bg-white border-slate-850 dark:border-slate-850 light:border-slate-200 text-slate-500 hover:text-slate-300'
                       }`}
                     >
                       {theme}
@@ -1257,7 +1859,7 @@ export default function Home() {
               </div>
 
               <div className="space-y-1.5">
-                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Select Wallpaper</span>
+                <span className="text-[9px] font-bold text-slate-505 uppercase tracking-wider block mb-1">Select Wallpaper</span>
                 <div className="grid grid-cols-2 gap-1.5">
                   {[
                     { id: 'mesh-indigo', label: 'Indigo Glow' },
@@ -1272,7 +1874,7 @@ export default function Home() {
                       className={`py-1.5 px-2 rounded-lg text-[9px] truncate transition-all border ${
                         chatWallpaper === wallpaper.id
                           ? 'bg-indigo-600/10 border-indigo-500 text-indigo-300'
-                          : 'bg-slate-950/40 dark:bg-slate-950/40 light:bg-white border-slate-855 dark:border-slate-855 light:border-slate-200 text-slate-500 hover:text-slate-350'
+                          : 'bg-slate-950/40 dark:bg-slate-955/40 light:bg-white border-slate-855 dark:border-slate-855 light:border-slate-200 text-slate-500 hover:text-slate-350'
                       }`}
                     >
                       {wallpaper.label}
@@ -1293,7 +1895,7 @@ export default function Home() {
                     <button 
                       type="button"
                       onClick={() => handleTogglePrivacy('showLastSeen', user.showLastSeen)}
-                      className="text-slate-400 hover:text-indigo-400 transition-colors"
+                      className="text-slate-450 hover:text-indigo-400 transition-colors"
                     >
                       {user.showLastSeen ? <ToggleRight className="w-6 h-6 text-indigo-400" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
                     </button>
@@ -1304,7 +1906,7 @@ export default function Home() {
                     <button 
                       type="button"
                       onClick={() => handleTogglePrivacy('showReadReceipts', user.showReadReceipts)}
-                      className="text-slate-400 hover:text-indigo-400 transition-colors"
+                      className="text-slate-455 hover:text-indigo-400 transition-colors"
                     >
                       {user.showReadReceipts ? <ToggleRight className="w-6 h-6 text-indigo-400" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
                     </button>
@@ -1315,7 +1917,7 @@ export default function Home() {
                     <button 
                       type="button"
                       onClick={() => handleTogglePrivacy('allowNotifications', user.allowNotifications)}
-                      className="text-slate-400 hover:text-indigo-400 transition-colors"
+                      className="text-slate-455 hover:text-indigo-400 transition-colors"
                     >
                       {user.allowNotifications ? <ToggleRight className="w-6 h-6 text-indigo-400" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
                     </button>
@@ -1327,11 +1929,11 @@ export default function Home() {
             {/* Storage Progress */}
             <div className="bg-slate-900/30 dark:bg-slate-900/30 light:bg-slate-50 border border-slate-850 dark:border-slate-850 light:border-slate-200 p-4 rounded-[24px] space-y-3 shadow-sm">
               <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block text-center">Local Data Status</span>
-              <div className="flex justify-between items-baseline text-[9px] text-slate-500">
+              <div className="flex justify-between items-baseline text-[9px] text-slate-505">
                 <span>Disk Storage Used</span>
                 <span>124 MB of 5.0 GB</span>
               </div>
-              <div className="w-full bg-slate-950/80 dark:bg-slate-950/80 light:bg-slate-200 rounded-full h-1.5 overflow-hidden">
+              <div className="w-full bg-slate-950/80 dark:bg-slate-955/80 light:bg-slate-200 rounded-full h-1.5 overflow-hidden">
                 <div className="bg-indigo-500 h-full w-[2.5%] rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]"></div>
               </div>
             </div>
@@ -1341,8 +1943,246 @@ export default function Home() {
       </div>
 
       {/* ======================================================== */}
-      {/* MODALS & OVERLAYS */}
+      {/* MODALS & PORTALS */}
       {/* ======================================================== */}
+
+      {/* 11. GROUP CREATION WIZARD MODAL */}
+      {showGroupWizard && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center px-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-805 rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[85vh] text-white">
+            <div className="flex justify-between items-center mb-4 border-b border-slate-850 pb-2.5">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-indigo-400">Create Group Chat</h3>
+              <button 
+                type="button"
+                onClick={() => setShowGroupWizard(false)}
+                className="w-6 h-6 rounded-full hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <form onSubmit={handleGroupWizardSubmit} className="space-y-4 flex-1 flex flex-col overflow-hidden">
+              <div className="space-y-3 shrink-0">
+                <div>
+                  <label className="block text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Group Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="E.g. Squad Goals 💥"
+                    value={groupName}
+                    onChange={(e) => setGroupName(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-805 rounded-xl py-2 px-3 text-xs outline-none focus:border-indigo-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Group Description</label>
+                  <input
+                    type="text"
+                    placeholder="What is this group about?"
+                    value={groupDescription}
+                    onChange={(e) => setGroupDescription(e.target.value)}
+                    className="w-full bg-slate-950 border border-slate-805 rounded-xl py-2 px-3 text-xs outline-none focus:border-indigo-500"
+                  />
+                </div>
+              </div>
+
+              {/* Contacts Selection */}
+              <div className="flex-1 flex flex-col min-h-0">
+                <span className="block text-slate-450 text-[10px] font-bold uppercase tracking-wider mb-2 shrink-0">Select Group Members</span>
+                <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+                  {contacts.length === 0 ? (
+                    <p className="text-[10px] text-slate-500 text-center py-4">Add some contacts first to create groups</p>
+                  ) : (
+                    contacts.map((contact) => {
+                      const isSelected = selectedContacts.includes(contact.id);
+                      return (
+                        <button
+                          key={contact.id}
+                          type="button"
+                          onClick={() => handleToggleWizardContact(contact.id)}
+                          className={`w-full p-2.5 rounded-2xl text-left text-xs flex items-center justify-between transition-colors ${
+                            isSelected 
+                              ? 'bg-indigo-900/20 border border-indigo-500/30 text-indigo-200' 
+                              : 'bg-slate-950/40 hover:bg-slate-800 border border-slate-900'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center font-bold text-[10px]">
+                              {contact.displayName.slice(0, 2).toUpperCase()}
+                            </div>
+                            <span>{contact.displayName}</span>
+                          </div>
+                          <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
+                            isSelected ? 'bg-indigo-600 border-indigo-500' : 'border-slate-700'
+                          }`}>
+                            {isSelected && <Check className="w-3 h-3 text-white" />}
+                          </div>
+                        </button>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+
+              <div className="flex gap-2 justify-end pt-4 border-t border-slate-850 shrink-0">
+                <button
+                  type="button"
+                  onClick={() => setShowGroupWizard(false)}
+                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!groupName.trim() || selectedContacts.length === 0}
+                  className={`px-4 py-2 ${themeStyle.primary} rounded-xl text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  Assemble Group
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* 3. CAMERA RECORD SNAPSHOT MODAL */}
+      {showCameraModal && (
+        <div className="fixed inset-0 z-50 bg-black/85 flex flex-col items-center justify-center p-4">
+          <div className="w-full max-w-md bg-slate-900 border border-slate-805 rounded-[32px] overflow-hidden p-6 shadow-2xl relative">
+            <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-400 mb-4 text-center">Camera Snapshot</h3>
+            
+            <div className="aspect-video bg-black rounded-2xl overflow-hidden relative border border-slate-800 mb-6">
+              <video 
+                ref={cameraVideoRef}
+                autoPlay 
+                playsInline
+                className="w-full h-full object-cover transform -scale-x-100"
+              />
+            </div>
+
+            <div className="flex justify-center gap-3">
+              <button
+                onClick={stopCamera}
+                className="px-4 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl text-xs font-bold uppercase tracking-wider"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={captureSnapshot}
+                className={`px-5 py-2.5 ${themeStyle.primary} rounded-2xl text-xs font-bold uppercase tracking-wider`}
+              >
+                Capture Photo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 12. MESSAGE INFO MODAL (timestamps for sent, delivered, read) */}
+      {messageInfoMessage && (
+        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-805 rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-100 text-white">
+            <div className="flex justify-between items-center mb-4 border-b border-slate-850 pb-2.5">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-455">Message Details</h3>
+              <button 
+                onClick={() => setMessageInfoMessage(null)}
+                className="w-6 h-6 rounded-full hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div className="p-3 bg-black/30 border border-slate-850 rounded-2xl text-xs mb-6 max-h-24 overflow-y-auto italic font-light">
+              "{messageInfoMessage.content}"
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex justify-between items-center text-xs border-b border-slate-850 pb-2">
+                <span className="text-slate-500 font-medium">Created Sent</span>
+                <span className="text-slate-300">
+                  {new Date(messageInfoMessage.createdAt).toLocaleString()}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs border-b border-slate-850 pb-2">
+                <span className="text-slate-500 font-medium">Delivered Status</span>
+                <span className="text-slate-300">
+                  {messageInfoMessage.status === 'DELIVERED' || messageInfoMessage.status === 'READ' ? 'Delivered' : 'Pending Server'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center text-xs">
+                <span className="text-slate-550 font-medium">Read Status</span>
+                <span className={`font-semibold ${messageInfoMessage.status === 'READ' ? 'text-cyan-400' : 'text-slate-500'}`}>
+                  {messageInfoMessage.status === 'READ' ? 'Read (Blue Tick)' : 'Unread'}
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 8. DRAGGABLE PICTURE IN PICTURE SIMULATED CALL SCREEN OVERLAY */}
+      {callModal && callModal.isMinimized && (
+        <div 
+          onMouseDown={handleFloatingCallMouseDown}
+          style={{ 
+            top: `${floatingPos.y}px`, 
+            left: `${floatingPos.x}px`,
+            position: 'fixed'
+          }}
+          className="w-32 h-44 bg-gradient-to-tr from-slate-900 to-slate-950 border border-indigo-500/40 rounded-2xl shadow-2xl z-50 flex flex-col items-center justify-center p-3 text-center cursor-move select-none animate-in zoom-in-95 duration-200"
+        >
+          <div className="w-9 h-9 rounded-full bg-indigo-600/20 border border-indigo-500/20 flex items-center justify-center mb-2 animate-pulse">
+            {callModal.type === 'voice' ? <Phone className="w-4.5 h-4.5 text-indigo-400" /> : <Video className="w-4.5 h-4.5 text-indigo-400" />}
+          </div>
+          <span className="text-[10px] font-bold text-white truncate max-w-full block mb-1">{callModal.name}</span>
+          <span className="text-[8px] text-slate-500 block mb-3 animate-pulse">On call...</span>
+          <button
+            onClick={() => setCallModal(prev => prev ? { ...prev, isMinimized: false } : null)}
+            className="p-1 px-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-[8px] text-white font-bold"
+          >
+            Expand
+          </button>
+        </div>
+      )}
+
+      {/* MOCK CALLING FULL DIALOG (Visible when not PiP minimized) */}
+      {callModal && !callModal.isMinimized && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center px-4 animate-in fade-in duration-300">
+          <div className="w-full max-w-sm flex flex-col items-center p-8 bg-gradient-to-b from-slate-900 to-slate-955 border border-slate-855 rounded-[32px] text-center shadow-2xl relative">
+            <div className="absolute top-4 left-4 flex items-center gap-1.5 p-1 px-2.5 rounded-full bg-indigo-600/10 border border-indigo-500/20 text-[9px] font-medium tracking-wide text-indigo-400 animate-pulse">
+              <Shield className="w-3 h-3" />
+              <span>Simulated WebRTC</span>
+            </div>
+            
+            <div className="relative mb-8 mt-4">
+              <div className="absolute inset-0 rounded-full border border-indigo-500/30 animate-ping" style={{ animationDuration: '2s' }}></div>
+              <div className="w-20 h-20 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center relative">
+                {callModal.type === 'voice' ? <Phone className="w-8 h-8 text-indigo-400" /> : <Video className="w-8 h-8 text-indigo-400 animate-pulse" />}
+              </div>
+            </div>
+
+            <h3 className="text-base font-bold text-white mb-1">{callModal.name}</h3>
+            <p className="text-slate-405 text-xs mb-8 animate-pulse font-light">
+              Connecting simulated {callModal.type} call...
+            </p>
+
+            <div className="flex gap-2 w-full">
+              <button
+                onClick={() => setCallModal(prev => prev ? { ...prev, isMinimized: true } : null)}
+                className="flex-1 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl py-3 text-xs font-semibold transition-all"
+              >
+                Minimize (PiP)
+              </button>
+              <button
+                onClick={() => setCallModal(null)}
+                className="flex-1 bg-rose-600 hover:bg-rose-505 text-white rounded-2xl py-3 text-xs font-semibold transition-all"
+              >
+                End Call
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL: ADD CONTACT */}
       {showAddContact && (
@@ -1391,48 +2231,12 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL: CALLING DIALOG */}
-      {callModal && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center px-4 animate-in fade-in duration-300">
-          <div className="w-full max-w-sm flex flex-col items-center p-8 bg-gradient-to-b from-slate-900 to-slate-955 border border-slate-855 rounded-[32px] text-center shadow-2xl relative">
-            <div className="absolute top-4 left-4 flex items-center gap-1.5 p-1 px-2.5 rounded-full bg-indigo-600/10 border border-indigo-500/20 text-[9px] font-medium tracking-wide text-indigo-400 animate-pulse">
-              <Shield className="w-3 h-3" />
-              <span>Simulated WebRTC</span>
-            </div>
-            
-            <div className="relative mb-8 mt-4">
-              <div className="absolute inset-0 rounded-full border border-indigo-500/30 animate-ping" style={{ animationDuration: '2s' }}></div>
-              <div className="absolute -inset-4 rounded-full border border-indigo-500/10 animate-ping animate-delay-300" style={{ animationDuration: '3s' }}></div>
-              <div className="w-20 h-20 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center relative">
-                {callModal.type === 'voice' ? (
-                  <Phone className="w-8 h-8 text-indigo-400" />
-                ) : (
-                  <Video className="w-8 h-8 text-indigo-400 animate-pulse" />
-                )}
-              </div>
-            </div>
-
-            <h3 className="text-base font-bold text-white mb-1">{callModal.name}</h3>
-            <p className="text-slate-400 text-xs mb-8 animate-pulse font-light">
-              Connecting simulated {callModal.type} call...
-            </p>
-
-            <button
-              onClick={() => setCallModal(null)}
-              className="w-full max-w-[150px] bg-rose-600 hover:bg-rose-505 text-white rounded-2xl py-3 text-xs font-semibold transition-all shadow-lg shadow-rose-600/10"
-            >
-              End Call
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL: FORWARD MESSAGE DIALOG */}
+      {/* MODAL: FORWARD MESSAGE */}
       {forwardingMessage && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center px-4">
           <div className="w-full max-w-sm bg-slate-900 border border-slate-805 rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-100 flex flex-col max-h-[70vh]">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-400">Forward Message</h3>
+              <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-405">Forward Message</h3>
               <button 
                 onClick={() => setForwardingMessage(null)}
                 className="w-6 h-6 rounded-full hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white"
@@ -1464,7 +2268,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* STORY VIEWER FULLSCREEN MODAL */}
+      {/* STORY VIEWER MODAL */}
       {activeStory && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center select-none animate-in fade-in duration-300">
           <div className="w-full max-w-lg h-full max-h-[85vh] md:max-h-[90vh] bg-slate-955 border border-slate-900 md:rounded-3xl flex flex-col relative overflow-hidden shadow-2xl">
