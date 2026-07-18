@@ -9,7 +9,7 @@ import {
   Video, MoreVertical, Trash2, Heart, Copy, Bookmark, Paintbrush, Play,
   Pin, Archive, Star, Reply, CornerUpRight, Edit2, ShieldAlert, Moon, Sun, 
   Database, ArrowLeft, Menu, Camera, ToggleLeft, ToggleRight, Mic, Lock, Smartphone, Ban, AlertTriangle,
-  ExternalLink, Bell, Volume2, Info, Eye, Paperclip, Minimize2, PhoneOff, MicOff
+  ExternalLink, Bell, Volume2, Info, Eye, Paperclip, Minimize2, PhoneOff, MicOff, VideoOff
 } from 'lucide-react';
 
 type ThemeName = 'royal' | 'emerald' | 'ocean' | 'rose';
@@ -83,6 +83,7 @@ export default function Home() {
   const [activeTheme, setActiveTheme] = useState<ThemeName>('royal');
   const [chatWallpaper, setChatWallpaper] = useState<string>('mesh-indigo');
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<'profile' | 'appearance' | 'privacy'>('profile');
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showSharedMedia, setShowSharedMedia] = useState(false); // Collapsible Shared Media sidebar
 
@@ -142,6 +143,8 @@ export default function Home() {
 
   // PICTURE IN PICTURE CALL BUBBLE (Floating call screen)
   const [callModal, setCallModal] = useState<{ isOpen: boolean; type: 'voice' | 'video'; name: string; isConnected?: boolean; isMinimized?: boolean } | null>(null);
+  const [isCallMuted, setIsCallMuted] = useState(false);
+  const [isCallVideoOff, setIsCallVideoOff] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [floatingPos, setFloatingPos] = useState({ x: 20, y: 80 });
   const isDraggingFloatingRef = useRef(false);
@@ -161,6 +164,7 @@ export default function Home() {
   const [callStream, setCallStream] = useState<MediaStream | null>(null);
   const localVideoRef = useRef<HTMLVideoElement | null>(null);
   const partnerVideoRef = useRef<HTMLVideoElement | null>(null);
+  const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const lastNotificationMessageIdRef = useRef<string | null>(null);
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
 
@@ -258,6 +262,9 @@ export default function Home() {
       if (partnerVideoRef.current && event.streams[0]) {
         partnerVideoRef.current.srcObject = event.streams[0];
       }
+      if (remoteAudioRef.current && event.streams[0]) {
+        remoteAudioRef.current.srcObject = event.streams[0];
+      }
     };
 
     pc.onicecandidate = (event) => {
@@ -287,6 +294,8 @@ export default function Home() {
         peerConnectionRef.current.close();
         peerConnectionRef.current = null;
       }
+      setIsCallMuted(false);
+      setIsCallVideoOff(false);
     };
   }, [callModal?.isConnected, callStream]);
 
@@ -319,6 +328,26 @@ export default function Home() {
     window.addEventListener('call_signal', handleCallSignal);
     return () => window.removeEventListener('call_signal', handleCallSignal);
   }, [incomingCall, activeChat]);
+
+  const toggleCallAudio = () => {
+    if (callStream) {
+      const audioTrack = callStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        setIsCallMuted(!audioTrack.enabled);
+      }
+    }
+  };
+
+  const toggleCallVideo = () => {
+    if (callStream) {
+      const videoTrack = callStream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        setIsCallVideoOff(!videoTrack.enabled);
+      }
+    }
+  };
 
   // SWIPE EVENT TRACKERS (Mobile Gestures)
   const touchStartCoordsRef = useRef<{ x: number; y: number } | null>(null);
@@ -2207,245 +2236,328 @@ export default function Home() {
         <div onClick={() => setShowSettingsDrawer(false)} className="absolute inset-0 bg-black/60 backdrop-blur-xs" />
         
         <div 
-          className={`absolute top-0 left-0 h-full w-[290px] md:w-[320px] bg-slate-950/98 dark:bg-slate-955/98 light:bg-white/98 backdrop-blur-2xl border-r border-slate-900 dark:border-slate-900 light:border-slate-200 shadow-2xl flex flex-col z-50 transition-transform duration-300 ease-out ${
+          className={`absolute top-0 left-0 h-full w-[310px] md:w-[340px] border-r shadow-2xl flex flex-col z-50 transition-transform duration-300 ease-out ${
             showSettingsDrawer ? 'translate-x-0' : '-translate-x-full'
+          } ${
+            isDarkMode 
+              ? 'bg-slate-955/80 border-slate-900/60 backdrop-blur-2xl text-white shadow-indigo-500/5' 
+              : 'bg-white/85 border-slate-200/80 backdrop-blur-2xl text-slate-800 shadow-slate-950/5'
           }`}
         >
-          <div className="p-4 border-b border-slate-900 dark:border-slate-900 light:border-slate-100 flex justify-between items-center shrink-0">
-            <span className="text-xs font-bold uppercase tracking-widest text-indigo-400">Settings & Profile</span>
+          {/* Header Area */}
+          <div className={`p-4 border-b flex justify-between items-center shrink-0 ${
+            isDarkMode ? 'border-slate-900/65' : 'border-slate-250/60'
+          }`}>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-400">Settings Center</span>
             <button 
               onClick={() => setShowSettingsDrawer(false)}
-              className="w-7 h-7 rounded-full hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+              className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
+                isDarkMode ? 'hover:bg-slate-900 text-slate-450 hover:text-white' : 'hover:bg-slate-100 text-slate-550 hover:text-slate-900'
+              }`}
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-4 space-y-5 min-h-0 text-slate-200 dark:text-slate-200 light:text-slate-800">
-            
-            {/* Redesigned Profile Card */}
-            <form onSubmit={handleSaveSettings} className="bg-slate-900/30 dark:bg-slate-900/30 light:bg-slate-50 border border-slate-850 dark:border-slate-850 light:border-slate-200 p-4 rounded-[24px] space-y-4 shadow-sm">
-              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block text-center">My Identity</span>
-              
-              <div className="flex flex-col items-center gap-1.5 relative">
-                <div className="relative group cursor-pointer hover:scale-102 transition-transform">
-                  <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 p-0.5 shadow-md shadow-indigo-500/10">
-                    <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center font-extrabold text-white text-lg">
-                      {editDisplayName.slice(0, 2).toUpperCase() || 'HA'}
+          {/* Tab Selection Bar */}
+          <div className={`p-2 flex gap-1 border-b shrink-0 ${
+            isDarkMode ? 'border-slate-900/65' : 'border-slate-250/60'
+          }`}>
+            {(['profile', 'appearance', 'privacy'] as const).map((tab) => (
+              <button
+                key={tab}
+                onClick={() => setSettingsTab(tab)}
+                className={`flex-1 py-2 text-[9px] font-bold uppercase tracking-wider rounded-xl transition-all ${
+                  settingsTab === tab
+                    ? isDarkMode 
+                      ? 'bg-indigo-650/20 text-indigo-300 border border-indigo-500/30'
+                      : 'bg-indigo-50 text-indigo-600 border border-indigo-200'
+                    : 'bg-transparent text-slate-450 hover:text-indigo-400 border border-transparent'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          {/* Tab Content List */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
+            {settingsTab === 'profile' && (
+              <form onSubmit={handleSaveSettings} className="space-y-4">
+                {/* Profile Identity Card */}
+                <div className={`p-4 rounded-3xl border space-y-4 shadow-sm relative overflow-hidden ${
+                  isDarkMode ? 'bg-slate-900/30 border-slate-850/50' : 'bg-slate-50/50 border-slate-200/80'
+                }`}>
+                  <span className="text-[9px] font-extrabold text-indigo-400 uppercase tracking-widest block text-center">My Identity</span>
+                  
+                  <div className="flex flex-col items-center gap-1.5 relative">
+                    <div className="relative group cursor-pointer hover:scale-102 transition-transform">
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 p-0.5 shadow-md shadow-indigo-500/10">
+                        {editAvatarUrl ? (
+                          <img src={editAvatarUrl} alt="Avatar" className="w-full h-full rounded-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center font-extrabold text-white text-lg">
+                            {editDisplayName.slice(0, 2).toUpperCase() || 'HA'}
+                          </div>
+                        )}
+                      </div>
+                      <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                        <Camera className="w-4 h-4 text-white" />
+                      </div>
+                    </div>
+                    <span className="text-[8px] text-slate-500 font-light mt-0.5">Profile Photo</span>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div>
+                      <label className="block text-[8px] font-bold uppercase tracking-wider text-slate-500 mb-1">Display Name</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="Enter display name"
+                        value={editDisplayName}
+                        onChange={(e) => setEditDisplayName(e.target.value)}
+                        className={`w-full border rounded-xl py-2 px-3 text-xs outline-none transition-all ${
+                          isDarkMode 
+                            ? 'bg-slate-955 border-slate-805 text-white focus:border-indigo-500/60' 
+                            : 'bg-white border-slate-200 text-slate-805 focus:border-indigo-500/60 shadow-inner'
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[8px] font-bold uppercase tracking-wider text-slate-500 mb-1">Bio / Status</label>
+                      <input
+                        type="text"
+                        placeholder="E.g. Hey there! I am using Halo Chat."
+                        value={editBio}
+                        onChange={(e) => setEditBio(e.target.value)}
+                        className={`w-full border rounded-xl py-2 px-3 text-xs outline-none transition-all ${
+                          isDarkMode 
+                            ? 'bg-slate-955 border-slate-805 text-white focus:border-indigo-500/60' 
+                            : 'bg-white border-slate-200 text-slate-805 focus:border-indigo-500/60 shadow-inner'
+                        }`}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[8px] font-bold uppercase tracking-wider text-slate-500 mb-1">Avatar Image Upload</label>
+                      <div className="relative">
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) {
+                              const reader = new FileReader();
+                              reader.readAsDataURL(file);
+                              reader.onloadend = () => {
+                                setEditAvatarUrl(reader.result as string);
+                              };
+                            }
+                          }}
+                          className="hidden"
+                          id="profile-avatar-upload"
+                        />
+                        <label 
+                          htmlFor="profile-avatar-upload"
+                          className={`w-full border rounded-xl py-2 px-3 text-xs outline-none transition-colors cursor-pointer flex items-center justify-between ${
+                            isDarkMode 
+                              ? 'bg-slate-955 border-slate-805 hover:border-indigo-500/50 text-slate-400 hover:text-white' 
+                              : 'bg-white border-slate-250 hover:border-indigo-500/50 text-slate-600 hover:text-slate-900 shadow-inner'
+                          }`}
+                        >
+                          <span className="truncate max-w-[190px]">
+                            {editAvatarUrl ? 'Image Selected (Base64)' : 'Choose Image File...'}
+                          </span>
+                          <ImageIcon className="w-4 h-4 shrink-0 text-slate-500" />
+                        </label>
+                      </div>
                     </div>
                   </div>
-                  <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                    <Camera className="w-4 h-4 text-white" />
-                  </div>
                 </div>
-                <span className="text-[8px] text-slate-500 font-light mt-0.5">Click to update photo</span>
-              </div>
 
-              <div className="space-y-3.5">
-                <div>
-                  <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1">Display Name</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter display name"
-                    value={editDisplayName}
-                    onChange={(e) => setEditDisplayName(e.target.value)}
-                    className="w-full bg-slate-955 dark:bg-slate-955 light:bg-white border border-slate-805 focus:border-indigo-500/60 rounded-xl py-2 px-3 text-xs outline-none text-white dark:text-white light:text-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1">Bio / Status</label>
-                  <input
-                    type="text"
-                    placeholder="E.g. Hey there! I am using Halo Chat."
-                    value={editBio}
-                    onChange={(e) => setEditBio(e.target.value)}
-                    className="w-full bg-slate-955 dark:bg-slate-955 light:bg-white border border-slate-805 focus:border-indigo-500/60 rounded-xl py-2 px-3 text-xs outline-none text-white dark:text-white light:text-slate-800"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1">Avatar Image Upload</label>
-                  <div className="relative">
-                    <input
-                      type="file"
-                      accept="image/*"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (file) {
-                          const reader = new FileReader();
-                          reader.readAsDataURL(file);
-                          reader.onloadend = () => {
-                            setEditAvatarUrl(reader.result as string);
-                          };
-                        }
-                      }}
-                      className="hidden"
-                      id="profile-avatar-upload"
-                    />
-                    <label 
-                      htmlFor="profile-avatar-upload"
-                      className="w-full bg-slate-955 dark:bg-slate-955 light:bg-white border border-slate-805 hover:border-indigo-500/50 rounded-xl py-2.5 px-3 text-xs outline-none text-slate-400 hover:text-white transition-colors cursor-pointer flex items-center justify-between"
-                    >
-                      <span className="truncate max-w-[190px]">
-                        {editAvatarUrl ? 'Image Selected (Base64)' : 'Choose Image File...'}
-                      </span>
-                      <ImageIcon className="w-4 h-4 shrink-0 text-slate-500" />
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSavingSettings}
-                className={`w-full py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all ${themeStyle.primary}`}
-              >
-                {isSavingSettings ? 'Saving Updates...' : 'Save Profile Details'}
-              </button>
-            </form>
-
-            {/* Appearance settings */}
-            <div className="bg-slate-900/30 dark:bg-slate-900/30 light:bg-slate-50 border border-slate-850 dark:border-slate-850 light:border-slate-200 p-4 rounded-[24px] space-y-4 shadow-sm">
-              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block text-center">Appearance</span>
-              
-              <div className="flex justify-between items-center bg-slate-950/40 dark:bg-slate-955/40 light:bg-white p-2.5 rounded-xl border border-slate-850 dark:border-slate-850 light:border-slate-100">
-                <span className="text-[10px] font-medium text-slate-350 dark:text-slate-355 light:text-slate-650">Dark Interface Mode</span>
-                <button 
-                  type="button"
-                  onClick={() => setIsDarkMode(!isDarkMode)}
-                  className="w-8 h-8 rounded-lg hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-50 flex items-center justify-center text-slate-450 transition-colors"
+                <button
+                  type="submit"
+                  disabled={isSavingSettings}
+                  className={`w-full py-3.5 rounded-2xl text-[10px] font-bold uppercase tracking-wider transition-all shadow-md active:scale-98 ${themeStyle.primary}`}
                 >
-                  {isDarkMode ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
+                  {isSavingSettings ? 'Saving Updates...' : 'Save Profile Details'}
                 </button>
-              </div>
+              </form>
+            )}
 
-              <div className="space-y-1.5">
-                <span className="text-[9px] font-bold text-slate-505 uppercase tracking-wider block mb-1">Color Accent Theme</span>
-                <div className="flex gap-1.5">
-                  {(['royal', 'emerald', 'ocean', 'rose'] as ThemeName[]).map((theme) => (
-                    <button
-                      key={theme}
-                      type="button"
-                      onClick={() => setActiveTheme(theme)}
-                      className={`flex-1 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all border ${
-                        activeTheme === theme 
-                          ? 'bg-indigo-600/10 border-indigo-500 text-indigo-300'
-                          : 'bg-slate-950/40 dark:bg-slate-955/40 light:bg-white border-slate-850 dark:border-slate-850 light:border-slate-200 text-slate-500 hover:text-slate-300'
-                      }`}
-                    >
-                      {theme}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="space-y-1.5">
-                <span className="text-[9px] font-bold text-slate-505 uppercase tracking-wider block mb-1">Select Wallpaper</span>
-                <div className="grid grid-cols-2 gap-1.5">
-                  {[
-                    { id: 'mesh-indigo', label: 'Indigo Glow' },
-                    { id: 'mesh-violet', label: 'Violet Twilight' },
-                    { id: 'solid-slate', label: 'Dark Slate' },
-                    { id: 'solid-dark', label: 'Deep Black' }
-                  ].map((wallpaper) => (
-                    <button
-                      key={wallpaper.id}
-                      type="button"
-                      onClick={() => setChatWallpaper(wallpaper.id)}
-                      className={`py-1.5 px-2 rounded-lg text-[9px] truncate transition-all border ${
-                        chatWallpaper === wallpaper.id
-                          ? 'bg-indigo-600/10 border-indigo-500 text-indigo-300'
-                          : 'bg-slate-950/40 dark:bg-slate-955/40 light:bg-white border-slate-855 dark:border-slate-855 light:border-slate-200 text-slate-500 hover:text-slate-350'
-                      }`}
-                    >
-                      {wallpaper.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Camera & Mic Permissions */}
-            <div className="bg-slate-900/30 dark:bg-slate-900/30 light:bg-slate-50 border border-slate-850 dark:border-slate-850 light:border-slate-200 p-4 rounded-[24px] space-y-3 shadow-sm">
-              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block text-center">Hardware Access</span>
-              
-              <p className="text-[10px] text-slate-500 text-center font-light leading-normal">
-                Grant camera and microphone permissions to enable calling and snapshot capture.
-              </p>
-
-              <button
-                type="button"
-                onClick={async () => {
-                  try {
-                    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                    stream.getTracks().forEach(track => track.stop());
-                    alert('Camera & Microphone access verified successfully! 🟢');
-                  } catch (err) {
-                    console.error('Permission request failed:', err);
-                    alert('Access Blocked! 🔴 Please enable camera and microphone permissions in your browser address bar settings.');
-                  }
-                }}
-                className="w-full bg-slate-950/40 dark:bg-slate-955/40 light:bg-white hover:bg-indigo-600/10 border border-slate-850 dark:border-slate-850 light:border-slate-200 hover:border-indigo-500 text-slate-350 hover:text-indigo-400 rounded-xl py-2 px-3 text-xs font-semibold transition-all flex items-center justify-center gap-2"
-              >
-                <Video className="w-4 h-4 shrink-0" />
-                <span>Test Camera & Mic Access</span>
-              </button>
-            </div>
-
-            {/* Privacy settings */}
-            {user && (
-              <div className="bg-slate-900/30 dark:bg-slate-900/30 light:bg-slate-50 border border-slate-850 dark:border-slate-850 light:border-slate-200 p-4 rounded-[24px] space-y-4 shadow-sm">
-                <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block text-center">Privacy settings</span>
-                
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] text-slate-400 dark:text-slate-400 light:text-slate-600">Show Last Seen status</span>
+            {settingsTab === 'appearance' && (
+              <div className="space-y-4">
+                <div className={`p-4 rounded-3xl border space-y-4 shadow-sm ${
+                  isDarkMode ? 'bg-slate-900/30 border-slate-850/50' : 'bg-slate-50/50 border-slate-200/80'
+                }`}>
+                  <span className="text-[9px] font-extrabold text-indigo-400 uppercase tracking-widest block text-center">Theme Settings</span>
+                  
+                  {/* Dark Mode Switcher */}
+                  <div className={`flex justify-between items-center p-2.5 rounded-xl border ${
+                    isDarkMode ? 'bg-slate-950/40 border-slate-850' : 'bg-white border-slate-150'
+                  }`}>
+                    <span className={`text-[10px] font-medium ${isDarkMode ? 'text-slate-350' : 'text-slate-650'}`}>Dark Interface Mode</span>
                     <button 
                       type="button"
-                      onClick={() => handleTogglePrivacy('showLastSeen', user.showLastSeen)}
-                      className="text-slate-450 hover:text-indigo-400 transition-colors"
+                      onClick={() => setIsDarkMode(!isDarkMode)}
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
+                        isDarkMode ? 'hover:bg-slate-900 text-slate-450' : 'hover:bg-slate-50 text-slate-550'
+                      }`}
                     >
-                      {user.showLastSeen ? <ToggleRight className="w-6 h-6 text-indigo-400" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
+                      {isDarkMode ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
                     </button>
                   </div>
 
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] text-slate-400 dark:text-slate-400 light:text-slate-600">Read Receipts (Blue Ticks)</span>
-                    <button 
-                      type="button"
-                      onClick={() => handleTogglePrivacy('showReadReceipts', user.showReadReceipts)}
-                      className="text-slate-455 hover:text-indigo-400 transition-colors"
-                    >
-                      {user.showReadReceipts ? <ToggleRight className="w-6 h-6 text-indigo-400" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
-                    </button>
+                  {/* Accents Theme Selector */}
+                  <div className="space-y-1.5">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Color Accent Theme</span>
+                    <div className="flex gap-1.5">
+                      {(['royal', 'emerald', 'ocean', 'rose'] as ThemeName[]).map((theme) => (
+                        <button
+                          key={theme}
+                          type="button"
+                          onClick={() => setActiveTheme(theme)}
+                          className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all border ${
+                            activeTheme === theme 
+                              ? 'bg-indigo-600/10 border-indigo-500 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.15)]'
+                              : isDarkMode
+                              ? 'bg-slate-950/40 border-slate-850 text-slate-500 hover:text-slate-300'
+                              : 'bg-white border-slate-200 text-slate-500 hover:text-slate-800 shadow-sm'
+                          }`}
+                        >
+                          {theme}
+                        </button>
+                      ))}
+                    </div>
                   </div>
 
-                  <div className="flex justify-between items-center">
-                    <span className="text-[10px] text-slate-400 dark:text-slate-400 light:text-slate-600">Sound & Push Alerts</span>
-                    <button 
-                      type="button"
-                      onClick={() => handleTogglePrivacy('allowNotifications', user.allowNotifications)}
-                      className="text-slate-455 hover:text-indigo-400 transition-colors"
-                    >
-                      {user.allowNotifications ? <ToggleRight className="w-6 h-6 text-indigo-400" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
-                    </button>
+                  {/* Wallpaper Grid */}
+                  <div className="space-y-1.5">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Select Wallpaper</span>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {[
+                        { id: 'mesh-indigo', label: 'Indigo Glow' },
+                        { id: 'mesh-violet', label: 'Violet Twilight' },
+                        { id: 'solid-slate', label: 'Dark Slate' },
+                        { id: 'solid-dark', label: 'Deep Black' }
+                      ].map((wallpaper) => (
+                        <button
+                          key={wallpaper.id}
+                          type="button"
+                          onClick={() => setChatWallpaper(wallpaper.id)}
+                          className={`py-1.5 px-2 rounded-lg text-[9px] truncate transition-all border ${
+                            chatWallpaper === wallpaper.id
+                              ? 'bg-indigo-600/10 border-indigo-500 text-indigo-300 shadow-sm'
+                              : isDarkMode
+                              ? 'bg-slate-955 border-slate-855 text-slate-500 hover:text-slate-350'
+                              : 'bg-white border-slate-200 text-slate-550 hover:text-slate-900 shadow-sm'
+                          }`}
+                        >
+                          {wallpaper.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Storage Progress */}
-            <div className="bg-slate-900/30 dark:bg-slate-900/30 light:bg-slate-50 border border-slate-850 dark:border-slate-850 light:border-slate-200 p-4 rounded-[24px] space-y-3 shadow-sm">
-              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block text-center">Local Data Status</span>
-              <div className="flex justify-between items-baseline text-[9px] text-slate-505">
+            {settingsTab === 'privacy' && (
+              <div className="space-y-4">
+                {/* Privacy Options */}
+                {user && (
+                  <div className={`p-4 rounded-3xl border space-y-3 shadow-sm ${
+                    isDarkMode ? 'bg-slate-900/30 border-slate-850/50' : 'bg-slate-50/50 border-slate-200/80'
+                  }`}>
+                    <span className="text-[9px] font-extrabold text-indigo-400 uppercase tracking-widest block text-center">Privacy & Security</span>
+                    
+                    <div className="space-y-3.5 pt-1">
+                      <div className="flex justify-between items-center">
+                        <span className={`text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-650'}`}>Show Last Seen status</span>
+                        <button 
+                          type="button"
+                          onClick={() => handleTogglePrivacy('showLastSeen', user.showLastSeen)}
+                          className="text-slate-450 hover:text-indigo-400 transition-colors"
+                        >
+                          {user.showLastSeen ? <ToggleRight className="w-6 h-6 text-indigo-400" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
+                        </button>
+                      </div>
+
+                      <div className="flex justify-between items-center">
+                        <span className={`text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-650'}`}>Read Receipts (Blue Ticks)</span>
+                        <button 
+                          type="button"
+                          onClick={() => handleTogglePrivacy('showReadReceipts', user.showReadReceipts)}
+                          className="text-slate-455 hover:text-indigo-400 transition-colors"
+                        >
+                          {user.showReadReceipts ? <ToggleRight className="w-6 h-6 text-indigo-400" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
+                        </button>
+                      </div>
+
+                      <div className="flex justify-between items-center">
+                        <span className={`text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-650'}`}>Sound & Push Alerts</span>
+                        <button 
+                          type="button"
+                          onClick={() => handleTogglePrivacy('allowNotifications', user.allowNotifications)}
+                          className="text-slate-455 hover:text-indigo-400 transition-colors"
+                        >
+                          {user.allowNotifications ? <ToggleRight className="w-6 h-6 text-indigo-400" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Hardware Verification Card */}
+                <div className={`p-4 rounded-3xl border space-y-3 shadow-sm ${
+                  isDarkMode ? 'bg-slate-900/30 border-slate-850/50' : 'bg-slate-50/50 border-slate-200/80'
+                }`}>
+                  <span className="text-[9px] font-extrabold text-indigo-400 uppercase tracking-widest block text-center">Hardware Access</span>
+                  
+                  <p className="text-[9px] text-slate-500 text-center font-light leading-normal">
+                    Verify camera and microphone hardware loops to troubleshoot device connection lags.
+                  </p>
+
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      try {
+                        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                        stream.getTracks().forEach(track => track.stop());
+                        alert('Camera & Microphone access verified successfully! 🟢');
+                      } catch (err) {
+                        console.error('Permission request failed:', err);
+                        alert('Access Blocked! 🔴 Please enable camera and microphone permissions in your browser address bar.');
+                      }
+                    }}
+                    className={`w-full border rounded-xl py-2.5 px-3 text-xs font-semibold transition-all flex items-center justify-center gap-2 ${
+                      isDarkMode 
+                        ? 'bg-slate-950/40 hover:bg-indigo-600/10 border-slate-850 text-slate-350 hover:text-indigo-400 hover:border-indigo-500' 
+                        : 'bg-white hover:bg-indigo-50 border-slate-200 text-slate-650 hover:text-indigo-650 hover:border-indigo-400 shadow-sm'
+                    }`}
+                  >
+                    <Video className="w-4 h-4 shrink-0" />
+                    <span>Test Camera & Mic Access</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Storage Progress Section (Rendered below content in all tabs) */}
+            <div className={`p-4 rounded-3xl border space-y-2.5 shadow-sm mt-2 shrink-0 ${
+              isDarkMode ? 'bg-slate-900/30 border-slate-850/50' : 'bg-slate-50/50 border-slate-200/80'
+            }`}>
+              <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest block text-center">Local Data Status</span>
+              <div className="flex justify-between items-baseline text-[8px] text-slate-500">
                 <span>Disk Storage Used</span>
                 <span>124 MB of 5.0 GB</span>
               </div>
-              <div className="w-full bg-slate-950/80 dark:bg-slate-955/80 light:bg-slate-200 rounded-full h-1.5 overflow-hidden">
+              <div className={`w-full rounded-full h-1.5 overflow-hidden ${
+                isDarkMode ? 'bg-slate-950/80' : 'bg-slate-200 shadow-inner'
+              }`}>
                 <div className="bg-indigo-500 h-full w-[2.5%] rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]"></div>
               </div>
             </div>
-
           </div>
         </div>
       </div>
@@ -2637,45 +2749,84 @@ export default function Home() {
             left: `${floatingPos.x}px`,
             position: 'fixed'
           }}
-          className="w-32 h-44 bg-gradient-to-tr from-slate-900 to-slate-955 border border-indigo-500/40 rounded-2xl shadow-2xl z-50 flex flex-col items-center justify-center p-3 text-center cursor-move select-none animate-in zoom-in-95 duration-200"
+          className={`w-36 h-48 border rounded-3xl shadow-2xl z-50 overflow-hidden cursor-move select-none animate-in zoom-in-95 duration-205 flex flex-col relative ${
+            isDarkMode 
+              ? 'bg-slate-950/80 border-indigo-500/30 backdrop-blur-md shadow-indigo-500/10' 
+              : 'bg-white/85 border-slate-200 backdrop-blur-md shadow-slate-400/20'
+          }`}
         >
           {callModal.type === 'video' ? (
-            <div className="w-full h-24 rounded-lg overflow-hidden border border-indigo-500/20 mb-2 relative shrink-0">
-              <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+            <div className="absolute inset-0 z-0 w-full h-full bg-black">
+              {/* Partner stream as background */}
+              <video 
+                ref={partnerVideoRef} 
+                autoPlay 
+                playsInline 
+                className="w-full h-full object-cover transform -scale-x-100" 
+              />
+              {/* Local stream as small corner bubble */}
+              <div className="absolute bottom-12 right-2 w-10 h-14 rounded-lg overflow-hidden border border-indigo-500/50 shadow-lg z-10 bg-slate-900">
+                <video 
+                  ref={localVideoRef} 
+                  autoPlay 
+                  playsInline 
+                  muted 
+                  className="w-full h-full object-cover" 
+                />
+              </div>
             </div>
           ) : (
-            <div className="w-9 h-9 rounded-full bg-indigo-600/20 border border-indigo-500/20 flex items-center justify-center mb-2 animate-pulse">
-              <Phone className="w-4.5 h-4.5 text-indigo-400" />
+            <div className="flex-1 flex flex-col items-center justify-center p-3 relative z-10">
+              <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 animate-pulse ${
+                isDarkMode ? 'bg-indigo-600/20 border border-indigo-500/20 text-indigo-400' : 'bg-indigo-50 text-indigo-650'
+              }`}>
+                <Phone className="w-5 h-5" />
+              </div>
+              <span className={`text-[10px] font-bold truncate max-w-full block ${isDarkMode ? 'text-white' : 'text-slate-800'}`}>
+                {callModal.name}
+              </span>
+              <span className="text-[8px] text-slate-400 block animate-pulse">Voice Call...</span>
             </div>
           )}
-          <span className="text-[10px] font-bold text-white truncate max-w-full block mb-1">{callModal.name}</span>
-          <span className="text-[8px] text-slate-500 block mb-3 animate-pulse">On call...</span>
-          <button
-            onClick={() => setCallModal(prev => prev ? { ...prev, isMinimized: false } : null)}
-            className="p-1 px-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-[8px] text-white font-bold"
-          >
-            Expand
-          </button>
+
+          {/* Absolute bottom overlay for control/info */}
+          <div className="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/80 to-transparent flex items-center justify-between z-20 shrink-0 px-3">
+            <span className="text-[8px] text-white/90 truncate max-w-[50%] font-bold">{callModal.name}</span>
+            <button
+              onClick={() => setCallModal(prev => prev ? { ...prev, isMinimized: false } : null)}
+              className="p-1 px-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-505 text-[8px] text-white font-bold transition-all shadow-md shrink-0"
+            >
+              Expand
+            </button>
+          </div>
         </div>
       )}
 
       {/* REAL CALLING FULL DIALOG (Visible when not PiP minimized) */}
       {callModal && !callModal.isMinimized && (
-        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center px-4 animate-in fade-in duration-300 text-white">
-          <div className="w-full max-w-md h-[550px] flex flex-col bg-slate-900 border border-slate-800 rounded-[32px] overflow-hidden shadow-2xl relative">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex items-center justify-center px-4 animate-in fade-in duration-300">
+          <div className={`w-full max-w-md h-[560px] flex flex-col border rounded-[36px] overflow-hidden shadow-2xl relative transition-all ${
+            isDarkMode 
+              ? 'bg-slate-950/40 border-slate-900/60 shadow-indigo-500/5 text-white' 
+              : 'bg-white/60 border-white/40 shadow-slate-950/10 text-slate-800'
+          }`}>
             
+            {/* Ambient Background Glow Nodes */}
+            <div className="absolute -top-12 -left-12 w-48 h-48 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none animate-pulse" style={{ animationDuration: '6s' }}></div>
+            <div className="absolute -bottom-12 -right-12 w-48 h-48 rounded-full bg-violet-500/10 blur-3xl pointer-events-none animate-pulse" style={{ animationDuration: '9s' }}></div>
+
             {/* Header indicator */}
-            <div className="absolute top-4 left-4 z-30 flex items-center gap-1.5 p-1 px-2.5 rounded-full bg-black/40 backdrop-blur-xs border border-white/10 text-[9px] font-medium tracking-wide text-indigo-400">
+            <div className="absolute top-4 left-4 z-30 flex items-center gap-1.5 p-1 px-3 rounded-full bg-black/45 backdrop-blur-md border border-white/10 text-[9px] font-bold tracking-wider uppercase text-indigo-400">
               <Shield className="w-3 h-3 text-emerald-400 animate-pulse" />
-              <span>{callModal.isConnected ? 'Call Active (Connected)' : 'Connecting...'}</span>
+              <span>{callModal.isConnected ? 'Secure Line Connected' : 'Connecting Line...'}</span>
             </div>
 
             {/* Video Viewport Area */}
-            <div className="flex-1 bg-slate-950 relative flex items-center justify-center overflow-hidden">
+            <div className="flex-1 bg-slate-950/90 relative flex items-center justify-center overflow-hidden">
               {callModal.type === 'video' ? (
                 <>
-                  {/* Main video: Partner stream (Simulated using mirrored local stream or placeholder) */}
-                  <div className="w-full h-full bg-slate-950">
+                  {/* Main video: Partner stream */}
+                  <div className="w-full h-full bg-slate-950 relative">
                     <video 
                       ref={partnerVideoRef} 
                       autoPlay 
@@ -2686,59 +2837,107 @@ export default function Home() {
                   </div>
 
                   {/* Local video: Small PiP floating corner */}
-                  <div className="absolute bottom-20 right-4 w-28 h-36 rounded-2xl overflow-hidden border border-indigo-500/50 shadow-2xl z-20 bg-slate-900">
-                    <video 
-                      ref={localVideoRef} 
-                      autoPlay 
-                      playsInline 
-                      muted 
-                      className="w-full h-full object-cover animate-in fade-in zoom-in-95 duration-300" 
-                    />
+                  <div className="absolute bottom-20 right-4 w-28 h-36 rounded-2xl overflow-hidden border border-indigo-500/35 shadow-2xl z-20 bg-slate-900/90 backdrop-blur-md transition-all duration-300">
+                    {isCallVideoOff ? (
+                      <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center gap-1 text-center p-2">
+                        <VideoOff className="w-5 h-5 text-rose-500" />
+                        <span className="text-[7px] text-slate-500 font-bold uppercase tracking-wider">Camera Off</span>
+                      </div>
+                    ) : (
+                      <video 
+                        ref={localVideoRef} 
+                        autoPlay 
+                        playsInline 
+                        muted 
+                        className="w-full h-full object-cover animate-in fade-in zoom-in-95 duration-350" 
+                      />
+                    )}
+                    <span className="absolute bottom-1.5 left-2 px-1.5 py-0.5 rounded bg-black/60 text-[7px] text-white/90 font-bold uppercase tracking-wider">You</span>
                   </div>
                 </>
               ) : (
                 /* Voice Call Viewport: Show pulsing user avatars */
-                <div className="flex flex-col items-center justify-center p-6 text-center">
+                <div className="flex flex-col items-center justify-center p-6 text-center relative z-10">
                   <div className="relative mb-6">
-                    <div className="absolute inset-0 rounded-full border border-indigo-500/30 animate-ping" style={{ animationDuration: '2s' }}></div>
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-650 border border-indigo-500/30 flex items-center justify-center shadow-2xl shadow-indigo-500/10">
-                      <span className="text-2xl font-bold">{callModal.name.slice(0, 2).toUpperCase()}</span>
+                    <div className="absolute inset-0 rounded-full border border-indigo-500/35 animate-ping" style={{ animationDuration: '2s' }}></div>
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-650 border border-indigo-500/20 flex items-center justify-center shadow-2xl shadow-indigo-500/10">
+                      <span className="text-2xl font-bold text-white">{callModal.name.slice(0, 2).toUpperCase()}</span>
                     </div>
                   </div>
-                  <h3 className="text-base font-bold text-white mb-1">{callModal.name}</h3>
-                  <span className="text-[10px] text-slate-405 font-light animate-pulse">
-                    {callModal.isConnected ? 'Active voice session...' : 'Ringing...'}
+                  <h3 className="text-base font-extrabold text-white mb-1">{callModal.name}</h3>
+                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest animate-pulse">
+                    {callModal.isConnected ? 'Voice connection active' : 'Calling...'}
                   </span>
                 </div>
               )}
 
               {/* Connecting Overlay if not connected yet */}
               {!callModal.isConnected && (
-                <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center z-10 p-6 text-center">
+                <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center z-10 p-6 text-center animate-in fade-in duration-200">
                   <div className="relative mb-6">
                     <div className="absolute inset-0 rounded-full border-2 border-indigo-500/20 animate-ping" style={{ animationDuration: '2s' }}></div>
                     <div className="w-20 h-20 rounded-full bg-slate-900 border border-indigo-500/30 flex items-center justify-center">
                       {callModal.type === 'video' ? <Video className="w-8 h-8 text-indigo-400 animate-pulse" /> : <Phone className="w-8 h-8 text-indigo-400" />}
                     </div>
                   </div>
-                  <h3 className="text-base font-bold text-white mb-1">{callModal.name}</h3>
-                  <p className="text-slate-400 text-xs animate-pulse font-light">
-                    Ringing simulated {callModal.type} call...
+                  <h3 className="text-base font-extrabold text-white mb-1">{callModal.name}</h3>
+                  <p className="text-indigo-400/80 text-[10px] font-bold uppercase tracking-widest animate-pulse">
+                    Connecting encrypted feed...
                   </p>
                 </div>
               )}
             </div>
 
             {/* Bottom Translucent Control Bar */}
-            <div className="p-4 bg-slate-950/90 backdrop-blur-md border-t border-slate-900 flex justify-between items-center z-35 shrink-0 px-6">
+            <div className={`p-5 flex justify-between items-center z-35 shrink-0 px-8 border-t transition-all ${
+              isDarkMode 
+                ? 'bg-slate-950/80 backdrop-blur-lg border-slate-900/60' 
+                : 'bg-white/80 backdrop-blur-lg border-slate-200'
+            }`}>
+              {/* Minimize Call Button */}
               <button
                 onClick={() => setCallModal(prev => prev ? { ...prev, isMinimized: true } : null)}
-                className="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 transition-colors"
-                title="Minimize (PiP)"
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-sm ${
+                  isDarkMode ? 'bg-slate-900 hover:bg-slate-800 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                }`}
+                title="Minimize Call (PiP)"
               >
-                <Minimize2 className="w-4.5 h-4.5" />
+                <Minimize2 className="w-4 h-4" />
               </button>
 
+              {/* Toggle Video Feed (Camera icon) */}
+              {callModal.type === 'video' && (
+                <button
+                  onClick={toggleCallVideo}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${
+                    isCallVideoOff
+                      ? 'bg-rose-600 hover:bg-rose-500 text-white'
+                      : isDarkMode
+                      ? 'bg-slate-900 hover:bg-slate-800 text-slate-300'
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  }`}
+                  title={isCallVideoOff ? 'Turn Camera On' : 'Turn Camera Off'}
+                >
+                  {isCallVideoOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+                </button>
+              )}
+
+              {/* Toggle Audio Mic (Mic icon) */}
+              <button
+                onClick={toggleCallAudio}
+                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${
+                  isCallMuted
+                    ? 'bg-rose-600 hover:bg-rose-500 text-white'
+                    : isDarkMode
+                    ? 'bg-slate-900 hover:bg-slate-800 text-slate-300'
+                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                }`}
+                title={isCallMuted ? 'Unmute Microphone' : 'Mute Microphone'}
+              >
+                {isCallMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+              </button>
+
+              {/* End Call Button */}
               <button
                 onClick={() => {
                   if (activeChat?.otherMember) {
@@ -2746,18 +2945,10 @@ export default function Home() {
                   }
                   setCallModal(null);
                 }}
-                className="w-12 h-12 rounded-full bg-rose-600 hover:bg-rose-500 flex items-center justify-center text-white transition-all shadow-lg shadow-rose-600/20 hover:scale-105"
-                title="End Call"
+                className="w-12 h-12 rounded-full bg-rose-600 hover:bg-rose-500 flex items-center justify-center text-white transition-all shadow-lg shadow-rose-600/30 hover:scale-105 active:scale-95"
+                title="Hang Up"
               >
                 <PhoneOff className="w-5 h-5 shrink-0 transform rotate-135" />
-              </button>
-
-              <button
-                className="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-rose-400 hover:text-rose-300 transition-colors"
-                title="Mute Audio"
-                onClick={() => alert('Microphone muted')}
-              >
-                <MicOff className="w-4.5 h-4.5" />
               </button>
             </div>
           </div>
@@ -3100,6 +3291,9 @@ export default function Home() {
           </div>
         </div>
       )}
+
+      {/* Hidden global audio element to play remote WebRTC streams */}
+      <audio ref={remoteAudioRef} autoPlay className="hidden" />
 
     </div>
   );
