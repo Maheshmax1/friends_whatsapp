@@ -2167,6 +2167,33 @@ export default function Home() {
               </div>
             </div>
 
+            {/* Camera & Mic Permissions */}
+            <div className="bg-slate-900/30 dark:bg-slate-900/30 light:bg-slate-50 border border-slate-850 dark:border-slate-850 light:border-slate-200 p-4 rounded-[24px] space-y-3 shadow-sm">
+              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block text-center">Hardware Access</span>
+              
+              <p className="text-[10px] text-slate-500 text-center font-light leading-normal">
+                Grant camera and microphone permissions to enable calling and snapshot capture.
+              </p>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  try {
+                    const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    stream.getTracks().forEach(track => track.stop());
+                    alert('Camera & Microphone access verified successfully! 🟢');
+                  } catch (err) {
+                    console.error('Permission request failed:', err);
+                    alert('Access Blocked! 🔴 Please enable camera and microphone permissions in your browser address bar settings.');
+                  }
+                }}
+                className="w-full bg-slate-950/40 dark:bg-slate-955/40 light:bg-white hover:bg-indigo-600/10 border border-slate-850 dark:border-slate-850 light:border-slate-200 hover:border-indigo-500 text-slate-350 hover:text-indigo-400 rounded-xl py-2 px-3 text-xs font-semibold transition-all flex items-center justify-center gap-2"
+              >
+                <Video className="w-4 h-4 shrink-0" />
+                <span>Test Camera & Mic Access</span>
+              </button>
+            </div>
+
             {/* Privacy settings */}
             {user && (
               <div className="bg-slate-900/30 dark:bg-slate-900/30 light:bg-slate-50 border border-slate-850 dark:border-slate-850 light:border-slate-200 p-4 rounded-[24px] space-y-4 shadow-sm">
