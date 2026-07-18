@@ -16,8 +16,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="h-full dark">
-      <body className={`${inter.className} min-h-full flex flex-col antialiased`}>
+    <html lang="en" className="h-full dark overflow-hidden">
+      <body className={`${inter.className} h-full overflow-hidden flex flex-col antialiased`}>
         <ChatProvider>
           {children}
         </ChatProvider>

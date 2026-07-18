@@ -747,7 +747,7 @@ export default function Home() {
   // APP PIN CODE LOCK SCREEN LAYOUT (Rendered on load if lock active)
   if (appLocked) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-slate-950 relative overflow-hidden px-4">
+      <div className="h-dvh w-screen flex items-center justify-center bg-slate-955 relative overflow-hidden px-4">
         {/* Glow decoration */}
         <div className="absolute top-1/3 left-1/3 w-[30rem] h-[30rem] bg-indigo-500/10 rounded-full blur-[130px] pointer-events-none animate-pulse"></div>
 
@@ -813,7 +813,7 @@ export default function Home() {
   // AUTH SCREEN
   if (!user) {
     return (
-      <div className="h-screen w-screen flex items-center justify-center bg-slate-950 relative overflow-hidden px-4">
+      <div className="h-dvh w-screen flex items-center justify-center bg-slate-950 relative overflow-hidden px-4">
         <div className="absolute top-1/4 left-1/4 w-[35rem] h-[35rem] bg-indigo-500/10 rounded-full blur-[150px] pointer-events-none animate-pulse" style={{ animationDuration: '8s' }}></div>
         <div className="absolute bottom-1/4 right-1/4 w-[35rem] h-[35rem] bg-violet-600/10 rounded-full blur-[150px] pointer-events-none animate-pulse" style={{ animationDuration: '12s' }}></div>
 
@@ -921,7 +921,7 @@ export default function Home() {
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className="h-screen w-screen flex bg-slate-950 text-white relative overflow-hidden select-none dark:bg-slate-950 light:bg-slate-50 light:text-slate-900 transition-colors duration-300"
+      className="h-dvh w-screen flex bg-slate-950 text-white relative overflow-hidden select-none dark:bg-slate-950 light:bg-slate-50 light:text-slate-900 transition-colors duration-300"
     >
       {/* 5. DRAG & DROP attachment visual overlay */}
       {isDraggingFile && (
