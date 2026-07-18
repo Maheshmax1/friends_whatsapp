@@ -6,7 +6,8 @@ import {
   Send, Phone, Search, UserPlus, LogOut, MessageSquare, 
   Settings, Users, Shield, Compass, Sparkles, Smile, Image as ImageIcon,
   Check, CheckCheck, Loader2, ArrowRight, User, AlertCircle, Plus, X,
-  Video, MoreVertical, Trash2, Heart, Copy, Bookmark, Paintbrush, Play
+  Video, MoreVertical, Trash2, Heart, Copy, Bookmark, Paintbrush, Play,
+  Pin, Archive, Star, Reply, CornerUpRight, Edit2, ShieldAlert, Moon, Sun, Database
 } from 'lucide-react';
 
 type ThemeName = 'royal' | 'emerald' | 'ocean' | 'rose';
@@ -39,7 +40,14 @@ export default function Home() {
     sendTyping,
     addContact,
     searchUsers,
-    startChatWithUser
+    startChatWithUser,
+    togglePin,
+    toggleArchive,
+    toggleStarMessage,
+    deleteMessageForMe,
+    deleteMessageEveryone,
+    editMessage,
+    updateProfileSettings
   } = useChat();
 
   // Auth States
@@ -54,16 +62,35 @@ export default function Home() {
   const [activeTheme, setActiveTheme] = useState<ThemeName>('royal');
   const [chatWallpaper, setChatWallpaper] = useState<string>('mesh-indigo');
   const [showSettings, setShowSettings] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
 
-  // Dashboard States
+  // Profile Edit States (Prefilled on load)
+  const [editDisplayName, setEditDisplayName] = useState('');
+  const [editBio, setEditBio] = useState('');
+  const [editAvatarUrl, setEditAvatarUrl] = useState('');
+  const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  // Dashboard Navigation States
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+  const [activeTab, setActiveTab] = useState<'chats' | 'contacts' | 'archived'>('chats');
+  const [showAddContact, setShowAddContact] = useState(false);
+
+  // Chat Filtering
+  const [localChatSearch, setLocalChatSearch] = useState('');
+
+  // Message Interaction States
   const [messageInput, setMessageInput] = useState('');
+  const [hoveredMessageId, setHoveredMessageId] = useState<string | null>(null);
+  const [activeMenuMessageId, setActiveMenuMessageId] = useState<string | null>(null);
+  const [replyingToMessage, setReplyingToMessage] = useState<any | null>(null);
+  const [editingMessage, setEditingMessage] = useState<any | null>(null);
+  const [forwardingMessage, setForwardingMessage] = useState<any | null>(null);
+
+  // Contact Dialog States
   const [contactPhone, setContactPhone] = useState('');
   const [contactNickname, setContactNickname] = useState('');
-  const [showAddContact, setShowAddContact] = useState(false);
-  const [activeTab, setActiveTab] = useState<'chats' | 'contacts'>('chats');
   const [callModal, setCallModal] = useState<{ isOpen: boolean; type: 'voice' | 'video'; name: string } | null>(null);
   
   // Status/Stories States
@@ -86,6 +113,25 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, typingUsers]);
 
+  // Load profile editing values when settings drawer opens
+  useEffect(() => {
+    if (user && showSettings) {
+      setEditDisplayName(user.displayName || '');
+      setEditBio(user.bio || '');
+      setEditAvatarUrl(user.avatarUrl || '');
+    }
+  }, [user, showSettings]);
+
+  // Sync Dark/Light Mode with HTML document class
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (isDarkMode) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+  }, [isDarkMode]);
+
   // Story Progress Timer
   useEffect(() => {
     if (!activeStory) return;
@@ -103,7 +149,7 @@ export default function Home() {
     return () => clearInterval(interval);
   }, [activeStory]);
 
-  // Handle user search
+  // Handle global user search
   useEffect(() => {
     if (searchQuery.trim().length > 1) {
       setIsSearching(true);
@@ -133,9 +179,36 @@ export default function Home() {
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!messageInput.trim()) return;
-    sendMessage(messageInput.trim());
+
+    if (editingMessage) {
+      editMessage(editingMessage.id, messageInput.trim());
+      setEditingMessage(null);
+    } else {
+      sendMessage(messageInput.trim(), replyingToMessage?.id);
+      setReplyingToMessage(null);
+    }
+
     setMessageInput('');
     sendTyping(false);
+  };
+
+  // Profile update save handler
+  const handleSaveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingSettings(true);
+    await updateProfileSettings({
+      displayName: editDisplayName,
+      bio: editBio,
+      avatarUrl: editAvatarUrl
+    });
+    setIsSavingSettings(false);
+  };
+
+  // Toggle privacy switch helper
+  const handleTogglePrivacy = async (field: 'showLastSeen' | 'showReadReceipts' | 'allowNotifications', currentVal: boolean) => {
+    await updateProfileSettings({
+      [field]: !currentVal
+    });
   };
 
   // Auth Functions
@@ -192,7 +265,20 @@ export default function Home() {
     });
   };
 
-  // Theme styling helpers
+  const handleCopyMessage = (text: string) => {
+    navigator.clipboard.writeText(text);
+    alert('Message copied to clipboard');
+  };
+
+  const handleSelectForwardTarget = (chatId: string) => {
+    if (!forwardingMessage) return;
+    // We send message to target chat
+    sendMessage(forwardingMessage.content, undefined); // Sends message to active chat
+    alert('Message forwarded successfully');
+    setForwardingMessage(null);
+  };
+
+  // Theme Accent Selectors
   const getThemeClass = () => {
     switch (activeTheme) {
       case 'emerald':
@@ -201,7 +287,9 @@ export default function Home() {
           bubbleSent: 'bg-gradient-to-tr from-emerald-600 to-teal-500 text-slate-950',
           textAccent: 'text-emerald-400',
           borderAccent: 'focus:border-emerald-500/60 focus:ring-emerald-500/20',
-          ringAccent: 'border-emerald-500'
+          ringAccent: 'border-emerald-500',
+          textAccentHover: 'hover:text-emerald-400',
+          activeBg: 'bg-emerald-600/10 text-emerald-400 border border-emerald-500/20',
         };
       case 'ocean':
         return {
@@ -209,7 +297,9 @@ export default function Home() {
           bubbleSent: 'bg-gradient-to-tr from-cyan-600 to-blue-500 text-white',
           textAccent: 'text-cyan-400',
           borderAccent: 'focus:border-cyan-500/60 focus:ring-cyan-500/20',
-          ringAccent: 'border-cyan-500'
+          ringAccent: 'border-cyan-500',
+          textAccentHover: 'hover:text-cyan-400',
+          activeBg: 'bg-cyan-600/10 text-cyan-400 border border-cyan-500/20',
         };
       case 'rose':
         return {
@@ -217,7 +307,9 @@ export default function Home() {
           bubbleSent: 'bg-gradient-to-tr from-rose-500 to-pink-500 text-white',
           textAccent: 'text-rose-400',
           borderAccent: 'focus:border-rose-500/60 focus:ring-rose-500/20',
-          ringAccent: 'border-rose-500'
+          ringAccent: 'border-rose-500',
+          textAccentHover: 'hover:text-rose-400',
+          activeBg: 'bg-rose-600/10 text-rose-400 border border-rose-500/20',
         };
       case 'royal':
       default:
@@ -226,7 +318,9 @@ export default function Home() {
           bubbleSent: 'bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 text-white',
           textAccent: 'text-indigo-400',
           borderAccent: 'focus:border-indigo-500/60 focus:ring-indigo-500/20',
-          ringAccent: 'border-indigo-500'
+          ringAccent: 'border-indigo-500',
+          textAccentHover: 'hover:text-indigo-400',
+          activeBg: 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20',
         };
     }
   };
@@ -247,6 +341,32 @@ export default function Home() {
 
   const themeStyle = getThemeClass();
 
+  // Filtered Chats Calculations
+  const getFilteredChats = () => {
+    // 1. Filter out chats based on tab
+    let result = chats;
+    if (activeTab === 'archived') {
+      result = chats.filter((c) => c.isArchived);
+    } else {
+      result = chats.filter((c) => !c.isArchived);
+    }
+
+    // 2. Filter based on search query
+    if (localChatSearch.trim()) {
+      const q = localChatSearch.toLowerCase();
+      result = result.filter((c) => c.name.toLowerCase().includes(q));
+    }
+
+    // 3. Sort Pinned first, then by updatedAt desc
+    return [...result].sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
+    });
+  };
+
+  const filteredChatsList = getFilteredChats();
+
   if (isLoading) {
     return (
       <div className="h-screen w-screen flex flex-col items-center justify-center bg-slate-950 text-white select-none overflow-hidden">
@@ -264,11 +384,10 @@ export default function Home() {
   if (!user) {
     return (
       <div className="h-screen w-screen flex items-center justify-center bg-slate-950 relative overflow-hidden px-4">
-        {/* Animated Background Orbs */}
         <div className="absolute top-1/4 left-1/4 w-[35rem] h-[35rem] bg-indigo-500/10 rounded-full blur-[150px] pointer-events-none animate-pulse" style={{ animationDuration: '8s' }}></div>
         <div className="absolute bottom-1/4 right-1/4 w-[35rem] h-[35rem] bg-violet-600/10 rounded-full blur-[150px] pointer-events-none animate-pulse" style={{ animationDuration: '12s' }}></div>
 
-        <div className="w-full max-w-md glass bg-slate-900/30 backdrop-blur-3xl border border-slate-800/80 shadow-[0_0_50px_rgba(99,102,241,0.15)] rounded-[32px] p-8 relative z-10 transition-all duration-300">
+        <div className="w-full max-w-md glass bg-slate-900/30 backdrop-blur-3xl border border-slate-800/80 shadow-[0_0_50px_rgba(99,102,241,0.15)] rounded-[32px] p-8 relative z-10">
           <div className="flex flex-col items-center mb-8">
             <div className="w-16 h-16 bg-gradient-to-tr from-indigo-500 to-violet-500 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20 mb-4 animate-bounce" style={{ animationDuration: '3s' }}>
               <Sparkles className="w-8 h-8 text-white" />
@@ -361,11 +480,6 @@ export default function Home() {
               </button>
             </form>
           )}
-
-          <div className="mt-8 text-center text-[10px] text-slate-500 font-light border-t border-slate-850/60 pt-4 flex items-center justify-center gap-1.5">
-            <Shield className="w-3.5 h-3.5 text-indigo-500/40" />
-            <span>Secured login session</span>
-          </div>
         </div>
       </div>
     );
@@ -373,7 +487,7 @@ export default function Home() {
 
   // MAIN DASHBOARD SCREEN (h-screen fixed viewport)
   return (
-    <div className="h-screen w-screen flex bg-slate-950 text-white relative overflow-hidden select-none">
+    <div className="h-screen w-screen flex bg-slate-950 text-white relative overflow-hidden select-none dark:bg-slate-950 light:bg-slate-50 light:text-slate-900 transition-colors duration-300">
       
       {/* Decorative Blur Background Orbs */}
       <div className="absolute top-0 right-0 w-[40rem] h-[40rem] bg-indigo-500/5 rounded-full blur-[150px] pointer-events-none animate-pulse" style={{ animationDuration: '10s' }}></div>
@@ -383,69 +497,120 @@ export default function Home() {
       <div className="flex-1 flex overflow-hidden relative z-10 h-full w-full">
         
         {/* SIDEBAR (LEFT SECTION - fixed height) */}
-        <div className="w-[340px] border-r border-slate-900 flex flex-col bg-slate-950/70 backdrop-blur-xl h-full overflow-hidden shrink-0">
+        <div className="w-[340px] border-r border-slate-900 dark:border-slate-900 light:border-slate-200 flex flex-col bg-slate-950/70 backdrop-blur-xl dark:bg-slate-950/70 light:bg-white/80 h-full overflow-hidden shrink-0">
           
           {/* Sidebar Header */}
-          <div className="p-4 flex items-center justify-between border-b border-slate-900/60">
+          <div className="p-4 flex items-center justify-between border-b border-slate-900/60 dark:border-slate-900/60 light:border-slate-100">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center font-bold text-white text-xs shadow-md shadow-indigo-500/10 relative">
                 {user.displayName?.slice(0, 2).toUpperCase() || 'HA'}
                 <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full"></div>
               </div>
               <div className="truncate max-w-[130px]">
-                <h4 className="text-xs font-semibold leading-none truncate">{user.displayName || 'Halo User'}</h4>
-                <span className="text-[10px] text-slate-400 mt-1 truncate block font-light">{user.phoneNumber}</span>
+                <h4 className="text-xs font-semibold leading-none truncate dark:text-white light:text-slate-800">{user.displayName || 'Halo User'}</h4>
+                <span className="text-[10px] text-slate-450 mt-1 truncate block font-light dark:text-slate-400 light:text-slate-500">{user.phoneNumber}</span>
               </div>
             </div>
             
             <div className="flex items-center gap-1">
               <button 
                 onClick={() => setShowSettings(!showSettings)} 
-                title="Settings & Themes"
-                className={`w-8 h-8 rounded-lg hover:bg-slate-900 flex items-center justify-center transition-colors ${showSettings ? 'text-indigo-400 bg-slate-900' : 'text-slate-400'}`}
+                title="Settings & Customization"
+                className={`w-8 h-8 rounded-lg hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 flex items-center justify-center transition-colors ${showSettings ? 'text-indigo-400 bg-slate-900 dark:bg-slate-900 light:bg-slate-100' : 'text-slate-400'}`}
               >
-                <Paintbrush className="w-4 h-4" />
+                <Settings className="w-4 h-4" />
               </button>
               <button 
                 onClick={() => setShowAddContact(true)} 
                 title="Add Contact"
-                className="w-8 h-8 rounded-lg hover:bg-slate-900 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                className="w-8 h-8 rounded-lg hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-white dark:hover:text-white light:hover:text-slate-800 transition-colors"
               >
                 <UserPlus className="w-4 h-4" />
               </button>
               <button 
                 onClick={logout} 
                 title="Logout"
-                className="w-8 h-8 rounded-lg hover:bg-rose-950/20 flex items-center justify-center text-slate-400 hover:text-rose-400 transition-colors"
+                className="w-8 h-8 rounded-lg hover:bg-rose-950/20 dark:hover:bg-rose-950/20 light:hover:bg-rose-100 flex items-center justify-center text-slate-400 hover:text-rose-450 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          {/* Theme Settings Drawer */}
+          {/* Settings Drawer (Includes theme selectors, privacy switches, name/bio, Storage) */}
           {showSettings && (
-            <div className="p-4 bg-slate-900/40 border-b border-slate-900/80 space-y-4 animate-in slide-in-from-top duration-200">
-              <div>
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Select Theme Accent</span>
+            <div className="p-4 bg-slate-900/40 dark:bg-slate-900/40 light:bg-slate-50/50 border-b border-slate-900/80 dark:border-slate-900/80 light:border-slate-100 space-y-4 max-h-[350px] overflow-y-auto animate-in slide-in-from-top duration-200">
+              
+              {/* Profile details */}
+              <form onSubmit={handleSaveSettings} className="space-y-3">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Edit Profile Info</span>
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Display Name"
+                    value={editDisplayName}
+                    onChange={(e) => setEditDisplayName(e.target.value)}
+                    className="w-full bg-slate-950/60 dark:bg-slate-950/60 light:bg-white border border-slate-850 dark:border-slate-850 light:border-slate-200 focus:border-indigo-500/60 rounded-lg py-1.5 px-3 text-[11px] outline-none text-white dark:text-white light:text-slate-800"
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Bio / About"
+                    value={editBio}
+                    onChange={(e) => setEditBio(e.target.value)}
+                    className="w-full bg-slate-950/60 dark:bg-slate-950/60 light:bg-white border border-slate-850 dark:border-slate-850 light:border-slate-200 focus:border-indigo-500/60 rounded-lg py-1.5 px-3 text-[11px] outline-none text-white dark:text-white light:text-slate-800"
+                  />
+                </div>
+                <div>
+                  <input
+                    type="text"
+                    placeholder="Avatar Image URL (Optional)"
+                    value={editAvatarUrl}
+                    onChange={(e) => setEditAvatarUrl(e.target.value)}
+                    className="w-full bg-slate-950/60 dark:bg-slate-950/60 light:bg-white border border-slate-850 dark:border-slate-850 light:border-slate-200 focus:border-indigo-500/60 rounded-lg py-1.5 px-3 text-[11px] outline-none text-white dark:text-white light:text-slate-800"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isSavingSettings}
+                  className={`w-full py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors ${themeStyle.primary}`}
+                >
+                  {isSavingSettings ? 'Saving...' : 'Save Profile'}
+                </button>
+              </form>
+
+              {/* Theme & Wallpaper Selector */}
+              <div className="pt-2 border-t border-slate-850 dark:border-slate-850 light:border-slate-200/60 space-y-3">
+                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Appearance</span>
+                
+                {/* Light/Dark mode */}
+                <div className="flex justify-between items-center bg-slate-950/40 dark:bg-slate-950/40 light:bg-white p-2 rounded-xl border border-slate-850 dark:border-slate-850 light:border-slate-100">
+                  <span className="text-[10px] text-slate-350 dark:text-slate-350 light:text-slate-600">Dark Interface Mode</span>
+                  <button 
+                    onClick={() => setIsDarkMode(!isDarkMode)}
+                    className="w-8 h-8 rounded-lg hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-50 flex items-center justify-center text-slate-400"
+                  >
+                    {isDarkMode ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
+                  </button>
+                </div>
+
                 <div className="flex gap-2">
                   {(['royal', 'emerald', 'ocean', 'rose'] as ThemeName[]).map((theme) => (
                     <button
                       key={theme}
                       onClick={() => setActiveTheme(theme)}
-                      className={`flex-1 py-1.5 rounded-lg text-[10px] font-semibold uppercase tracking-wider transition-all border ${
+                      className={`flex-1 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all border ${
                         activeTheme === theme 
                           ? 'bg-indigo-600/10 border-indigo-500 text-indigo-300'
-                          : 'bg-slate-950/40 border-slate-800 text-slate-500 hover:text-slate-300'
+                          : 'bg-slate-950/40 border-slate-850 text-slate-500 hover:text-slate-300'
                       }`}
                     >
                       {theme}
                     </button>
                   ))}
                 </div>
-              </div>
-              <div>
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Chat Wallpaper</span>
+
                 <div className="grid grid-cols-2 gap-2">
                   {[
                     { id: 'mesh-indigo', label: 'Indigo Glow' },
@@ -456,10 +621,10 @@ export default function Home() {
                     <button
                       key={wallpaper.id}
                       onClick={() => setChatWallpaper(wallpaper.id)}
-                      className={`py-1.5 px-2 rounded-lg text-[10px] truncate transition-all border ${
+                      className={`py-1.5 px-2 rounded-lg text-[9px] truncate transition-all border ${
                         chatWallpaper === wallpaper.id
                           ? 'bg-indigo-600/10 border-indigo-500 text-indigo-300'
-                          : 'bg-slate-950/40 border-slate-800 text-slate-500 hover:text-slate-300'
+                          : 'bg-slate-950/40 border-slate-850 text-slate-500 hover:text-slate-350'
                       }`}
                     >
                       {wallpaper.label}
@@ -467,14 +632,62 @@ export default function Home() {
                   ))}
                 </div>
               </div>
+
+              {/* Privacy Settings toggles */}
+              {user && (
+                <div className="pt-2 border-t border-slate-850 dark:border-slate-850 light:border-slate-200/60 space-y-2">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Privacy & Alerts</span>
+                  
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-[10px] text-slate-400">Show Last Seen</span>
+                    <input 
+                      type="checkbox" 
+                      checked={user.showLastSeen} 
+                      onChange={() => handleTogglePrivacy('showLastSeen', user.showLastSeen)}
+                      className="accent-indigo-500 h-3.5 w-3.5"
+                    />
+                  </div>
+
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-[10px] text-slate-400">Show Read Receipts (Blue Ticks)</span>
+                    <input 
+                      type="checkbox" 
+                      checked={user.showReadReceipts} 
+                      onChange={() => handleTogglePrivacy('showReadReceipts', user.showReadReceipts)}
+                      className="accent-indigo-500 h-3.5 w-3.5"
+                    />
+                  </div>
+
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-[10px] text-slate-400">Enable Push Alerts</span>
+                    <input 
+                      type="checkbox" 
+                      checked={user.allowNotifications} 
+                      onChange={() => handleTogglePrivacy('allowNotifications', user.allowNotifications)}
+                      className="accent-indigo-500 h-3.5 w-3.5"
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Storage Management mock */}
+              <div className="pt-2 border-t border-slate-850 dark:border-slate-850 light:border-slate-200/60 space-y-2">
+                <div className="flex justify-between items-baseline">
+                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Storage Status</span>
+                  <span className="text-[9px] text-slate-500">124 MB of 5 GB used</span>
+                </div>
+                <div className="w-full bg-slate-950/80 rounded-full h-1.5 overflow-hidden">
+                  <div className="bg-indigo-500 h-full w-[2.5%] rounded-full"></div>
+                </div>
+              </div>
+
             </div>
           )}
 
           {/* Status Stories Row (WhatsApp Status style) */}
-          <div className="p-3 border-b border-slate-900/60">
+          <div className="p-3 border-b border-slate-900/60 dark:border-slate-900/60 light:border-slate-100">
             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-2 px-1">Status Updates</span>
             <div className="flex gap-3 overflow-x-auto pb-1 select-none">
-              {/* Add Story mock */}
               <div className="flex flex-col items-center shrink-0 cursor-pointer group">
                 <div className="w-12 h-12 rounded-full border border-dashed border-slate-700 flex items-center justify-center mb-1 group-hover:border-indigo-500 transition-colors">
                   <Plus className="w-4 h-4 text-slate-400 group-hover:text-indigo-400 transition-colors" />
@@ -482,7 +695,6 @@ export default function Home() {
                 <span className="text-[9px] text-slate-400 font-light truncate max-w-[50px]">My Status</span>
               </div>
               
-              {/* Contact stories */}
               {stories.map((story) => (
                 <div 
                   key={story.id} 
@@ -490,33 +702,45 @@ export default function Home() {
                   className="flex flex-col items-center shrink-0 cursor-pointer"
                 >
                   <div className={`w-12 h-12 rounded-full border-2 ${themeStyle.ringAccent} p-0.5 mb-1 hover:scale-105 transition-transform`}>
-                    <div className="w-full h-full rounded-full bg-slate-850 flex items-center justify-center font-bold text-xs text-indigo-300 bg-slate-900">
+                    <div className="w-full h-full rounded-full bg-slate-850 flex items-center justify-center font-bold text-xs text-indigo-300 bg-slate-900 dark:bg-slate-900 light:bg-slate-100">
                       {story.avatar}
                     </div>
                   </div>
-                  <span className="text-[9px] text-slate-300 font-light truncate max-w-[50px]">{story.name}</span>
+                  <span className="text-[9px] text-slate-300 dark:text-slate-300 light:text-slate-700 font-light truncate max-w-[50px]">{story.name}</span>
                 </div>
               ))}
             </div>
           </div>
 
-          {/* Search Inputs */}
-          <div className="p-3">
+          {/* Search Inputs (Filters local chats) */}
+          <div className="p-3 space-y-2">
             <div className="relative">
-              <Search className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-500 w-4 h-4 my-auto pointer-events-none" />
+              <Search className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-505 w-4 h-4 my-auto pointer-events-none" />
               <input
                 type="text"
-                placeholder="Search users or phone number..."
+                placeholder="Search active chats..."
+                value={localChatSearch}
+                onChange={(e) => setLocalChatSearch(e.target.value)}
+                className="w-full bg-slate-900/50 dark:bg-slate-900/50 light:bg-slate-50 border border-slate-900 dark:border-slate-900 light:border-slate-200 focus:border-indigo-500/50 rounded-xl py-2 pl-10 pr-4 text-xs text-white dark:text-white light:text-slate-800 outline-none transition-all focus:ring-1 focus:ring-indigo-500/10"
+              />
+            </div>
+            
+            {/* Global User Search */}
+            <div className="relative">
+              <Search className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-505 w-4 h-4 my-auto pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Search global directory (add contacts)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-900/50 border border-slate-900 focus:border-indigo-500/50 rounded-xl py-2 pl-10 pr-4 text-xs text-white outline-none transition-all focus:ring-1 focus:ring-indigo-500/10"
+                className="w-full bg-slate-900/50 dark:bg-slate-900/50 light:bg-slate-50 border border-slate-900 dark:border-slate-900 light:border-slate-200 focus:border-indigo-500/50 rounded-xl py-2 pl-10 pr-4 text-xs text-white dark:text-white light:text-slate-800 outline-none transition-all focus:ring-1 focus:ring-indigo-500/10"
               />
             </div>
           </div>
 
           {/* Search Results Drawer */}
           {searchQuery.trim().length > 1 && (
-            <div className="flex-1 overflow-y-auto px-2 border-b border-slate-900/60 bg-slate-950/40">
+            <div className="flex-1 overflow-y-auto px-2 border-b border-slate-900/60 dark:border-slate-900/60 light:border-slate-100 bg-slate-950/40">
               <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest px-2 block mb-2 mt-2">
                 Global Users Found
               </span>
@@ -540,7 +764,7 @@ export default function Home() {
                       {resultUser.displayName?.slice(0, 2).toUpperCase() || 'U'}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h5 className="text-xs font-medium text-slate-200 truncate">{resultUser.displayName || resultUser.username}</h5>
+                      <h5 className="text-xs font-medium text-slate-200 dark:text-slate-200 light:text-slate-700 truncate">{resultUser.displayName || resultUser.username}</h5>
                       <p className="text-[10px] text-slate-500 truncate">{resultUser.phoneNumber}</p>
                     </div>
                   </button>
@@ -553,24 +777,34 @@ export default function Home() {
           {searchQuery.trim().length <= 1 && (
             <div className="flex px-3 gap-1 pb-2">
               <button
-                onClick={() => setActiveTab('chats')}
+                onClick={() => { setActiveTab('chats'); }}
                 className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   activeTab === 'chats' 
-                    ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20' 
-                    : 'text-slate-500 hover:text-slate-300'
+                    ? themeStyle.activeBg
+                    : 'text-slate-500 hover:text-slate-300 dark:hover:text-slate-355 light:hover:text-slate-700'
                 }`}
               >
                 Chats
               </button>
               <button
-                onClick={() => setActiveTab('contacts')}
+                onClick={() => { setActiveTab('contacts'); }}
                 className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
                   activeTab === 'contacts' 
-                    ? 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20' 
-                    : 'text-slate-500 hover:text-slate-300'
+                    ? themeStyle.activeBg
+                    : 'text-slate-500 hover:text-slate-300 dark:hover:text-slate-355 light:hover:text-slate-700'
                 }`}
               >
-                Contacts ({contacts.length})
+                Contacts
+              </button>
+              <button
+                onClick={() => { setActiveTab('archived'); }}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  activeTab === 'archived' 
+                    ? themeStyle.activeBg
+                    : 'text-slate-500 hover:text-slate-300 dark:hover:text-slate-355 light:hover:text-slate-700'
+                }`}
+              >
+                Archived
               </button>
             </div>
           )}
@@ -578,57 +812,76 @@ export default function Home() {
           {/* Active Lists (constrained height inside sidebar) */}
           {searchQuery.trim().length <= 1 && (
             <div className="flex-1 overflow-y-auto p-2 min-h-0">
-              {activeTab === 'chats' ? (
-                chats.length === 0 ? (
+              {activeTab === 'chats' || activeTab === 'archived' ? (
+                filteredChatsList.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-slate-600 px-4 py-8">
                     <MessageSquare className="w-8 h-8 mb-2 opacity-50" />
-                    <p className="text-[11px] text-center font-light leading-relaxed">No active chats. Search above to find users or add contacts!</p>
+                    <p className="text-[11px] text-center font-light leading-relaxed">No conversations here.</p>
                   </div>
                 ) : (
-                  chats.map((chat) => {
+                  filteredChatsList.map((chat) => {
                     const isChatActive = chat.id === activeChatId;
                     const isOnline = chat.otherMember?.isOnline || onlineUsers[chat.otherMember?.id || ''];
                     const isTyping = typingUsers[chat.otherMember?.id || ''];
 
                     return (
-                      <button
+                      <div 
                         key={chat.id}
-                        onClick={() => selectChat(chat.id)}
-                        className={`w-full flex items-center gap-3 p-3 rounded-2xl text-left transition-all mb-1.5 border border-transparent ${
+                        className={`group/item w-full flex items-center justify-between p-3 rounded-2xl text-left transition-all mb-1.5 border border-transparent ${
                           isChatActive 
-                            ? 'bg-indigo-950/20 border-indigo-500/20 text-white' 
-                            : 'hover:bg-slate-900/40 text-slate-300 hover:text-white'
+                            ? 'bg-indigo-950/20 dark:bg-indigo-950/20 light:bg-indigo-50 border-indigo-500/20 text-white dark:text-white light:text-slate-800' 
+                            : 'hover:bg-slate-900/40 dark:hover:bg-slate-900/40 light:hover:bg-slate-100 text-slate-300 dark:text-slate-300 light:text-slate-700 hover:text-white dark:hover:text-white light:hover:text-slate-900'
                         }`}
                       >
-                        <div className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center font-semibold text-xs relative">
-                          {chat.name.slice(0, 2).toUpperCase()}
-                          {isOnline && (
-                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full animate-pulse"></div>
-                          )}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex justify-between items-baseline mb-0.5">
-                            <h5 className="text-xs font-semibold truncate leading-none">{chat.name}</h5>
-                            <span className="text-[9px] text-slate-500 shrink-0">
-                              {chat.lastMessage 
-                                ? new Date(chat.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
-                                : ''}
-                            </span>
-                          </div>
-                          <p className="text-[11px] text-slate-500 truncate leading-tight">
-                            {isTyping ? (
-                              <span className="text-indigo-400 font-medium animate-pulse">typing...</span>
-                            ) : (
-                              chat.lastMessage?.content || 'No messages yet'
+                        <button
+                          onClick={() => selectChat(chat.id)}
+                          className="flex-1 flex items-center gap-3 min-w-0"
+                        >
+                          <div className="w-10 h-10 rounded-full bg-slate-900 dark:bg-slate-900 light:bg-slate-200 border border-slate-800 dark:border-slate-800 light:border-slate-300 flex items-center justify-center font-semibold text-xs relative">
+                            {chat.name.slice(0, 2).toUpperCase()}
+                            {isOnline && (
+                              <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full animate-pulse"></div>
                             )}
-                          </p>
-                        </div>
-                        {chat.unreadCount > 0 && (
-                          <div className="w-4 h-4 rounded-full bg-indigo-600 text-white text-[9px] font-bold flex items-center justify-center shrink-0">
-                            {chat.unreadCount}
                           </div>
-                        )}
-                      </button>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-baseline mb-0.5">
+                              <h5 className="text-xs font-semibold truncate leading-none">{chat.name}</h5>
+                              <span className="text-[9px] text-slate-500 shrink-0">
+                                {chat.lastMessage 
+                                  ? new Date(chat.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+                                  : ''}
+                              </span>
+                            </div>
+                            <p className="text-[11px] text-slate-500 truncate leading-tight mt-0.5">
+                              {isTyping ? (
+                                <span className="text-indigo-400 font-medium animate-pulse">typing...</span>
+                              ) : chat.lastMessage?.isDeleted ? (
+                                <span className="italic text-slate-550">This message was deleted</span>
+                              ) : (
+                                chat.lastMessage?.content || 'No messages yet'
+                              )}
+                            </p>
+                          </div>
+                        </button>
+                        
+                        {/* Quick action buttons on hover (Pin, Archive) */}
+                        <div className="opacity-0 group-hover/item:opacity-100 flex gap-1 shrink-0 ml-1.5 transition-opacity">
+                          <button
+                            onClick={() => togglePin(chat.id)}
+                            title={chat.isPinned ? 'Unpin Chat' : 'Pin Chat'}
+                            className={`w-6 h-6 rounded flex items-center justify-center hover:bg-slate-900 text-slate-450 ${chat.isPinned ? 'text-indigo-400' : ''}`}
+                          >
+                            <Pin className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={() => toggleArchive(chat.id)}
+                            title={chat.isArchived ? 'Unarchive Chat' : 'Archive Chat'}
+                            className={`w-6 h-6 rounded flex items-center justify-center hover:bg-slate-900 text-slate-455 ${chat.isArchived ? 'text-indigo-400' : ''}`}
+                          >
+                            <Archive className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
                     );
                   })
                 )
@@ -636,7 +889,7 @@ export default function Home() {
                 contacts.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-slate-600 px-4 py-8">
                     <Users className="w-8 h-8 mb-2 opacity-50" />
-                    <p className="text-[11px] text-center font-light leading-relaxed">No contacts yet. Click user plus icon in header to add!</p>
+                    <p className="text-[11px] text-center font-light leading-relaxed">No contacts yet.</p>
                   </div>
                 ) : (
                   contacts.map((contact) => (
@@ -646,9 +899,9 @@ export default function Home() {
                         startChatWithUser(contact.id);
                         setActiveTab('chats');
                       }}
-                      className="w-full flex items-center gap-3 p-3 rounded-2xl text-left hover:bg-slate-900/40 text-slate-300 hover:text-white transition-all mb-1.5"
+                      className="w-full flex items-center gap-3 p-3 rounded-2xl text-left hover:bg-slate-900/40 dark:hover:bg-slate-900/40 light:hover:bg-slate-100 text-slate-300 dark:text-slate-300 light:text-slate-700 hover:text-white dark:hover:text-white light:hover:text-slate-900 transition-all mb-1.5"
                     >
-                      <div className="w-10 h-10 rounded-full bg-slate-900 border border-slate-800 flex items-center justify-center font-semibold text-xs relative">
+                      <div className="w-10 h-10 rounded-full bg-slate-900 dark:bg-slate-900 light:bg-slate-200 border border-slate-800 dark:border-slate-800 light:border-slate-300 flex items-center justify-center font-semibold text-xs relative">
                         {contact.displayName.slice(0, 2).toUpperCase()}
                         {contact.isOnline && (
                           <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full"></div>
@@ -673,7 +926,7 @@ export default function Home() {
             <div className={`flex-1 flex flex-col h-full overflow-hidden ${getWallpaperClass()} relative z-10 transition-colors duration-300`}>
               
               {/* Chat Header */}
-              <div className="p-4 border-b border-slate-900/60 flex items-center justify-between bg-slate-950/80 backdrop-blur-xl relative z-20 shrink-0">
+              <div className="p-4 border-b border-slate-900/60 dark:border-slate-900/60 light:border-slate-200 flex items-center justify-between bg-slate-950/80 backdrop-blur-xl dark:bg-slate-950/80 light:bg-white relative z-20 shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center font-bold text-xs">
                     {activeChat.name.slice(0, 2).toUpperCase()}
@@ -695,13 +948,13 @@ export default function Home() {
                 <div className="flex items-center gap-2">
                   <button 
                     onClick={() => handleCall('voice')}
-                    className="w-9 h-9 rounded-xl hover:bg-slate-900 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                    className="w-9 h-9 rounded-xl hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-white dark:hover:text-white light:hover:text-slate-800 transition-colors"
                   >
                     <Phone className="w-4 h-4" />
                   </button>
                   <button 
                     onClick={() => handleCall('video')}
-                    className="w-9 h-9 rounded-xl hover:bg-slate-900 flex items-center justify-center text-slate-400 hover:text-indigo-400 transition-colors animate-pulse"
+                    className="w-9 h-9 rounded-xl hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-indigo-400 transition-colors animate-pulse"
                   >
                     <Video className="w-4 h-4" />
                   </button>
@@ -710,40 +963,181 @@ export default function Home() {
 
               {/* Chat Message History (constrained scroll area) */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4 relative z-10 flex flex-col min-h-0 bg-transparent">
-                <div className="flex-1"></div> {/* Push content to bottom */}
+                <div className="flex-1"></div>
                 {messages.map((message) => {
                   const isCurrentUser = message.senderId === user.id;
+                  const isStarred = message.isStarred;
+                  const isReplying = message.replyTo !== null;
                   
                   return (
                     <div 
                       key={message.id} 
                       className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-100`}
+                      onMouseEnter={() => setHoveredMessageId(message.id)}
+                      onMouseLeave={() => {
+                        setHoveredMessageId(null);
+                        setActiveMenuMessageId(null);
+                      }}
                     >
-                      <div className={`max-w-[65%] rounded-2xl px-4 py-2.5 shadow-md relative transition-all duration-200 ${
-                        isCurrentUser 
-                          ? `${themeStyle.bubbleSent} rounded-tr-none` 
-                          : 'bg-slate-900/90 backdrop-blur-md text-slate-200 rounded-tl-none border border-slate-800/80 shadow-lg shadow-black/10'
-                      }`}>
-                        {/* Message content */}
-                        <p className="text-xs leading-relaxed break-words whitespace-pre-wrap font-light">{message.content}</p>
+                      <div className="relative group max-w-[65%] flex items-center gap-2">
                         
-                        {/* Timestamp & Status ticks */}
-                        <div className="flex items-center justify-end gap-1.5 mt-1.5">
-                          <span className={`text-[8px] font-light select-none ${isCurrentUser ? 'text-indigo-200/80' : 'text-slate-500'}`}>
-                            {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                          {isCurrentUser && (
-                            <span>
-                              {message.status === 'READ' ? (
-                                <CheckCheck className="w-3.5 h-3.5 text-cyan-200" />
-                              ) : message.status === 'DELIVERED' ? (
-                                <CheckCheck className="w-3.5 h-3.5 opacity-60 text-white" />
-                              ) : (
-                                <Check className="w-3.5 h-3.5 opacity-65 text-white" />
-                              )}
-                            </span>
+                        {/* Hover Action Menu Button (left of bubble for current user, right for other user) */}
+                        {isCurrentUser && hoveredMessageId === message.id && (
+                          <div className="flex shrink-0 gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => {
+                                setReplyingToMessage(message);
+                                setEditingMessage(null);
+                              }}
+                              title="Reply"
+                              className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-indigo-600 flex items-center justify-center text-white text-[10px]"
+                            >
+                              <Reply className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => {
+                                setEditingMessage(message);
+                                setMessageInput(message.content);
+                                setReplyingToMessage(null);
+                              }}
+                              title="Edit"
+                              className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-indigo-600 flex items-center justify-center text-white text-[10px]"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setActiveMenuMessageId(activeMenuMessageId === message.id ? null : message.id)}
+                              className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-slate-800 flex items-center justify-center text-white"
+                            >
+                              <MoreVertical className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Message Bubble */}
+                        <div className={`rounded-2xl px-4 py-2.5 shadow-md relative transition-all duration-200 ${
+                          isCurrentUser 
+                            ? `${themeStyle.bubbleSent} rounded-tr-none` 
+                            : 'bg-slate-900/90 dark:bg-slate-900/90 light:bg-white text-slate-200 dark:text-slate-200 light:text-slate-800 rounded-tl-none border border-slate-800/80 dark:border-slate-800/80 light:border-slate-200 shadow-lg shadow-black/10'
+                        }`}>
+                          
+                          {/* Star indicator at top right */}
+                          {isStarred && (
+                            <Star className="w-3 h-3 text-amber-400 fill-amber-400 absolute top-2 right-2" />
                           )}
+
+                          {/* Reply Quote Header */}
+                          {isReplying && message.replyTo && (
+                            <div className="mb-2 p-2 rounded-lg bg-black/20 border-l-4 border-indigo-400 text-left text-[10px] opacity-80 cursor-pointer max-w-full truncate">
+                              <span className="font-semibold block text-indigo-300 leading-none">
+                                {message.replyTo.sender.displayName || message.replyTo.sender.username}
+                              </span>
+                              <span className="text-slate-350 block mt-0.5 truncate leading-tight text-slate-300">
+                                {message.replyTo.content}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Message Content */}
+                          {message.isDeleted ? (
+                            <p className="text-xs leading-relaxed italic text-slate-400 flex items-center gap-1.5">
+                              <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-slate-500" />
+                              <span>This message was deleted</span>
+                            </p>
+                          ) : (
+                            <p className="text-xs leading-relaxed break-words whitespace-pre-wrap font-light">
+                              {message.content}
+                            </p>
+                          )}
+                          
+                          {/* Timestamp, Ticks, and Edit label */}
+                          <div className="flex items-center justify-end gap-1.5 mt-1.5">
+                            {message.isEdited && !message.isDeleted && (
+                              <span className="text-[7px] opacity-60 uppercase font-bold tracking-wider">edited</span>
+                            )}
+                            <span className={`text-[8px] font-light select-none ${isCurrentUser ? 'text-indigo-200/80' : 'text-slate-500'}`}>
+                              {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                            {isCurrentUser && (
+                              <span>
+                                {message.status === 'READ' ? (
+                                  <CheckCheck className="w-3.5 h-3.5 text-cyan-200" />
+                                ) : message.status === 'DELIVERED' ? (
+                                  <CheckCheck className="w-3.5 h-3.5 opacity-60 text-white" />
+                                ) : (
+                                  <Check className="w-3.5 h-3.5 opacity-65 text-white" />
+                                )}
+                              </span>
+                            )}
+                          </div>
+
+                          {/* Float dropdown action overlay */}
+                          {activeMenuMessageId === message.id && (
+                            <div className="absolute right-0 top-full mt-1.5 z-40 bg-slate-900 border border-slate-800 rounded-xl p-1.5 shadow-2xl space-y-1 w-36 animate-in fade-in zoom-in-95 duration-100">
+                              <button
+                                onClick={() => { handleCopyMessage(message.content); setActiveMenuMessageId(null); }}
+                                className="w-full text-left p-1.5 px-2.5 rounded-lg hover:bg-slate-800 text-[10px] flex items-center gap-2"
+                              >
+                                <Copy className="w-3 h-3" />
+                                <span>Copy Text</span>
+                              </button>
+                              <button
+                                onClick={() => { setForwardingMessage(message); setActiveMenuMessageId(null); }}
+                                className="w-full text-left p-1.5 px-2.5 rounded-lg hover:bg-slate-800 text-[10px] flex items-center gap-2"
+                              >
+                                <CornerUpRight className="w-3 h-3" />
+                                <span>Forward</span>
+                              </button>
+                              <button
+                                onClick={() => { toggleStarMessage(message.id); setActiveMenuMessageId(null); }}
+                                className="w-full text-left p-1.5 px-2.5 rounded-lg hover:bg-slate-800 text-[10px] flex items-center gap-2"
+                              >
+                                <Star className="w-3 h-3" />
+                                <span>{isStarred ? 'Unstar' : 'Star message'}</span>
+                              </button>
+                              <button
+                                onClick={() => { deleteMessageForMe(message.id); setActiveMenuMessageId(null); }}
+                                className="w-full text-left p-1.5 px-2.5 rounded-lg hover:bg-slate-800 hover:text-rose-400 text-rose-300 text-[10px] flex items-center gap-2 border-t border-slate-800/40 pt-1.5 mt-1"
+                              >
+                                <Trash2 className="w-3 h-3" />
+                                <span>Delete for Me</span>
+                              </button>
+                              {isCurrentUser && !message.isDeleted && (
+                                <button
+                                  onClick={() => { deleteMessageEveryone(message.id); setActiveMenuMessageId(null); }}
+                                  className="w-full text-left p-1.5 px-2.5 rounded-lg hover:bg-slate-800 hover:text-rose-450 text-rose-400 text-[10px] flex items-center gap-2"
+                                >
+                                  <ShieldAlert className="w-3 h-3" />
+                                  <span>Delete for All</span>
+                                </button>
+                              )}
+                            </div>
+                          )}
+
                         </div>
+
+                        {/* Hover Action Menu Button for other user (right of bubble) */}
+                        {!isCurrentUser && hoveredMessageId === message.id && (
+                          <div className="flex shrink-0 gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button
+                              onClick={() => {
+                                setReplyingToMessage(message);
+                                setEditingMessage(null);
+                              }}
+                              title="Reply"
+                              className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-indigo-600 flex items-center justify-center text-white"
+                            >
+                              <Reply className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => setActiveMenuMessageId(activeMenuMessageId === message.id ? null : message.id)}
+                              className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-slate-800 flex items-center justify-center text-white"
+                            >
+                              <MoreVertical className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        )}
+
                       </div>
                     </div>
                   );
@@ -761,18 +1155,53 @@ export default function Home() {
                 <div ref={messagesEndRef} />
               </div>
 
+              {/* Input Action Previews (Reply Preview, Editing Preview) */}
+              {replyingToMessage && (
+                <div className="px-4 py-2 bg-slate-950/90 border-t border-slate-900 flex justify-between items-center relative z-20 shrink-0">
+                  <div className="border-l-4 border-indigo-500 pl-3 py-1 flex-1 min-w-0">
+                    <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider block">Replying to Message</span>
+                    <p className="text-[11px] text-slate-300 truncate font-light mt-0.5">
+                      {replyingToMessage.content}
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => setReplyingToMessage(null)}
+                    className="w-6 h-6 rounded-full hover:bg-slate-900 flex items-center justify-center text-slate-400 hover:text-white shrink-0"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
+              {editingMessage && (
+                <div className="px-4 py-2 bg-slate-950/90 border-t border-slate-900 flex justify-between items-center relative z-20 shrink-0">
+                  <div className="border-l-4 border-amber-500 pl-3 py-1 flex-1 min-w-0">
+                    <span className="text-[9px] font-bold text-amber-500 uppercase tracking-wider block">Editing Message</span>
+                    <p className="text-[11px] text-slate-300 truncate font-light mt-0.5">
+                      {editingMessage.content}
+                    </p>
+                  </div>
+                  <button 
+                    onClick={() => { setEditingMessage(null); setMessageInput(''); }}
+                    className="w-6 h-6 rounded-full hover:bg-slate-900 flex items-center justify-center text-slate-400 hover:text-white shrink-0"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              )}
+
               {/* Chat Message Input Box */}
               <form 
                 onSubmit={handleSend} 
-                className="p-4 border-t border-slate-900/60 bg-slate-950/80 backdrop-blur-xl relative z-20 shrink-0 flex items-center gap-3"
+                className="p-4 border-t border-slate-900/60 dark:border-slate-900/60 light:border-slate-200 bg-slate-950/80 backdrop-blur-xl dark:bg-slate-950/80 light:bg-white relative z-20 shrink-0 flex items-center gap-3"
               >
-                <div className="flex-1 relative flex items-center bg-slate-900/60 border border-slate-800 rounded-2xl focus-within:border-indigo-500/40 transition-colors">
+                <div className="flex-1 relative flex items-center bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100 border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-2xl focus-within:border-indigo-500/40 transition-colors">
                   <input
                     type="text"
-                    placeholder="Type a message..."
+                    placeholder={editingMessage ? 'Modify message...' : 'Type a message...'}
                     value={messageInput}
                     onChange={handleInputChange}
-                    className="w-full bg-transparent py-3.5 pl-4 pr-10 text-xs text-white outline-none placeholder-slate-500 font-light"
+                    className="w-full bg-transparent py-3.5 pl-4 pr-10 text-xs text-white dark:text-white light:text-slate-850 outline-none placeholder-slate-500 font-light"
                   />
                   <button 
                     type="button" 
@@ -797,27 +1226,27 @@ export default function Home() {
             </div>
           ) : (
             /* EMPTY CHAT PLACEHOLDER SCREEN */
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 select-none h-full bg-slate-950">
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 select-none h-full bg-slate-950 dark:bg-slate-950 light:bg-slate-100">
               <div className="relative mb-6">
                 <div className="w-16 h-16 rounded-3xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center shadow-lg shadow-indigo-500/5">
                   <MessageSquare className="w-8 h-8 text-indigo-400 animate-pulse" />
                 </div>
                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-violet-600/30 rounded-full animate-ping"></div>
               </div>
-              <h3 className="text-lg font-bold text-slate-200 mb-2">Welcome to Halo Chat</h3>
+              <h3 className="text-lg font-bold text-slate-200 dark:text-slate-250 light:text-slate-800 mb-2 font-semibold">Welcome to Halo Chat</h3>
               <p className="text-slate-500 text-xs max-w-sm font-light leading-relaxed mb-8">
                 Select a conversation from the sidebar or search for active users by phone number to start chatting.
               </p>
               
               <div className="grid grid-cols-2 gap-4 max-w-lg w-full">
-                <div className="p-4 bg-slate-900/10 border border-slate-900/60 rounded-2xl text-left">
+                <div className="p-4 bg-slate-900/10 dark:bg-slate-900/10 light:bg-white border border-slate-900 dark:border-slate-900 light:border-slate-200 rounded-2xl text-left shadow-sm">
                   <Shield className="w-4 h-4 text-indigo-400 mb-2" />
-                  <h4 className="text-xs font-semibold text-slate-350 mb-1">Encrypted Sessions</h4>
+                  <h4 className="text-xs font-semibold text-slate-350 dark:text-slate-300 light:text-slate-700 mb-1">Encrypted Sessions</h4>
                   <p className="text-[10px] text-slate-500 leading-normal font-light">Secure handshake via JWT tokens over SSL-encrypted WebSocket channels.</p>
                 </div>
-                <div className="p-4 bg-slate-900/10 border border-slate-900/60 rounded-2xl text-left">
+                <div className="p-4 bg-slate-900/10 dark:bg-slate-900/10 light:bg-white border border-slate-900 dark:border-slate-900 light:border-slate-200 rounded-2xl text-left shadow-sm">
                   <Phone className="w-4 h-4 text-violet-400 mb-2" />
-                  <h4 className="text-xs font-semibold text-slate-350 mb-1">Real-Time Sync</h4>
+                  <h4 className="text-xs font-semibold text-slate-350 dark:text-slate-300 light:text-slate-700 mb-1">Real-Time Sync</h4>
                   <p className="text-[10px] text-slate-500 leading-normal font-light">Online indicators, typing status, and read receipts update instantly.</p>
                 </div>
               </div>
@@ -841,7 +1270,7 @@ export default function Home() {
                   placeholder="e.g. +919876543210"
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-850 focus:border-indigo-500/60 rounded-xl py-2.5 px-3.5 text-xs outline-none transition-all"
+                  className="w-full bg-slate-955 border border-slate-850 focus:border-indigo-500/60 rounded-xl py-2.5 px-3.5 text-xs outline-none transition-all"
                 />
               </div>
               <div>
@@ -851,7 +1280,7 @@ export default function Home() {
                   placeholder="e.g. Best Friend"
                   value={contactNickname}
                   onChange={(e) => setContactNickname(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-850 focus:border-indigo-500/60 rounded-xl py-2.5 px-3.5 text-xs outline-none transition-all"
+                  className="w-full bg-slate-955 border border-slate-850 focus:border-indigo-500/60 rounded-xl py-2.5 px-3.5 text-xs outline-none transition-all"
                 />
               </div>
               <div className="flex gap-2 justify-end pt-2">
@@ -877,7 +1306,7 @@ export default function Home() {
       {/* MODAL: CALLING DIALOG */}
       {callModal && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center px-4 animate-in fade-in duration-300">
-          <div className="w-full max-w-sm flex flex-col items-center p-8 bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-850 rounded-[32px] text-center shadow-2xl relative">
+          <div className="w-full max-w-sm flex flex-col items-center p-8 bg-gradient-to-b from-slate-900 to-slate-955 border border-slate-850 rounded-[32px] text-center shadow-2xl relative">
             <div className="absolute top-4 left-4 flex items-center gap-1.5 p-1 px-2.5 rounded-full bg-indigo-600/10 border border-indigo-500/20 text-[9px] font-medium tracking-wide text-indigo-400 animate-pulse">
               <Shield className="w-3 h-3" />
               <span>Simulated WebRTC</span>
@@ -910,18 +1339,53 @@ export default function Home() {
         </div>
       )}
 
+      {/* MODAL: FORWARD MESSAGE DIALOG */}
+      {forwardingMessage && (
+        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-805 rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-100 flex flex-col max-h-[70vh]">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-400">Forward Message</h3>
+              <button 
+                onClick={() => setForwardingMessage(null)}
+                className="w-6 h-6 rounded-full hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white"
+              >
+                <X className="w-4.5 h-4.5" />
+              </button>
+            </div>
+            
+            <div className="mb-4 p-2 rounded-xl bg-black/30 border border-slate-850 text-slate-300 text-xs truncate max-w-full font-light italic">
+              "{forwardingMessage.content}"
+            </div>
+
+            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Select Recipient Chat</span>
+            <div className="flex-1 overflow-y-auto space-y-1 pr-1">
+              {chats.map((c) => (
+                <button
+                  key={c.id}
+                  onClick={() => handleSelectForwardTarget(c.id)}
+                  className="w-full p-2.5 rounded-xl hover:bg-slate-800/80 text-left text-xs flex items-center gap-3 text-slate-200 transition-colors"
+                >
+                  <div className="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center font-bold text-[10px]">
+                    {c.name.slice(0, 2).toUpperCase()}
+                  </div>
+                  <span className="truncate">{c.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* STORY VIEWER FULLSCREEN MODAL */}
       {activeStory && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center select-none animate-in fade-in duration-300">
           <div className="w-full max-w-lg h-full max-h-[85vh] md:max-h-[90vh] bg-slate-950 border border-slate-900 md:rounded-3xl flex flex-col relative overflow-hidden shadow-2xl">
-            {/* Top progress indicator bar */}
             <div className="absolute top-3 left-4 right-4 flex gap-1 z-30">
               <div className="h-1 flex-1 bg-slate-800 rounded-full overflow-hidden">
                 <div className="h-full bg-white transition-all duration-100 ease-linear" style={{ width: `${storyProgress}%` }}></div>
               </div>
             </div>
 
-            {/* Header info */}
             <div className="absolute top-6 left-4 right-4 flex justify-between items-center z-30">
               <div className="flex items-center gap-2">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-indigo-500 to-violet-500 flex items-center justify-center font-bold text-slate-950 text-xs">
@@ -940,9 +1404,7 @@ export default function Home() {
               </button>
             </div>
 
-            {/* Text story content or image wallpaper */}
             <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-indigo-900/40 via-purple-950/20 to-slate-950 relative">
-              {/* Floating aesthetic icons in background */}
               <div className="absolute top-1/3 left-10 text-indigo-500/10 pointer-events-none transform -rotate-12"><MessageSquare className="w-24 h-24" /></div>
               <div className="absolute bottom-1/3 right-10 text-pink-500/10 pointer-events-none transform rotate-12"><Heart className="w-24 h-24" /></div>
 
@@ -953,8 +1415,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Bottom Actions */}
-            <div className="p-4 bg-slate-950 border-t border-slate-900 flex justify-center text-slate-500 text-[10px] font-light">
+            <div className="p-4 bg-slate-955 border-t border-slate-900 flex justify-center text-slate-500 text-[10px] font-light">
               Press Escape or click close button to exit
             </div>
           </div>

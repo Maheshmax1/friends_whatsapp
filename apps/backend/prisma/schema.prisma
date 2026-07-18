@@ -39,32 +39,40 @@ enum CallStatus {
 }
 
 model User {
-  id             String         @id @default(uuid())
-  phoneNumber    String?        @unique
-  email          String         @unique
-  passwordHash   String
-  username       String         @unique
-  displayName    String?
-  avatarUrl      String?
-  bio            String?
-  lastSeen       DateTime       @default(now())
-  isOnline       Boolean        @default(false)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
+  id                 String               @id @default(uuid())
+  phoneNumber        String?              @unique
+  email              String               @unique
+  passwordHash       String
+  username           String               @unique
+  displayName        String?
+  avatarUrl          String?
+  bio                String?
+  lastSeen           DateTime             @default(now())
+  isOnline           Boolean              @default(false)
+  
+  // Privacy & settings
+  showLastSeen       Boolean              @default(true)
+  showReadReceipts   Boolean              @default(true)
+  allowNotifications Boolean              @default(true)
+  
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
 
   // Relations
-  sessions       Session[]
-  devices        Device[]
-  chatMembers    ChatMember[]
-  sentMessages   Message[]      @relation("SentMessages")
-  blockedUsers   BlockedUser[]  @relation("BlockedUsers")
-  blockedBy      BlockedUser[]  @relation("BlockedByUsers")
-  contacts       Contact[]      @relation("UserContacts")
-  contactOf      Contact[]      @relation("ContactOf")
-  statusStories  StatusStory[]
-  statusViews    StatusView[]
-  callsCreated   Call[]         @relation("CallInitiator")
-  callPartic     CallParticipant[]
+  sessions           Session[]
+  devices            Device[]
+  chatMembers        ChatMember[]
+  sentMessages       Message[]            @relation("SentMessages")
+  blockedUsers       BlockedUser[]        @relation("BlockedUsers")
+  blockedBy          BlockedUser[]        @relation("BlockedByUsers")
+  contacts           Contact[]            @relation("UserContacts")
+  contactOf          Contact[]            @relation("ContactOf")
+  statusStories      StatusStory[]
+  statusViews        StatusView[]
+  callsCreated       Call[]               @relation("CallInitiator")
+  callPartic         CallParticipant[]
+  starredMessages    StarredMessage[]
+  deletedForMe       DeletedForMeMessage[]
 }
 
 model Session {
@@ -82,7 +90,7 @@ model Device {
   id         String   @id @default(uuid())
   userId     String
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  deviceToken String  @unique // For FCM/APNS push notifications
+  deviceToken String  @unique
   deviceType  String   // ios, android, web
   createdAt  DateTime @default(now())
 }
@@ -103,13 +111,18 @@ model Chat {
 }
 
 model ChatMember {
-  id        String   @id @default(uuid())
-  chatId    String
-  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  isAdmin   Boolean  @default(false)
-  joinedAt  DateTime @default(now())
+  id         String   @id @default(uuid())
+  chatId     String
+  chat       Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isAdmin    Boolean  @default(false)
+  
+  // Custom user preferences for this chat
+  isPinned   Boolean  @default(false)
+  isArchived Boolean  @default(false)
+  
+  joinedAt   DateTime @default(now())
 
   @@unique([chatId, userId])
 }
@@ -121,9 +134,10 @@ model Message {
   senderId    String
   sender      User          @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
   type        MessageType   @default(TEXT)
-  content     String        // Contains text or JSON details/URL for attachments
+  content     String        
   status      MessageStatus @default(SENT)
   isEdited    Boolean       @default(false)
+  isDeleted   Boolean       @default(false)
   replyToId   String?
   replyTo     Message?      @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
   replies     Message[]     @relation("MessageReplies")
@@ -132,6 +146,30 @@ model Message {
 
   // Relations
   attachments Attachment[]
+  starredBy   StarredMessage[]
+  deletedBy   DeletedForMeMessage[]
+}
+
+model StarredMessage {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, messageId])
+}
+
+model DeletedForMeMessage {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, messageId])
 }
 
 model Attachment {

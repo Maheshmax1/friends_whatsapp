@@ -115,7 +115,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('send_message')
   async handleSendMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { chatId: string; content: string; type?: string },
+    @MessageBody() data: { chatId: string; content: string; type?: string; replyToId?: string },
   ) {
     const userId = client.data.userId;
     if (!userId) return;
@@ -129,6 +129,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
         content: data.content,
         type,
         status: 'SENT',
+        replyToId: data.replyToId || null,
       },
       include: {
         sender: {
@@ -139,6 +140,17 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
             avatarUrl: true,
           },
         },
+        replyTo: {
+          include: {
+            sender: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+              }
+            }
+          }
+        }
       },
     });
 
@@ -150,6 +162,78 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     this.server.to(`chat:${data.chatId}`).emit('new_message', message);
 
     return message;
+  }
+
+  @SubscribeMessage('edit_message')
+  async handleEditMessage(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { chatId: string; messageId: string; content: string },
+  ) {
+    const userId = client.data.userId;
+    if (!userId) return;
+
+    // Verify ownership
+    const message = await this.prisma.message.findUnique({
+      where: { id: data.messageId }
+    });
+
+    if (!message || message.senderId !== userId) return { success: false, error: 'Unauthorized' };
+
+    const updated = await this.prisma.message.update({
+      where: { id: data.messageId },
+      data: { content: data.content, isEdited: true },
+      include: {
+        sender: {
+          select: { id: true, username: true, displayName: true, avatarUrl: true }
+        },
+        replyTo: {
+          include: {
+            sender: {
+              select: { id: true, username: true, displayName: true }
+            }
+          }
+        }
+      }
+    });
+
+    this.server.to(`chat:${data.chatId}`).emit('message_edited', updated);
+    return { success: true, message: updated };
+  }
+
+  @SubscribeMessage('delete_message_everyone')
+  async handleDeleteMessageEveryone(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { chatId: string; messageId: string },
+  ) {
+    const userId = client.data.userId;
+    if (!userId) return;
+
+    // Verify ownership
+    const message = await this.prisma.message.findUnique({
+      where: { id: data.messageId }
+    });
+
+    if (!message || message.senderId !== userId) return { success: false, error: 'Unauthorized' };
+
+    const updated = await this.prisma.message.update({
+      where: { id: data.messageId },
+      data: { content: 'This message was deleted', isDeleted: true },
+      include: {
+        sender: {
+          select: { id: true, username: true, displayName: true, avatarUrl: true }
+        },
+        replyTo: {
+          include: {
+            sender: {
+              select: { id: true, username: true, displayName: true }
+            }
+          }
+        }
+      }
+    });
+
+    this.server.to(`chat:${data.chatId}`).emit('message_deleted_everyone', updated);
+    return { success: true, message: updated };
   }
 
   @SubscribeMessage('typing')

@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Body, Param, UseGuards } from '@nestjs/common';
 import { ChatsService } from './chats.service';
 import { JwtGuard } from '../auth/jwt.guard';
 import { GetUser } from '../auth/get-user.decorator';
@@ -27,5 +27,37 @@ export class ChatsController {
     @GetUser('sub') userId: string,
   ) {
     return this.chatsService.getMessages(chatId, userId);
+  }
+
+  @Patch(':chatId/pin')
+  async togglePin(
+    @Param('chatId') chatId: string,
+    @GetUser('sub') userId: string,
+  ) {
+    return this.chatsService.togglePin(chatId, userId);
+  }
+
+  @Patch(':chatId/archive')
+  async toggleArchive(
+    @Param('chatId') chatId: string,
+    @GetUser('sub') userId: string,
+  ) {
+    return this.chatsService.toggleArchive(chatId, userId);
+  }
+
+  @Post('messages/:messageId/star')
+  async toggleStarMessage(
+    @Param('messageId') messageId: string,
+    @GetUser('sub') userId: string,
+  ) {
+    return this.chatsService.toggleStarMessage(messageId, userId);
+  }
+
+  @Post('messages/:messageId/delete-for-me')
+  async deleteMessageForMe(
+    @Param('messageId') messageId: string,
+    @GetUser('sub') userId: string,
+  ) {
+    return this.chatsService.deleteMessageForMe(messageId, userId);
   }
 }

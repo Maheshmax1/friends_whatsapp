@@ -19,7 +19,16 @@ export class UsersController {
   @Patch('profile')
   async updateProfile(
     @GetUser('sub') userId: string,
-    @Body() body: { displayName?: string; username?: string; bio?: string; avatarUrl?: string },
+    @Body()
+    body: {
+      displayName?: string;
+      username?: string;
+      bio?: string;
+      avatarUrl?: string;
+      showLastSeen?: boolean;
+      showReadReceipts?: boolean;
+      allowNotifications?: boolean;
+    },
   ) {
     return this.usersService.updateProfile(userId, body);
   }

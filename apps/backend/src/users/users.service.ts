@@ -35,7 +35,18 @@ export class UsersService {
     });
   }
 
-  async updateProfile(userId: string, data: { displayName?: string; username?: string; bio?: string; avatarUrl?: string }) {
+  async updateProfile(
+    userId: string,
+    data: {
+      displayName?: string;
+      username?: string;
+      bio?: string;
+      avatarUrl?: string;
+      showLastSeen?: boolean;
+      showReadReceipts?: boolean;
+      allowNotifications?: boolean;
+    },
+  ) {
     if (data.username) {
       const existingUser = await this.prisma.user.findUnique({
         where: { username: data.username },

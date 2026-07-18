@@ -92,6 +92,9 @@ export class ChatsService {
           },
         },
         messages: {
+          where: {
+            deletedBy: { none: { userId } }
+          },
           orderBy: { createdAt: 'desc' },
           take: 1,
         },
@@ -106,6 +109,8 @@ export class ChatsService {
         ? null
         : chat.members.find((m) => m.userId !== userId)?.user || null;
 
+      const myMember = chat.members.find((m) => m.userId === userId);
+
       return {
         id: chat.id,
         isGroup: chat.isGroup,
@@ -115,6 +120,8 @@ export class ChatsService {
         updatedAt: chat.updatedAt,
         otherMember,
         lastMessage: chat.messages[0] || null,
+        isPinned: myMember?.isPinned || false,
+        isArchived: myMember?.isArchived || false,
         unreadCount: 0, 
       };
     });
@@ -134,8 +141,13 @@ export class ChatsService {
       throw new NotFoundException('Chat not found or access denied');
     }
 
-    return this.prisma.message.findMany({
-      where: { chatId },
+    const messages = await this.prisma.message.findMany({
+      where: { 
+        chatId,
+        deletedBy: {
+          none: { userId }
+        }
+      },
       orderBy: { createdAt: 'asc' },
       include: {
         sender: {
@@ -146,7 +158,88 @@ export class ChatsService {
             avatarUrl: true,
           },
         },
+        replyTo: {
+          include: {
+            sender: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+              }
+            }
+          }
+        },
+        starredBy: {
+          where: { userId }
+        }
       },
     });
+
+    return messages.map((m) => {
+      const { starredBy, ...msg } = m;
+      return {
+        ...msg,
+        isStarred: starredBy.length > 0
+      };
+    });
+  }
+
+  async togglePin(chatId: string, userId: string) {
+    const member = await this.prisma.chatMember.findUnique({
+      where: { chatId_userId: { chatId, userId } }
+    });
+    if (!member) throw new NotFoundException('Chat member not found');
+
+    return this.prisma.chatMember.update({
+      where: { id: member.id },
+      data: { isPinned: !member.isPinned }
+    });
+  }
+
+  async toggleArchive(chatId: string, userId: string) {
+    const member = await this.prisma.chatMember.findUnique({
+      where: { chatId_userId: { chatId, userId } }
+    });
+    if (!member) throw new NotFoundException('Chat member not found');
+
+    return this.prisma.chatMember.update({
+      where: { id: member.id },
+      data: { isArchived: !member.isArchived }
+    });
+  }
+
+  async toggleStarMessage(messageId: string, userId: string) {
+    const existing = await this.prisma.starredMessage.findUnique({
+      where: {
+        userId_messageId: { userId, messageId }
+      }
+    });
+
+    if (existing) {
+      await this.prisma.starredMessage.delete({
+        where: { id: existing.id }
+      });
+      return { isStarred: false };
+    } else {
+      await this.prisma.starredMessage.create({
+        data: { userId, messageId }
+      });
+      return { isStarred: true };
+    }
+  }
+
+  async deleteMessageForMe(messageId: string, userId: string) {
+    const existing = await this.prisma.deletedForMeMessage.findUnique({
+      where: {
+        userId_messageId: { userId, messageId }
+      }
+    });
+
+    if (!existing) {
+      await this.prisma.deletedForMeMessage.create({
+        data: { userId, messageId }
+      });
+    }
+    return { success: true };
   }
 }

@@ -13,6 +13,9 @@ interface User {
   bio: string | null;
   isOnline: boolean;
   lastSeen: string;
+  showLastSeen: boolean;
+  showReadReceipts: boolean;
+  allowNotifications: boolean;
 }
 
 interface Message {
@@ -22,6 +25,19 @@ interface Message {
   content: string;
   type: string;
   status: 'SENT' | 'DELIVERED' | 'READ';
+  isEdited: boolean;
+  isDeleted: boolean;
+  replyToId: string | null;
+  replyTo: {
+    id: string;
+    content: string;
+    sender: {
+      id: string;
+      username: string;
+      displayName: string | null;
+    };
+  } | null;
+  isStarred: boolean;
   createdAt: string;
   sender: {
     id: string;
@@ -40,6 +56,8 @@ interface Chat {
   updatedAt: string;
   otherMember: User | null;
   lastMessage: Message | null;
+  isPinned: boolean;
+  isArchived: boolean;
   unreadCount: number;
 }
 
@@ -58,12 +76,19 @@ interface ChatContextType {
   verifyOtp: (phoneNumber: string, otp: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   selectChat: (chatId: string) => void;
-  sendMessage: (content: string) => void;
+  sendMessage: (content: string, replyToId?: string) => void;
   sendTyping: (isTyping: boolean) => void;
   fetchContacts: () => Promise<void>;
   addContact: (phoneNumber: string, nickname?: string) => Promise<{ success: boolean; error?: string }>;
   searchUsers: (query: string) => Promise<User[]>;
   startChatWithUser: (recipientId: string) => Promise<string | null>;
+  togglePin: (chatId: string) => Promise<void>;
+  toggleArchive: (chatId: string) => Promise<void>;
+  toggleStarMessage: (messageId: string) => Promise<void>;
+  deleteMessageForMe: (messageId: string) => Promise<void>;
+  deleteMessageEveryone: (messageId: string) => void;
+  editMessage: (messageId: string, content: string) => void;
+  updateProfileSettings: (data: { displayName?: string; bio?: string; avatarUrl?: string; showLastSeen?: boolean; showReadReceipts?: boolean; allowNotifications?: boolean }) => Promise<void>;
 }
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
@@ -132,20 +157,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     socket.on('new_message', (message: Message) => {
-      // If message is in active chat, append it
       if (activeChatIdRef.current === message.chatId) {
         setMessages((prev) => {
           if (prev.some((m) => m.id === message.id)) return prev;
           return [...prev, message];
         });
 
-        // Send read receipt if we are not the sender
         if (message.senderId !== user?.id) {
           socket.emit('read_receipt', { chatId: message.chatId, messageId: message.id });
         }
       }
 
-      // Update active chat's last message in the list
       setChats((prev) =>
         prev
           .map((chat) => {
@@ -162,6 +184,20 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       );
     });
 
+    socket.on('message_edited', (edited: Message) => {
+      if (activeChatIdRef.current === edited.chatId) {
+        setMessages((prev) => prev.map((m) => (m.id === edited.id ? edited : m)));
+      }
+      fetchChats(); // Refresh last message in sidebar
+    });
+
+    socket.on('message_deleted_everyone', (deleted: Message) => {
+      if (activeChatIdRef.current === deleted.chatId) {
+        setMessages((prev) => prev.map((m) => (m.id === deleted.id ? deleted : m)));
+      }
+      fetchChats();
+    });
+
     socket.on('typing', (data: { chatId: string; userId: string; isTyping: boolean }) => {
       if (activeChatIdRef.current === data.chatId) {
         setTypingUsers((prev) => ({
@@ -176,7 +212,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...prev,
         [data.userId]: data.isOnline,
       }));
-      // Also update isOnline inside active chats
       setChats((prev) =>
         prev.map((chat) => {
           if (chat.otherMember && chat.otherMember.id === data.userId) {
@@ -213,7 +248,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to send OTP');
-      return { success: true, otp: data.otp }; // OTP only returned in dev mode
+      return { success: true, otp: data.otp };
     } catch (err: any) {
       return { success: false, error: err.message };
     }
@@ -289,11 +324,11 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const sendMessage = (content: string) => {
+  const sendMessage = (content: string, replyToId?: string) => {
     if (!socketRef.current || !activeChatId) return;
     socketRef.current.emit(
       'send_message',
-      { chatId: activeChatId, content, type: 'TEXT' }
+      { chatId: activeChatId, content, type: 'TEXT', replyToId }
     );
   };
 
@@ -372,6 +407,106 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const togglePin = async (chatId: string) => {
+    if (!accessToken) return;
+    try {
+      const res = await fetch(`${API_URL}/chats/${chatId}/pin`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.ok) {
+        await fetchChats();
+      }
+    } catch (err) {
+      console.error('Error pinning chat:', err);
+    }
+  };
+
+  const toggleArchive = async (chatId: string) => {
+    if (!accessToken) return;
+    try {
+      const res = await fetch(`${API_URL}/chats/${chatId}/archive`, {
+        method: 'PATCH',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.ok) {
+        await fetchChats();
+        if (activeChatId === chatId) {
+          setActiveChatId(null);
+        }
+      }
+    } catch (err) {
+      console.error('Error archiving chat:', err);
+    }
+  };
+
+  const toggleStarMessage = async (messageId: string) => {
+    if (!accessToken) return;
+    try {
+      const res = await fetch(`${API_URL}/chats/messages/${messageId}/star`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setMessages((prev) =>
+          prev.map((m) => (m.id === messageId ? { ...m, isStarred: data.isStarred } : m))
+        );
+      }
+    } catch (err) {
+      console.error('Error starring message:', err);
+    }
+  };
+
+  const deleteMessageForMe = async (messageId: string) => {
+    if (!accessToken) return;
+    try {
+      const res = await fetch(`${API_URL}/chats/messages/${messageId}/delete-for-me`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      if (res.ok) {
+        setMessages((prev) => prev.filter((m) => m.id !== messageId));
+        await fetchChats(); // Refresh last message preview
+      }
+    } catch (err) {
+      console.error('Error deleting message for me:', err);
+    }
+  };
+
+  const deleteMessageEveryone = (messageId: string) => {
+    if (!socketRef.current || !activeChatId) return;
+    socketRef.current.emit('delete_message_everyone', { chatId: activeChatId, messageId });
+  };
+
+  const editMessage = (messageId: string, content: string) => {
+    if (!socketRef.current || !activeChatId) return;
+    socketRef.current.emit('edit_message', { chatId: activeChatId, messageId, content });
+  };
+
+  const updateProfileSettings = async (data: any) => {
+    if (!accessToken) return;
+    try {
+      const res = await fetch(`${API_URL}/users/profile`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(data),
+      });
+      const updatedUser = await res.json();
+      if (res.ok) {
+        setUser(updatedUser);
+        localStorage.setItem('chat_user', JSON.stringify(updatedUser));
+      } else {
+        throw new Error(updatedUser.message || 'Failed to update profile');
+      }
+    } catch (err) {
+      console.error('Error updating profile settings:', err);
+    }
+  };
+
   const activeChat = chats.find((c) => c.id === activeChatId) || null;
 
   return (
@@ -397,6 +532,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         addContact,
         searchUsers,
         startChatWithUser,
+        togglePin,
+        toggleArchive,
+        toggleStarMessage,
+        deleteMessageForMe,
+        deleteMessageEveryone,
+        editMessage,
+        updateProfileSettings,
       }}
     >
       {children}
