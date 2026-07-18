@@ -24,6 +24,27 @@ export class AuthController {
     return this.authService.verifyOtp(phoneNumber, otp);
   }
 
+  @Post('check-phone')
+  async checkPhone(@Body('phoneNumber') phoneNumber: string) {
+    return this.authService.checkPhone(phoneNumber);
+  }
+
+  @Post('login-pass')
+  async loginPass(
+    @Body('phoneNumber') phoneNumber: string,
+    @Body('password') pass: string,
+  ) {
+    return this.authService.loginPass(phoneNumber, pass);
+  }
+
+  @Post('register-pass')
+  async registerPass(
+    @Body('phoneNumber') phoneNumber: string,
+    @Body('password') pass: string,
+  ) {
+    return this.authService.registerPass(phoneNumber, pass);
+  }
+
   @Post('refresh')
   async refresh(@Body('refreshToken') refreshToken: string) {
     return this.authService.refreshTokens(refreshToken);

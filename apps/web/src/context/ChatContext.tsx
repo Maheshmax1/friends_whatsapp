@@ -104,6 +104,9 @@ interface ChatContextType {
   isLoading: boolean;
   loginPhone: (phoneNumber: string) => Promise<{ success: boolean; otp?: string; error?: string }>;
   verifyOtp: (phoneNumber: string, otp: string) => Promise<{ success: boolean; error?: string }>;
+  checkPhone: (phoneNumber: string) => Promise<{ success: boolean; exists?: boolean; error?: string }>;
+  loginPass: (phoneNumber: string, pass: string) => Promise<{ success: boolean; error?: string }>;
+  registerPass: (phoneNumber: string, pass: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   selectChat: (chatId: string) => void;
   sendMessage: (content: string, replyToId?: string) => void;
@@ -428,6 +431,67 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Invalid OTP');
+
+      localStorage.setItem('chat_user', JSON.stringify(data.user));
+      localStorage.setItem('chat_token', data.accessToken);
+      localStorage.setItem('chat_refresh_token', data.refreshToken);
+
+      setUser(data.user);
+      setAccessToken(data.accessToken);
+
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const checkPhone = async (phoneNumber: string) => {
+    try {
+      const res = await fetch(`${API_URL}/auth/check-phone`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to check phone number');
+      return { success: true, exists: data.exists };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const loginPass = async (phoneNumber: string, pass: string) => {
+    try {
+      const res = await fetch(`${API_URL}/auth/login-pass`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber, password: pass }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to login');
+
+      localStorage.setItem('chat_user', JSON.stringify(data.user));
+      localStorage.setItem('chat_token', data.accessToken);
+      localStorage.setItem('chat_refresh_token', data.refreshToken);
+
+      setUser(data.user);
+      setAccessToken(data.accessToken);
+
+      return { success: true };
+    } catch (err: any) {
+      return { success: false, error: err.message };
+    }
+  };
+
+  const registerPass = async (phoneNumber: string, pass: string) => {
+    try {
+      const res = await fetch(`${API_URL}/auth/register-pass`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber, password: pass }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || 'Failed to register');
 
       localStorage.setItem('chat_user', JSON.stringify(data.user));
       localStorage.setItem('chat_token', data.accessToken);
@@ -792,6 +856,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         isLoading,
         loginPhone,
         verifyOtp,
+        checkPhone,
+        loginPass,
+        registerPass,
         logout,
         selectChat: setActiveChatId,
         sendMessage,

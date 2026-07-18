@@ -45,6 +45,9 @@ export default function Home() {
     isLoading,
     loginPhone,
     verifyOtp,
+    checkPhone,
+    loginPass,
+    registerPass,
     logout,
     selectChat,
     sendMessage,
@@ -71,11 +74,10 @@ export default function Home() {
 
   // AUTH STATES
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [otp, setOtp] = useState('');
-  const [step, setStep] = useState<'phone' | 'otp'>('phone');
+  const [password, setPassword] = useState('');
+  const [step, setStep] = useState<'phone' | 'login-password' | 'register-password'>('phone');
   const [authError, setAuthError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [devOtp, setDevOtp] = useState('');
 
   // UI CONFIG STATES
   const [activeTheme, setActiveTheme] = useState<ThemeName>('royal');
@@ -454,34 +456,49 @@ export default function Home() {
     }
   }, [searchQuery]);
 
-  const handleSendOtp = async (e: React.FormEvent) => {
+  const handleCheckPhone = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!phoneNumber.trim()) return;
     setAuthError('');
     setIsSubmitting(true);
-    const result = await loginPhone(phoneNumber);
+    const result = await checkPhone(phoneNumber);
     setIsSubmitting(false);
     if (result.success) {
-      setStep('otp');
-      if (result.otp) {
-        setDevOtp(result.otp);
+      if (result.exists) {
+        setStep('login-password');
+      } else {
+        setStep('register-password');
       }
     } else {
-      setAuthError(result.error || 'Failed to send OTP');
+      setAuthError(result.error || 'Failed to check phone number');
     }
   };
 
-  const handleVerifyOtp = async (e: React.FormEvent) => {
+  const handleLoginWithPassword = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!otp.trim()) return;
+    if (!password.trim()) return;
     setAuthError('');
     setIsSubmitting(true);
-    const result = await verifyOtp(phoneNumber, otp);
+    const result = await loginPass(phoneNumber, password);
     setIsSubmitting(false);
     if (result.success) {
       // Logged in!
     } else {
-      setAuthError(result.error || 'Invalid OTP code');
+      setAuthError(result.error || 'Invalid phone or password');
+    }
+  };
+
+  const handleRegisterWithPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!password.trim()) return;
+    setAuthError('');
+    setIsSubmitting(true);
+    const result = await registerPass(phoneNumber, password);
+    setIsSubmitting(false);
+    if (result.success) {
+      // Registered & logged in!
+    } else {
+      setAuthError(result.error || 'Failed to register. Choose a stronger password.');
     }
   };
 
@@ -1046,7 +1063,7 @@ export default function Home() {
           )}
 
           {step === 'phone' ? (
-            <form onSubmit={handleSendOtp} className="space-y-5">
+            <form onSubmit={handleCheckPhone} className="space-y-5">
               <div>
                 <label className="block text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-2">Phone Number</label>
                 <div className="relative">
@@ -1073,39 +1090,34 @@ export default function Home() {
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
                   <>
-                    <span>Send Verification Code</span>
+                    <span>Next</span>
                     <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
                   </>
                 )}
               </button>
             </form>
-          ) : (
-            <form onSubmit={handleVerifyOtp} className="space-y-5">
+          ) : step === 'login-password' ? (
+            <form onSubmit={handleLoginWithPassword} className="space-y-5">
               <div>
                 <div className="flex justify-between items-baseline mb-2">
-                  <label className="block text-slate-400 text-[10px] font-bold uppercase tracking-widest">Verification Code</label>
+                  <label className="block text-slate-400 text-[10px] font-bold uppercase tracking-widest">Enter Password</label>
                   <button type="button" onClick={() => setStep('phone')} className="text-indigo-400 text-xs hover:underline">
                     Change Number
                   </button>
                 </div>
                 <input
-                  type="text"
+                  type="password"
                   required
-                  maxLength={6}
-                  placeholder="Enter 6-digit OTP"
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value)}
-                  className="w-full bg-slate-950/80 border border-slate-805 focus:border-indigo-500/80 rounded-xl py-3.5 px-4 text-white text-center text-sm tracking-[0.5em] outline-none transition-all focus:ring-1 focus:ring-indigo-500/20 font-bold"
+                  placeholder="Enter password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-slate-950/80 border border-slate-805 focus:border-indigo-500/80 rounded-xl py-3.5 px-4 text-white text-xs outline-none transition-all focus:ring-1 focus:ring-indigo-500/20 font-medium animate-in fade-in"
                 />
               </div>
 
-              {devOtp && (
-                <div className="p-4 bg-slate-950/80 border border-indigo-500/20 rounded-2xl text-center">
-                  <span className="text-slate-400 text-xs block mb-1">Development mode code:</span>
-                  <span className="text-indigo-300 text-sm font-extrabold tracking-widest">{devOtp}</span>
-                  <p className="text-[10px] text-slate-500 mt-1.5">(Or enter 123456 to bypass immediately)</p>
-                </div>
-              )}
+              <div className="p-3 bg-slate-950/40 border border-slate-850 rounded-2xl text-[10px] text-slate-500 text-center leading-relaxed font-light">
+                This number is registered. Enter your account password to log in.
+              </div>
 
               <button
                 type="submit"
@@ -1115,7 +1127,42 @@ export default function Home() {
                 {isSubmitting ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <span>Verify & Login</span>
+                  <span>Login</span>
+                )}
+              </button>
+            </form>
+          ) : (
+            <form onSubmit={handleRegisterWithPassword} className="space-y-5">
+              <div>
+                <div className="flex justify-between items-baseline mb-2">
+                  <label className="block text-slate-400 text-[10px] font-bold uppercase tracking-widest">Set Password</label>
+                  <button type="button" onClick={() => setStep('phone')} className="text-indigo-400 text-xs hover:underline">
+                    Change Number
+                  </button>
+                </div>
+                <input
+                  type="password"
+                  required
+                  placeholder="Choose password for next login"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full bg-slate-950/80 border border-slate-805 focus:border-indigo-500/80 rounded-xl py-3.5 px-4 text-white text-xs outline-none transition-all focus:ring-1 focus:ring-indigo-500/20 font-medium animate-in fade-in"
+                />
+              </div>
+
+              <div className="p-3 bg-indigo-950/20 border border-indigo-900/30 rounded-2xl text-[10px] text-indigo-300 text-center leading-relaxed font-light">
+                This number is not registered. Choose a password now to create your account and use it for future logins.
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full bg-gradient-to-tr from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-505 text-white rounded-xl py-3.5 text-xs font-semibold transition-all shadow-lg shadow-indigo-600/15 flex items-center justify-center gap-2 disabled:opacity-50"
+              >
+                {isSubmitting ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <span>Create Account & Login</span>
                 )}
               </button>
             </form>
