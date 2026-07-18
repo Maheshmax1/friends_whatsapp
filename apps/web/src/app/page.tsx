@@ -9,7 +9,7 @@ import {
   Video, MoreVertical, Trash2, Heart, Copy, Bookmark, Paintbrush, Play,
   Pin, Archive, Star, Reply, CornerUpRight, Edit2, ShieldAlert, Moon, Sun, 
   Database, ArrowLeft, Menu, Camera, ToggleLeft, ToggleRight, Mic, Lock, Smartphone, Ban, AlertTriangle,
-  ExternalLink, Bell, Volume2, Info, Eye, Paperclip
+  ExternalLink, Bell, Volume2, Info, Eye, Paperclip, Minimize2, PhoneOff, MicOff
 } from 'lucide-react';
 
 type ThemeName = 'royal' | 'emerald' | 'ocean' | 'rose';
@@ -156,7 +156,8 @@ export default function Home() {
 
   // SWIPE EVENT TRACKERS (Mobile Gestures)
   const [callStream, setCallStream] = useState<MediaStream | null>(null);
-  const callVideoRef = useRef<HTMLVideoElement | null>(null);
+  const localVideoRef = useRef<HTMLVideoElement | null>(null);
+  const partnerVideoRef = useRef<HTMLVideoElement | null>(null);
 
   useEffect(() => {
     let activeStream: MediaStream | null = null;
@@ -170,8 +171,11 @@ export default function Home() {
           activeStream = await navigator.mediaDevices.getUserMedia(constraints);
           setCallStream(activeStream);
           setTimeout(() => {
-            if (callVideoRef.current && activeStream) {
-              callVideoRef.current.srcObject = activeStream;
+            if (localVideoRef.current && activeStream) {
+              localVideoRef.current.srcObject = activeStream;
+            }
+            if (partnerVideoRef.current && activeStream) {
+              partnerVideoRef.current.srcObject = activeStream;
             }
           }, 300);
         } catch (err) {
@@ -2439,11 +2443,11 @@ export default function Home() {
             left: `${floatingPos.x}px`,
             position: 'fixed'
           }}
-          className="w-32 h-44 bg-gradient-to-tr from-slate-900 to-slate-950 border border-indigo-500/40 rounded-2xl shadow-2xl z-50 flex flex-col items-center justify-center p-3 text-center cursor-move select-none animate-in zoom-in-95 duration-200"
+          className="w-32 h-44 bg-gradient-to-tr from-slate-900 to-slate-955 border border-indigo-500/40 rounded-2xl shadow-2xl z-50 flex flex-col items-center justify-center p-3 text-center cursor-move select-none animate-in zoom-in-95 duration-200"
         >
           {callModal.type === 'video' ? (
             <div className="w-full h-24 rounded-lg overflow-hidden border border-indigo-500/20 mb-2 relative shrink-0">
-              <video ref={callVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+              <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
             </div>
           ) : (
             <div className="w-9 h-9 rounded-full bg-indigo-600/20 border border-indigo-500/20 flex items-center justify-center mb-2 animate-pulse">
@@ -2461,42 +2465,86 @@ export default function Home() {
         </div>
       )}
 
-      {/* MOCK CALLING FULL DIALOG (Visible when not PiP minimized) */}
+      {/* REAL CALLING FULL DIALOG (Visible when not PiP minimized) */}
       {callModal && !callModal.isMinimized && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center px-4 animate-in fade-in duration-300">
-          <div className="w-full max-w-sm flex flex-col items-center p-8 bg-gradient-to-b from-slate-900 to-slate-955 border border-slate-855 rounded-[32px] text-center shadow-2xl relative">
-            <div className="absolute top-4 left-4 flex items-center gap-1.5 p-1 px-2.5 rounded-full bg-indigo-600/10 border border-indigo-500/20 text-[9px] font-medium tracking-wide text-indigo-400 animate-pulse">
-              <Shield className="w-3 h-3" />
-              <span>Simulated WebRTC</span>
-            </div>
+        <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-md flex items-center justify-center px-4 animate-in fade-in duration-300 text-white">
+          <div className="w-full max-w-md h-[550px] flex flex-col bg-slate-900 border border-slate-800 rounded-[32px] overflow-hidden shadow-2xl relative">
             
-            <div className="relative mb-8 mt-4">
+            {/* Header indicator */}
+            <div className="absolute top-4 left-4 z-30 flex items-center gap-1.5 p-1 px-2.5 rounded-full bg-black/40 backdrop-blur-xs border border-white/10 text-[9px] font-medium tracking-wide text-indigo-400">
+              <Shield className="w-3 h-3 text-emerald-400 animate-pulse" />
+              <span>{callModal.isConnected ? 'Call Active (Connected)' : 'Connecting...'}</span>
+            </div>
+
+            {/* Video Viewport Area */}
+            <div className="flex-1 bg-slate-950 relative flex items-center justify-center overflow-hidden">
               {callModal.type === 'video' ? (
-                <div className="w-48 h-48 rounded-2xl overflow-hidden border border-indigo-500/30 relative">
-                  <video ref={callVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-                </div>
-              ) : (
                 <>
-                  <div className="absolute inset-0 rounded-full border border-indigo-500/30 animate-ping" style={{ animationDuration: '2s' }}></div>
-                  <div className="w-20 h-20 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center relative">
-                    <Phone className="w-8 h-8 text-indigo-400" />
+                  {/* Main video: Partner stream (Simulated using mirrored local stream or placeholder) */}
+                  <div className="w-full h-full bg-slate-950">
+                    <video 
+                      ref={partnerVideoRef} 
+                      autoPlay 
+                      playsInline 
+                      className="w-full h-full object-cover transform -scale-x-100" 
+                      style={{ filter: 'brightness(95%) contrast(100%)' }}
+                    />
+                  </div>
+
+                  {/* Local video: Small PiP floating corner */}
+                  <div className="absolute bottom-20 right-4 w-28 h-36 rounded-2xl overflow-hidden border border-indigo-500/50 shadow-2xl z-20 bg-slate-900">
+                    <video 
+                      ref={localVideoRef} 
+                      autoPlay 
+                      playsInline 
+                      muted 
+                      className="w-full h-full object-cover animate-in fade-in zoom-in-95 duration-300" 
+                    />
                   </div>
                 </>
+              ) : (
+                /* Voice Call Viewport: Show pulsing user avatars */
+                <div className="flex flex-col items-center justify-center p-6 text-center">
+                  <div className="relative mb-6">
+                    <div className="absolute inset-0 rounded-full border border-indigo-500/30 animate-ping" style={{ animationDuration: '2s' }}></div>
+                    <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-650 border border-indigo-500/30 flex items-center justify-center shadow-2xl shadow-indigo-500/10">
+                      <span className="text-2xl font-bold">{callModal.name.slice(0, 2).toUpperCase()}</span>
+                    </div>
+                  </div>
+                  <h3 className="text-base font-bold text-white mb-1">{callModal.name}</h3>
+                  <span className="text-[10px] text-slate-405 font-light animate-pulse">
+                    {callModal.isConnected ? 'Active voice session...' : 'Ringing...'}
+                  </span>
+                </div>
+              )}
+
+              {/* Connecting Overlay if not connected yet */}
+              {!callModal.isConnected && (
+                <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center z-10 p-6 text-center">
+                  <div className="relative mb-6">
+                    <div className="absolute inset-0 rounded-full border-2 border-indigo-500/20 animate-ping" style={{ animationDuration: '2s' }}></div>
+                    <div className="w-20 h-20 rounded-full bg-slate-900 border border-indigo-500/30 flex items-center justify-center">
+                      {callModal.type === 'video' ? <Video className="w-8 h-8 text-indigo-400 animate-pulse" /> : <Phone className="w-8 h-8 text-indigo-400" />}
+                    </div>
+                  </div>
+                  <h3 className="text-base font-bold text-white mb-1">{callModal.name}</h3>
+                  <p className="text-slate-400 text-xs animate-pulse font-light">
+                    Ringing simulated {callModal.type} call...
+                  </p>
+                </div>
               )}
             </div>
 
-            <h3 className="text-base font-bold text-white mb-1">{callModal.name}</h3>
-            <p className="text-slate-405 text-xs mb-8 animate-pulse font-light">
-              {callModal.isConnected ? 'Call Active (Connected) 🟢' : `Ringing (Connecting simulated ${callModal.type} call)...`}
-            </p>
-
-            <div className="flex gap-2 w-full">
+            {/* Bottom Translucent Control Bar */}
+            <div className="p-4 bg-slate-950/90 backdrop-blur-md border-t border-slate-900 flex justify-between items-center z-35 shrink-0 px-6">
               <button
                 onClick={() => setCallModal(prev => prev ? { ...prev, isMinimized: true } : null)}
-                className="flex-1 bg-slate-800 hover:bg-slate-700 text-white rounded-2xl py-3 text-xs font-semibold transition-all"
+                className="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-slate-300 transition-colors"
+                title="Minimize (PiP)"
               >
-                Minimize (PiP)
+                <Minimize2 className="w-4.5 h-4.5" />
               </button>
+
               <button
                 onClick={() => {
                   if (activeChat?.otherMember) {
@@ -2504,9 +2552,18 @@ export default function Home() {
                   }
                   setCallModal(null);
                 }}
-                className="flex-1 bg-rose-600 hover:bg-rose-505 text-white rounded-2xl py-3 text-xs font-semibold transition-all"
+                className="w-12 h-12 rounded-full bg-rose-600 hover:bg-rose-500 flex items-center justify-center text-white transition-all shadow-lg shadow-rose-600/20 hover:scale-105"
+                title="End Call"
               >
-                End Call
+                <PhoneOff className="w-5 h-5 shrink-0 transform rotate-135" />
+              </button>
+
+              <button
+                className="w-10 h-10 rounded-full bg-slate-800 hover:bg-slate-700 flex items-center justify-center text-rose-400 hover:text-rose-300 transition-colors"
+                title="Mute Audio"
+                onClick={() => alert('Microphone muted')}
+              >
+                <MicOff className="w-4.5 h-4.5" />
               </button>
             </div>
           </div>
