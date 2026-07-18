@@ -12,7 +12,7 @@ import {
   ExternalLink, Bell, Volume2, Info, Eye, Paperclip, Minimize2, PhoneOff, MicOff, VideoOff
 } from 'lucide-react';
 
-type ThemeName = 'royal' | 'emerald' | 'ocean' | 'rose';
+type ThemeName = 'royal' | 'emerald' | 'ocean' | 'rose' | 'classic-wa' | 'glass-wa';
 
 interface Story {
   id: string;
@@ -121,6 +121,7 @@ export default function Home() {
   const [settingsTab, setSettingsTab] = useState<'profile' | 'appearance' | 'privacy'>('profile');
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showSharedMedia, setShowSharedMedia] = useState(false); // Collapsible Shared Media sidebar
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
 
   // PROFILE EDIT STATES
   const [editDisplayName, setEditDisplayName] = useState('');
@@ -998,6 +999,26 @@ export default function Home() {
           textAccentHover: 'hover:text-rose-455',
           activeBg: 'bg-rose-600/10 text-rose-400 border border-rose-500/20',
         };
+      case 'classic-wa':
+        return {
+          primary: 'bg-[#00a884] hover:bg-[#008f72] text-white shadow-emerald-500/10',
+          bubbleSent: 'bg-[#d9fdd3] dark:bg-[#005c4b] text-slate-800 dark:text-white',
+          textAccent: 'text-[#00a884]',
+          borderAccent: 'focus:border-[#00a884] focus:ring-[#00a884]/20',
+          ringAccent: 'border-[#00a884]',
+          textAccentHover: 'hover:text-[#00a884]',
+          activeBg: 'bg-[#00a884]/10 text-[#00a884] border border-[#00a884]/20',
+        };
+      case 'glass-wa':
+        return {
+          primary: 'bg-emerald-500/80 hover:bg-emerald-400 text-slate-955 shadow-emerald-500/10 backdrop-blur-md',
+          bubbleSent: 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-250 backdrop-blur-md shadow-[0_0_15px_rgba(16,185,129,0.05)]',
+          textAccent: 'text-emerald-400',
+          borderAccent: 'focus:border-emerald-500/60 focus:ring-emerald-500/20',
+          ringAccent: 'border-emerald-500',
+          textAccentHover: 'hover:text-emerald-400',
+          activeBg: 'bg-emerald-600/10 text-emerald-400 border border-emerald-500/20',
+        };
       case 'royal':
       default:
         return {
@@ -1026,8 +1047,56 @@ export default function Home() {
     }
   };
 
+  const getThemeLayout = () => {
+    if (activeTheme === 'classic-wa') {
+      return {
+        sidebarBg: 'bg-[#ffffff] dark:bg-[#111b21]',
+        sidebarHeader: 'bg-[#f0f2f5] dark:bg-[#202c33]',
+        chatHeader: 'bg-[#f0f2f5] dark:bg-[#202c33]',
+        chatBg: 'bg-[#efeae2] dark:bg-[#0b141a]',
+        inputBg: 'bg-[#f0f2f5] dark:bg-[#202c33]',
+        activeChatBg: 'bg-[#f5f6f6] dark:bg-[#2a3942]',
+        chatItemHover: 'hover:bg-[#f5f6f6] dark:hover:bg-[#202c33]',
+        textPrimary: 'text-slate-900 dark:text-slate-200',
+        textSecondary: 'text-slate-500 dark:text-slate-450',
+        border: 'border-[#e9edef] dark:border-[#222e35]',
+        sidebarWidth: 'lg:w-[380px]',
+      };
+    }
+    if (activeTheme === 'glass-wa') {
+      return {
+        sidebarBg: 'bg-slate-950/20 dark:bg-slate-955/20 light:bg-white/80 backdrop-blur-xl',
+        sidebarHeader: 'bg-slate-955/40 dark:bg-slate-955/40 light:bg-slate-100/50 backdrop-blur-md',
+        chatHeader: 'bg-slate-955/40 dark:bg-slate-955/40 light:bg-slate-100/50 backdrop-blur-md',
+        chatBg: 'bg-gradient-to-br from-slate-950 via-indigo-950/10 to-slate-955',
+        inputBg: 'bg-slate-955/40 dark:bg-slate-955/40 light:bg-slate-100/50 backdrop-blur-md',
+        activeChatBg: 'bg-indigo-900/20 text-indigo-200 border border-indigo-500/20',
+        chatItemHover: 'hover:bg-slate-900/60 dark:hover:bg-slate-900/60 light:hover:bg-slate-100/60',
+        textPrimary: 'text-white dark:text-white light:text-slate-800',
+        textSecondary: 'text-slate-450 dark:text-slate-400 light:text-slate-500',
+        border: 'border-slate-900/60 dark:border-slate-900/60 light:border-slate-200',
+        sidebarWidth: 'lg:w-[340px]',
+      };
+    }
+    // Default Halo layouts
+    return {
+      sidebarBg: 'bg-slate-955/70 dark:bg-slate-955/70 light:bg-white/80 backdrop-blur-xl',
+      sidebarHeader: '',
+      chatHeader: 'bg-slate-955/45 dark:bg-slate-955/45 light:bg-white/85 backdrop-blur-md',
+      chatBg: getWallpaperClass(),
+      inputBg: 'bg-slate-955/80 dark:bg-slate-955/80 light:bg-white backdrop-blur-xl',
+      activeChatBg: 'bg-indigo-950/20 border border-indigo-500/20',
+      chatItemHover: 'hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100',
+      textPrimary: 'text-white dark:text-white light:text-slate-800',
+      textSecondary: 'text-slate-450 dark:text-slate-400 light:text-slate-500',
+      border: 'border-slate-900 dark:border-slate-900 light:border-slate-202',
+      sidebarWidth: 'lg:w-[340px]',
+    };
+  };
+
   // UI styling classes matching themes
   const themeStyle = getThemeClass();
+  const themeLayout = getThemeLayout();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setMessageInput(e.target.value);
@@ -1268,12 +1337,18 @@ export default function Home() {
       <div className="flex-1 flex overflow-hidden relative z-10 h-full w-full">
         
         {/* SIDEBAR (LEFT SECTION) */}
-        <div className={`w-full lg:w-[340px] border-r border-slate-900 dark:border-slate-900 light:border-slate-202 flex flex-col bg-slate-950/70 backdrop-blur-xl dark:bg-slate-950/70 light:bg-white/80 h-full overflow-hidden shrink-0 transition-all ${
+        <div className={`w-full ${themeLayout.sidebarWidth} border-r flex flex-col h-full overflow-hidden shrink-0 transition-all ${
+          themeLayout.border
+        } ${
+          themeLayout.sidebarBg
+        } ${
           mobileView === 'chat' ? 'hidden lg:flex' : 'flex'
         }`}>
           
           {/* Sidebar Header */}
-          <div className="p-4 flex items-center justify-between border-b border-slate-900/60 dark:border-slate-900/60 light:border-slate-100">
+          <div className={`p-4 flex items-center justify-between border-b ${
+            themeLayout.sidebarHeader || themeLayout.border
+          }`}>
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => setShowSettingsDrawer(true)}
@@ -1325,7 +1400,7 @@ export default function Home() {
           </div>
 
           {/* Status Stories Row (WhatsApp Status style) */}
-          <div className="p-3 border-b border-slate-900/60 dark:border-slate-900/60 light:border-slate-100">
+          <div className={`p-3 border-b ${themeLayout.border}`}>
             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-2 px-1">Status Updates</span>
             <div className="flex gap-3 overflow-x-auto pb-1 select-none">
               <div 
@@ -1364,7 +1439,7 @@ export default function Home() {
           </div>
 
           {/* Search Inputs (Filters local chats + global search) */}
-          <div className="p-3 space-y-2">
+          <div className={`p-3 space-y-2 border-b ${themeLayout.border}`}>
             <div className="relative">
               <Search className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-505 w-4 h-4 my-auto pointer-events-none" />
               <input
@@ -1372,7 +1447,11 @@ export default function Home() {
                 placeholder="Search active chats..."
                 value={localChatSearch}
                 onChange={(e) => setLocalChatSearch(e.target.value)}
-                className="w-full bg-slate-900/50 dark:bg-slate-900/50 light:bg-slate-50 border border-slate-900 dark:border-slate-900 light:border-slate-200 focus:border-indigo-500/50 rounded-xl py-2 pl-10 pr-4 text-xs text-white dark:text-white light:text-slate-800 outline-none transition-all focus:ring-1 focus:ring-indigo-500/10"
+                className={`w-full border focus:border-indigo-500/50 rounded-xl py-2 pl-10 pr-4 text-xs outline-none transition-all focus:ring-1 focus:ring-indigo-500/10 ${
+                  activeTheme === 'classic-wa'
+                    ? 'bg-[#efeae2]/10 dark:bg-[#202c33]/50 text-slate-800 dark:text-white border-[#e9edef] dark:border-[#222e35]'
+                    : 'bg-slate-900/50 dark:bg-slate-900/50 light:bg-slate-50 text-white dark:text-white light:text-slate-800 border-slate-900 dark:border-slate-900 light:border-slate-200'
+                }`}
               />
             </div>
             
@@ -1384,7 +1463,11 @@ export default function Home() {
                 placeholder="Search global directory (add contacts)..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-slate-900/50 dark:bg-slate-900/50 light:bg-slate-50 border border-slate-900 dark:border-slate-900 light:border-slate-200 focus:border-indigo-500/50 rounded-xl py-2 pl-10 pr-4 text-xs text-white dark:text-white light:text-slate-800 outline-none transition-all focus:ring-1 focus:ring-indigo-500/10"
+                className={`w-full border focus:border-indigo-500/50 rounded-xl py-2 pl-10 pr-4 text-xs outline-none transition-all focus:ring-1 focus:ring-indigo-500/10 ${
+                  activeTheme === 'classic-wa'
+                    ? 'bg-[#efeae2]/10 dark:bg-[#202c33]/50 text-slate-800 dark:text-white border-[#e9edef] dark:border-[#222e35]'
+                    : 'bg-slate-900/50 dark:bg-slate-900/50 light:bg-slate-50 text-white dark:text-white light:text-slate-800 border-slate-900 dark:border-slate-900 light:border-slate-200'
+                }`}
               />
             </div>
           </div>
@@ -1506,10 +1589,10 @@ export default function Home() {
 
                         {/* Slide panel */}
                         <div 
-                          className={`w-full flex items-center justify-between p-3 rounded-2xl text-left border border-transparent bg-slate-950 dark:bg-slate-950 light:bg-white relative z-10 transition-transform duration-200 ${
+                          className={`w-full flex items-center justify-between p-3 rounded-2xl text-left border border-transparent relative z-10 transition-transform duration-200 ${
                             isChatActive 
-                              ? 'bg-indigo-950/20 dark:bg-indigo-950/20 light:bg-indigo-50 border-indigo-500/20 text-white dark:text-white light:text-slate-800' 
-                              : 'hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 text-slate-300 dark:text-slate-300 light:text-slate-700 hover:text-white dark:hover:text-white light:hover:text-slate-900'
+                              ? themeLayout.activeChatBg + ' ' + themeLayout.textPrimary
+                              : 'bg-slate-950 dark:bg-slate-950 light:bg-white ' + themeLayout.chatItemHover + ' ' + themeLayout.textSecondary
                           } ${isSwiped ? '-translate-x-[150px]' : 'translate-x-0'}`}
                         >
                           <button
@@ -1519,7 +1602,9 @@ export default function Home() {
                             }}
                             className="flex-1 flex items-center gap-3 min-w-0"
                           >
-                            <div className="w-10 h-10 rounded-full bg-slate-900 dark:bg-slate-900 light:bg-slate-250 border border-slate-805 dark:border-slate-805 light:border-slate-300 flex items-center justify-center font-semibold text-xs relative shrink-0 overflow-hidden">
+                            <div className={`w-10 h-10 rounded-full bg-slate-900 dark:bg-slate-900 light:bg-slate-250 border flex items-center justify-center font-semibold text-xs relative shrink-0 overflow-hidden ${
+                              activeTheme === 'classic-wa' ? 'border-[#e9edef] dark:border-[#222e35]' : 'border-slate-805 dark:border-slate-805 light:border-slate-300'
+                            }`}>
                               {chat.otherMember?.avatarUrl ? (
                                 <img src={chat.otherMember.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                               ) : (
@@ -1534,7 +1619,9 @@ export default function Home() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="flex justify-between items-baseline mb-0.5">
-                                <h5 className="text-xs font-semibold truncate leading-none">{chat.name}</h5>
+                                <h5 className={`text-xs font-semibold truncate leading-none ${
+                                  isChatActive ? themeLayout.textPrimary : 'text-slate-800 dark:text-slate-200'
+                                }`}>{chat.name}</h5>
                                 <span className="text-[9px] text-slate-500 shrink-0">
                                   {chat.lastMessage 
                                     ? new Date(chat.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
@@ -1608,10 +1695,10 @@ export default function Home() {
             <div className="flex-1 flex h-full overflow-hidden relative">
               
               {/* Message Panel Area */}
-              <div className={`flex-1 flex flex-col h-full overflow-hidden ${getWallpaperClass()} relative z-10 transition-colors duration-300`}>
+              <div className={`flex-1 flex flex-col h-full overflow-hidden ${themeLayout.chatBg} relative z-10 transition-colors duration-300`}>
                 
                 {/* Chat Header */}
-                <div className="p-4 border-b border-slate-900/60 dark:border-slate-900/60 light:border-slate-205 flex items-center justify-between bg-slate-955/80 backdrop-blur-xl dark:bg-slate-955/80 light:bg-white relative z-20 shrink-0">
+                <div className={`p-4 border-b flex items-center justify-between relative z-20 shrink-0 ${themeLayout.chatHeader || themeLayout.border}`}>
                   <div className="flex items-center gap-3">
                     
                     <button 
@@ -1628,9 +1715,9 @@ export default function Home() {
                         <span>{activeChat.name.slice(0, 2).toUpperCase()}</span>
                       )}
                     </div>
-                    <div className="cursor-pointer" onClick={() => setShowSharedMedia(!showSharedMedia)}>
-                      <h4 className="text-xs font-semibold leading-tight">{activeChat.name}</h4>
-                      <span className="text-[9px] text-slate-405">
+                    <div className="cursor-pointer text-left" onClick={() => setShowSharedMedia(!showSharedMedia)}>
+                      <h4 className={`text-xs font-semibold leading-tight ${activeTheme === 'classic-wa' ? 'text-slate-900 dark:text-slate-100' : 'text-white'}`}>{activeChat.name}</h4>
+                      <span className="text-[9px] text-slate-405 block">
                         {typingUsers[activeChat.otherMember?.id || ''] ? (
                           <span className="text-indigo-400 font-medium animate-pulse">typing...</span>
                         ) : activeChat.isGroup ? (
@@ -1719,8 +1806,16 @@ export default function Home() {
                           {/* Message Bubble Container */}
                           <div className={`rounded-2xl px-4 py-2.5 shadow-md relative transition-all duration-200 ${
                             isCurrentUser 
-                              ? `${themeStyle.bubbleSent} rounded-tr-none` 
-                              : 'bg-slate-900/90 dark:bg-slate-900/90 light:bg-white text-slate-200 dark:text-slate-200 light:text-slate-800 rounded-tl-none border border-slate-800/80 dark:border-slate-800/80 light:border-slate-202 shadow-lg shadow-black/10'
+                              ? activeTheme === 'classic-wa'
+                                ? 'bg-[#d9fdd3] dark:bg-[#005c4b] text-[#111b21] dark:text-[#e9edef] rounded-tr-none shadow-sm'
+                                : activeTheme === 'glass-wa'
+                                ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-250 backdrop-blur-md rounded-tr-none shadow-[0_0_15px_rgba(16,185,129,0.05)]'
+                                : `${themeStyle.bubbleSent} rounded-tr-none`
+                              : activeTheme === 'classic-wa'
+                                ? 'bg-white dark:bg-[#202c33] text-slate-900 dark:text-slate-100 rounded-tl-none shadow-sm'
+                                : activeTheme === 'glass-wa'
+                                ? 'bg-slate-900/30 border border-slate-800 text-slate-200 backdrop-blur-md rounded-tl-none'
+                                : 'bg-slate-900/90 dark:bg-slate-900/90 light:bg-white text-slate-200 dark:text-slate-200 light:text-slate-800 rounded-tl-none border border-slate-800/80 dark:border-slate-800/80 light:border-slate-202 shadow-lg shadow-black/10'
                           }`}>
                             
                             {isStarred && (
@@ -1764,17 +1859,23 @@ export default function Home() {
                               {message.isEdited && !message.isDeleted && (
                                 <span className="text-[7px] opacity-60 uppercase font-bold tracking-wider">edited</span>
                               )}
-                              <span className={`text-[8px] font-light select-none ${isCurrentUser ? 'text-indigo-200/80' : 'text-slate-500'}`}>
+                              <span className={`text-[8px] font-light select-none ${
+                                isCurrentUser 
+                                  ? activeTheme === 'classic-wa' 
+                                    ? 'text-slate-500/80 dark:text-[#aebac1]/80' 
+                                    : 'text-indigo-200/80' 
+                                  : 'text-slate-500 dark:text-[#aebac1]/60'
+                              }`}>
                                 {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                               </span>
                               {isCurrentUser && (
                                 <span>
                                   {message.status === 'READ' ? (
-                                    <CheckCheck className="w-3.5 h-3.5 text-cyan-200" />
+                                    <CheckCheck className={`w-3.5 h-3.5 ${activeTheme === 'classic-wa' ? 'text-[#53bdeb]' : 'text-cyan-200'}`} />
                                   ) : message.status === 'DELIVERED' ? (
-                                    <CheckCheck className="w-3.5 h-3.5 opacity-60 text-white" />
+                                    <CheckCheck className={`w-3.5 h-3.5 ${activeTheme === 'classic-wa' ? 'text-slate-500/60 dark:text-[#aebac1]/60' : 'opacity-60 text-white'}`} />
                                   ) : (
-                                    <Check className="w-3.5 h-3.5 opacity-65 text-white" />
+                                    <Check className={`w-3.5 h-3.5 ${activeTheme === 'classic-wa' ? 'text-slate-500/60 dark:text-[#aebac1]/60' : 'opacity-65 text-white'}`} />
                                   )}
                                 </span>
                               )}
@@ -1966,27 +2067,97 @@ export default function Home() {
                 {!isRecording && (
                   <form 
                     onSubmit={handleSend} 
-                    className="p-4 border-t border-slate-900/60 dark:border-slate-900/60 light:border-slate-202 bg-slate-950/80 backdrop-blur-xl dark:bg-slate-955/80 light:bg-white relative z-20 shrink-0 flex items-center gap-3"
+                    className={`p-4 border-t relative z-20 shrink-0 flex items-center gap-3 ${themeLayout.inputBg} ${themeLayout.border}`}
                   >
-                    {/* Capture snapshots */}
+                    {/* Smiley Emoji Trigger (Insert Smiley face directly) */}
                     <button
                       type="button"
-                      onClick={startCamera}
-                      title="Take Snapshot"
-                      className="w-11 h-11 bg-slate-900 border border-slate-850 hover:border-indigo-500/50 rounded-2xl flex items-center justify-center text-slate-400 hover:text-white transition-colors shrink-0"
+                      onClick={() => setMessageInput(prev => prev + ' 😊')}
+                      title="Emojis"
+                      className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
+                        activeTheme === 'classic-wa' 
+                          ? 'hover:bg-slate-300/40 text-slate-550 dark:text-slate-400' 
+                          : 'bg-slate-900 border border-slate-850 hover:border-indigo-500/50 text-slate-400 hover:text-white'
+                      }`}
                     >
-                      <Camera className="w-5 h-5" />
+                      <Smile className="w-5 h-5" />
                     </button>
 
-                    {/* Send gallery picture */}
-                    <button
-                      type="button"
-                      onClick={() => document.getElementById('chat-gallery-input')?.click()}
-                      title="Send Image from Gallery"
-                      className="w-11 h-11 bg-slate-900 border border-slate-850 hover:border-indigo-500/50 rounded-2xl flex items-center justify-center text-slate-400 hover:text-white transition-colors shrink-0"
-                    >
-                      <ImageIcon className="w-5 h-5" />
-                    </button>
+                    {/* Paperclip Attach Dropdown Trigger */}
+                    <div className="relative shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
+                        title="Attach Media & Files"
+                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
+                          showAttachmentMenu 
+                            ? 'bg-indigo-600 text-white' 
+                            : activeTheme === 'classic-wa'
+                            ? 'hover:bg-slate-300/40 text-slate-550 dark:text-slate-400'
+                            : 'bg-slate-900 border border-slate-850 hover:border-indigo-500/50 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <Paperclip className={`w-5 h-5 transition-transform duration-200 ${showAttachmentMenu ? 'rotate-45' : ''}`} />
+                      </button>
+
+                      {/* Animated Attachment Slideout Menu */}
+                      {showAttachmentMenu && (
+                        <>
+                          <div 
+                            className="fixed inset-0 z-40 bg-transparent" 
+                            onClick={() => setShowAttachmentMenu(false)} 
+                          />
+                          <div className={`absolute bottom-12 left-0 w-44 rounded-2xl p-2 border shadow-2xl flex flex-col gap-1 z-50 animate-in slide-in-from-bottom-3 duration-200 ${
+                            isDarkMode 
+                              ? 'bg-slate-955/95 border-slate-850 text-white backdrop-blur-xl' 
+                              : 'bg-white border-slate-200 text-slate-850 shadow-slate-950/10'
+                          }`}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowAttachmentMenu(false);
+                                startCamera();
+                              }}
+                              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs font-medium transition-colors ${
+                                isDarkMode ? 'hover:bg-slate-900' : 'hover:bg-slate-100'
+                              }`}
+                            >
+                              <Camera className="w-4 h-4 text-indigo-400" />
+                              <span>Camera Snapshot</span>
+                            </button>
+                            
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowAttachmentMenu(false);
+                                document.getElementById('chat-gallery-input')?.click();
+                              }}
+                              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs font-medium transition-colors ${
+                                isDarkMode ? 'hover:bg-slate-900' : 'hover:bg-slate-100'
+                              }`}
+                            >
+                              <ImageIcon className="w-4 h-4 text-emerald-400" />
+                              <span>Photo Gallery</span>
+                            </button>
+
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setShowAttachmentMenu(false);
+                                alert('Document sharing and storage coming soon! 📑');
+                              }}
+                              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs font-medium transition-colors ${
+                                isDarkMode ? 'hover:bg-slate-900' : 'hover:bg-slate-100'
+                              }`}
+                            >
+                              <Lock className="w-4 h-4 text-cyan-400" />
+                              <span>File Document</span>
+                            </button>
+                          </div>
+                        </>
+                      )}
+                    </div>
+
                     <input 
                       type="file" 
                       id="chat-gallery-input" 
@@ -2005,44 +2176,45 @@ export default function Home() {
                       }}
                     />
 
-                    <div className="flex-1 relative flex items-center bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100 border border-slate-805 dark:border-slate-805 light:border-slate-200 rounded-2xl focus-within:border-indigo-500/40 transition-colors">
+                    {/* Chat Input Text Box */}
+                    <div className={`flex-1 relative flex items-center border rounded-xl focus-within:border-indigo-500/40 transition-colors ${
+                      activeTheme === 'classic-wa'
+                        ? 'bg-white dark:bg-[#2a3942] border-[#e9edef] dark:border-[#222e35]'
+                        : 'bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100 border-slate-805 dark:border-slate-805 light:border-slate-200'
+                    }`}>
                       <input
                         type="text"
                         placeholder={editingMessage ? 'Modify message...' : 'Type a message...'}
                         value={messageInput}
                         onChange={handleInputChangeValue}
-                        className="w-full bg-transparent py-3.5 pl-4 pr-10 text-xs text-white dark:text-white light:text-slate-850 outline-none placeholder-slate-500 font-light"
+                        className={`w-full bg-transparent py-2.5 pl-4 pr-10 text-xs outline-none placeholder-slate-500 font-light ${
+                          activeTheme === 'classic-wa' ? 'text-slate-800 dark:text-slate-100' : 'text-white'
+                        }`}
                       />
-                      <button 
-                        type="button" 
-                        onClick={() => setMessageInput(prev => prev + ' 🚀')}
-                        className="absolute right-3.5 text-slate-500 hover:text-slate-350 transition-colors"
-                      >
-                        <Smile className="w-5 h-5" />
-                      </button>
                     </div>
 
-                    {/* Microphone button (10. Voice Notes) */}
-                    <button
-                      type="button"
-                      onClick={startVoiceRecording}
-                      title="Record Voice Note"
-                      className="w-11 h-11 bg-slate-900 border border-slate-850 hover:border-indigo-500/50 rounded-2xl flex items-center justify-center text-slate-400 hover:text-white transition-colors shrink-0"
-                    >
-                      <Mic className="w-5 h-5" />
-                    </button>
-
-                    <button
-                      type="submit"
-                      disabled={!messageInput.trim()}
-                      className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all shrink-0 ${
-                        messageInput.trim() 
-                          ? `${themeStyle.primary}` 
-                          : 'bg-slate-900 text-slate-600 cursor-not-allowed border border-slate-850'
-                      }`}
-                    >
-                      <Send className="w-4.5 h-4.5" />
-                    </button>
+                    {/* Right Action: Send message if typing, or Record mic if empty */}
+                    {messageInput.trim() ? (
+                      <button
+                        type="submit"
+                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0 ${themeStyle.primary}`}
+                      >
+                        <Send className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <button
+                        type="button"
+                        onClick={startVoiceRecording}
+                        title="Record Voice Note"
+                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0 ${
+                          activeTheme === 'classic-wa'
+                            ? 'hover:bg-slate-300/40 text-slate-550 dark:text-slate-400'
+                            : 'bg-slate-900 border border-slate-850 hover:border-indigo-500/50 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        <Mic className="w-5 h-5" />
+                      </button>
+                    )}
                   </form>
                 )}
               </div>
@@ -2447,21 +2619,21 @@ export default function Home() {
                   {/* Accents Theme Selector */}
                   <div className="space-y-1.5">
                     <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Color Accent Theme</span>
-                    <div className="flex gap-1.5">
-                      {(['royal', 'emerald', 'ocean', 'rose'] as ThemeName[]).map((theme) => (
+                    <div className="grid grid-cols-3 gap-1.5">
+                      {(['royal', 'emerald', 'ocean', 'rose', 'classic-wa', 'glass-wa'] as ThemeName[]).map((theme) => (
                         <button
                           key={theme}
                           type="button"
                           onClick={() => setActiveTheme(theme)}
-                          className={`flex-1 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all border ${
+                          className={`py-1.5 rounded-lg text-[8px] font-bold uppercase tracking-wider transition-all border ${
                             activeTheme === theme 
-                              ? 'bg-indigo-600/10 border-indigo-500 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.15)]'
+                              ? 'bg-indigo-650/20 border-indigo-500 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.15)]'
                               : isDarkMode
-                              ? 'bg-slate-950/40 border-slate-850 text-slate-500 hover:text-slate-300'
-                              : 'bg-white border-slate-200 text-slate-500 hover:text-slate-800 shadow-sm'
+                              ? 'bg-slate-950/40 border-slate-850 text-slate-500 hover:text-slate-355'
+                              : 'bg-white border-slate-200 text-slate-500 hover:text-slate-850 shadow-sm'
                           }`}
                         >
-                          {theme}
+                          {theme === 'classic-wa' ? 'WA Flat' : theme === 'glass-wa' ? 'WA Glass' : theme}
                         </button>
                       ))}
                     </div>
