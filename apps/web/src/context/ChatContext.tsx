@@ -293,10 +293,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!socketRef.current || !activeChatId) return;
     socketRef.current.emit(
       'send_message',
-      { chatId: activeChatId, content, type: 'TEXT' },
-      (message: Message) => {
-        setMessages((prev) => [...prev, message]);
-      }
+      { chatId: activeChatId, content, type: 'TEXT' }
     );
   };
 
