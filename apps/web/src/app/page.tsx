@@ -7,7 +7,8 @@ import {
   Settings, Users, Shield, Compass, Sparkles, Smile, Image as ImageIcon,
   Check, CheckCheck, Loader2, ArrowRight, User, AlertCircle, Plus, X,
   Video, MoreVertical, Trash2, Heart, Copy, Bookmark, Paintbrush, Play,
-  Pin, Archive, Star, Reply, CornerUpRight, Edit2, ShieldAlert, Moon, Sun, Database
+  Pin, Archive, Star, Reply, CornerUpRight, Edit2, ShieldAlert, Moon, Sun, 
+  Database, ArrowLeft, Menu, Camera, ToggleLeft, ToggleRight
 } from 'lucide-react';
 
 type ThemeName = 'royal' | 'emerald' | 'ocean' | 'rose';
@@ -61,14 +62,19 @@ export default function Home() {
   // UI Customization States
   const [activeTheme, setActiveTheme] = useState<ThemeName>('royal');
   const [chatWallpaper, setChatWallpaper] = useState<string>('mesh-indigo');
-  const [showSettings, setShowSettings] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(true);
+  
+  // Slide-out Drawer Side Navigation Menu (Controls profile & settings)
+  const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
 
-  // Profile Edit States (Prefilled on load)
+  // Profile Edit States
   const [editDisplayName, setEditDisplayName] = useState('');
   const [editBio, setEditBio] = useState('');
   const [editAvatarUrl, setEditAvatarUrl] = useState('');
   const [isSavingSettings, setIsSavingSettings] = useState(false);
+
+  // Responsive Toggling State ('list' shows chat list, 'chat' shows message history)
+  const [mobileView, setMobileView] = useState<'list' | 'chat'>('list');
 
   // Dashboard Navigation States
   const [searchQuery, setSearchQuery] = useState('');
@@ -115,12 +121,12 @@ export default function Home() {
 
   // Load profile editing values when settings drawer opens
   useEffect(() => {
-    if (user && showSettings) {
+    if (user && showSettingsDrawer) {
       setEditDisplayName(user.displayName || '');
       setEditBio(user.bio || '');
       setEditAvatarUrl(user.avatarUrl || '');
     }
-  }, [user, showSettings]);
+  }, [user, showSettingsDrawer]);
 
   // Sync Dark/Light Mode with HTML document class
   useEffect(() => {
@@ -131,6 +137,15 @@ export default function Home() {
       root.classList.remove('dark');
     }
   }, [isDarkMode]);
+
+  // Handle active chat selection change to toggle view on mobile
+  useEffect(() => {
+    if (activeChatId) {
+      setMobileView('chat');
+    } else {
+      setMobileView('list');
+    }
+  }, [activeChatId]);
 
   // Story Progress Timer
   useEffect(() => {
@@ -202,6 +217,8 @@ export default function Home() {
       avatarUrl: editAvatarUrl
     });
     setIsSavingSettings(false);
+    setShowSettingsDrawer(false); // Close drawer on save
+    alert('Profile updated successfully!');
   };
 
   // Toggle privacy switch helper
@@ -272,8 +289,7 @@ export default function Home() {
 
   const handleSelectForwardTarget = (chatId: string) => {
     if (!forwardingMessage) return;
-    // We send message to target chat
-    sendMessage(forwardingMessage.content, undefined); // Sends message to active chat
+    sendMessage(forwardingMessage.content, undefined);
     alert('Message forwarded successfully');
     setForwardingMessage(null);
   };
@@ -283,7 +299,7 @@ export default function Home() {
     switch (activeTheme) {
       case 'emerald':
         return {
-          primary: 'bg-emerald-600 hover:bg-emerald-500 text-slate-950 shadow-emerald-500/10',
+          primary: 'bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-emerald-500/10',
           bubbleSent: 'bg-gradient-to-tr from-emerald-600 to-teal-500 text-slate-950',
           textAccent: 'text-emerald-400',
           borderAccent: 'focus:border-emerald-500/60 focus:ring-emerald-500/20',
@@ -293,7 +309,7 @@ export default function Home() {
         };
       case 'ocean':
         return {
-          primary: 'bg-cyan-600 hover:bg-cyan-500 text-white shadow-cyan-500/10',
+          primary: 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-cyan-500/10',
           bubbleSent: 'bg-gradient-to-tr from-cyan-600 to-blue-500 text-white',
           textAccent: 'text-cyan-400',
           borderAccent: 'focus:border-cyan-500/60 focus:ring-cyan-500/20',
@@ -303,12 +319,12 @@ export default function Home() {
         };
       case 'rose':
         return {
-          primary: 'bg-rose-600 hover:bg-rose-500 text-white shadow-rose-500/10',
+          primary: 'bg-rose-500 hover:bg-rose-400 text-white shadow-rose-500/10',
           bubbleSent: 'bg-gradient-to-tr from-rose-500 to-pink-500 text-white',
-          textAccent: 'text-rose-400',
+          textAccent: 'text-rose-455',
           borderAccent: 'focus:border-rose-500/60 focus:ring-rose-500/20',
           ringAccent: 'border-rose-500',
-          textAccentHover: 'hover:text-rose-400',
+          textAccentHover: 'hover:text-rose-455',
           activeBg: 'bg-rose-600/10 text-rose-400 border border-rose-500/20',
         };
       case 'royal':
@@ -343,7 +359,6 @@ export default function Home() {
 
   // Filtered Chats Calculations
   const getFilteredChats = () => {
-    // 1. Filter out chats based on tab
     let result = chats;
     if (activeTab === 'archived') {
       result = chats.filter((c) => c.isArchived);
@@ -351,13 +366,11 @@ export default function Home() {
       result = chats.filter((c) => !c.isArchived);
     }
 
-    // 2. Filter based on search query
     if (localChatSearch.trim()) {
       const q = localChatSearch.toLowerCase();
       result = result.filter((c) => c.name.toLowerCase().includes(q));
     }
 
-    // 3. Sort Pinned first, then by updatedAt desc
     return [...result].sort((a, b) => {
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
@@ -489,34 +502,39 @@ export default function Home() {
   return (
     <div className="h-screen w-screen flex bg-slate-950 text-white relative overflow-hidden select-none dark:bg-slate-950 light:bg-slate-50 light:text-slate-900 transition-colors duration-300">
       
-      {/* Decorative Blur Background Orbs */}
+      {/* Decorative Background Orbs */}
       <div className="absolute top-0 right-0 w-[40rem] h-[40rem] bg-indigo-500/5 rounded-full blur-[150px] pointer-events-none animate-pulse" style={{ animationDuration: '10s' }}></div>
       <div className="absolute bottom-0 left-1/4 w-[40rem] h-[40rem] bg-violet-500/5 rounded-full blur-[150px] pointer-events-none animate-pulse" style={{ animationDuration: '15s' }}></div>
 
       {/* DASHBOARD WORKSPACE CONTAINER */}
       <div className="flex-1 flex overflow-hidden relative z-10 h-full w-full">
         
-        {/* SIDEBAR (LEFT SECTION - fixed height) */}
-        <div className="w-[340px] border-r border-slate-900 dark:border-slate-900 light:border-slate-200 flex flex-col bg-slate-950/70 backdrop-blur-xl dark:bg-slate-950/70 light:bg-white/80 h-full overflow-hidden shrink-0">
+        {/* SIDEBAR (LEFT SECTION - Responsive Width) */}
+        <div className={`w-full md:w-[340px] border-r border-slate-900 dark:border-slate-900 light:border-slate-200 flex flex-col bg-slate-950/70 backdrop-blur-xl dark:bg-slate-950/70 light:bg-white/80 h-full overflow-hidden shrink-0 transition-all ${
+          mobileView === 'chat' ? 'hidden md:flex' : 'flex'
+        }`}>
           
           {/* Sidebar Header */}
           <div className="p-4 flex items-center justify-between border-b border-slate-900/60 dark:border-slate-900/60 light:border-slate-100">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center font-bold text-white text-xs shadow-md shadow-indigo-500/10 relative">
+              <button 
+                onClick={() => setShowSettingsDrawer(true)}
+                className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center font-bold text-white text-xs shadow-md shadow-indigo-500/10 relative hover:scale-105 transition-transform"
+              >
                 {user.displayName?.slice(0, 2).toUpperCase() || 'HA'}
                 <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full"></div>
-              </div>
+              </button>
               <div className="truncate max-w-[130px]">
                 <h4 className="text-xs font-semibold leading-none truncate dark:text-white light:text-slate-800">{user.displayName || 'Halo User'}</h4>
                 <span className="text-[10px] text-slate-450 mt-1 truncate block font-light dark:text-slate-400 light:text-slate-500">{user.phoneNumber}</span>
               </div>
             </div>
             
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-1.5">
               <button 
-                onClick={() => setShowSettings(!showSettings)} 
-                title="Settings & Customization"
-                className={`w-8 h-8 rounded-lg hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 flex items-center justify-center transition-colors ${showSettings ? 'text-indigo-400 bg-slate-900 dark:bg-slate-900 light:bg-slate-100' : 'text-slate-400'}`}
+                onClick={() => setShowSettingsDrawer(true)} 
+                title="Settings & Profile"
+                className="w-8 h-8 rounded-lg hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-white dark:hover:text-white light:hover:text-slate-800 transition-colors"
               >
                 <Settings className="w-4 h-4" />
               </button>
@@ -530,159 +548,12 @@ export default function Home() {
               <button 
                 onClick={logout} 
                 title="Logout"
-                className="w-8 h-8 rounded-lg hover:bg-rose-950/20 dark:hover:bg-rose-950/20 light:hover:bg-rose-100 flex items-center justify-center text-slate-400 hover:text-rose-450 transition-colors"
+                className="w-8 h-8 rounded-lg hover:bg-rose-950/20 dark:hover:bg-rose-950/20 light:hover:bg-rose-100 flex items-center justify-center text-slate-400 hover:text-rose-455 transition-colors"
               >
                 <LogOut className="w-4 h-4" />
               </button>
             </div>
           </div>
-
-          {/* Settings Drawer (Includes theme selectors, privacy switches, name/bio, Storage) */}
-          {showSettings && (
-            <div className="p-4 bg-slate-900/40 dark:bg-slate-900/40 light:bg-slate-50/50 border-b border-slate-900/80 dark:border-slate-900/80 light:border-slate-100 space-y-4 max-h-[350px] overflow-y-auto animate-in slide-in-from-top duration-200">
-              
-              {/* Profile details */}
-              <form onSubmit={handleSaveSettings} className="space-y-3">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Edit Profile Info</span>
-                <div>
-                  <input
-                    type="text"
-                    placeholder="Display Name"
-                    value={editDisplayName}
-                    onChange={(e) => setEditDisplayName(e.target.value)}
-                    className="w-full bg-slate-950/60 dark:bg-slate-950/60 light:bg-white border border-slate-850 dark:border-slate-850 light:border-slate-200 focus:border-indigo-500/60 rounded-lg py-1.5 px-3 text-[11px] outline-none text-white dark:text-white light:text-slate-800"
-                  />
-                </div>
-                <div>
-                  <input
-                    type="text"
-                    placeholder="Bio / About"
-                    value={editBio}
-                    onChange={(e) => setEditBio(e.target.value)}
-                    className="w-full bg-slate-950/60 dark:bg-slate-950/60 light:bg-white border border-slate-850 dark:border-slate-850 light:border-slate-200 focus:border-indigo-500/60 rounded-lg py-1.5 px-3 text-[11px] outline-none text-white dark:text-white light:text-slate-800"
-                  />
-                </div>
-                <div>
-                  <input
-                    type="text"
-                    placeholder="Avatar Image URL (Optional)"
-                    value={editAvatarUrl}
-                    onChange={(e) => setEditAvatarUrl(e.target.value)}
-                    className="w-full bg-slate-950/60 dark:bg-slate-950/60 light:bg-white border border-slate-850 dark:border-slate-850 light:border-slate-200 focus:border-indigo-500/60 rounded-lg py-1.5 px-3 text-[11px] outline-none text-white dark:text-white light:text-slate-800"
-                  />
-                </div>
-                <button
-                  type="submit"
-                  disabled={isSavingSettings}
-                  className={`w-full py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-colors ${themeStyle.primary}`}
-                >
-                  {isSavingSettings ? 'Saving...' : 'Save Profile'}
-                </button>
-              </form>
-
-              {/* Theme & Wallpaper Selector */}
-              <div className="pt-2 border-t border-slate-850 dark:border-slate-850 light:border-slate-200/60 space-y-3">
-                <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block">Appearance</span>
-                
-                {/* Light/Dark mode */}
-                <div className="flex justify-between items-center bg-slate-950/40 dark:bg-slate-950/40 light:bg-white p-2 rounded-xl border border-slate-850 dark:border-slate-850 light:border-slate-100">
-                  <span className="text-[10px] text-slate-350 dark:text-slate-350 light:text-slate-600">Dark Interface Mode</span>
-                  <button 
-                    onClick={() => setIsDarkMode(!isDarkMode)}
-                    className="w-8 h-8 rounded-lg hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-50 flex items-center justify-center text-slate-400"
-                  >
-                    {isDarkMode ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
-                  </button>
-                </div>
-
-                <div className="flex gap-2">
-                  {(['royal', 'emerald', 'ocean', 'rose'] as ThemeName[]).map((theme) => (
-                    <button
-                      key={theme}
-                      onClick={() => setActiveTheme(theme)}
-                      className={`flex-1 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all border ${
-                        activeTheme === theme 
-                          ? 'bg-indigo-600/10 border-indigo-500 text-indigo-300'
-                          : 'bg-slate-950/40 border-slate-850 text-slate-500 hover:text-slate-300'
-                      }`}
-                    >
-                      {theme}
-                    </button>
-                  ))}
-                </div>
-
-                <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { id: 'mesh-indigo', label: 'Indigo Glow' },
-                    { id: 'mesh-violet', label: 'Violet Twilight' },
-                    { id: 'solid-slate', label: 'Dark Slate' },
-                    { id: 'solid-dark', label: 'Deep Black' }
-                  ].map((wallpaper) => (
-                    <button
-                      key={wallpaper.id}
-                      onClick={() => setChatWallpaper(wallpaper.id)}
-                      className={`py-1.5 px-2 rounded-lg text-[9px] truncate transition-all border ${
-                        chatWallpaper === wallpaper.id
-                          ? 'bg-indigo-600/10 border-indigo-500 text-indigo-300'
-                          : 'bg-slate-950/40 border-slate-850 text-slate-500 hover:text-slate-350'
-                      }`}
-                    >
-                      {wallpaper.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Privacy Settings toggles */}
-              {user && (
-                <div className="pt-2 border-t border-slate-850 dark:border-slate-850 light:border-slate-200/60 space-y-2">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-2">Privacy & Alerts</span>
-                  
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-[10px] text-slate-400">Show Last Seen</span>
-                    <input 
-                      type="checkbox" 
-                      checked={user.showLastSeen} 
-                      onChange={() => handleTogglePrivacy('showLastSeen', user.showLastSeen)}
-                      className="accent-indigo-500 h-3.5 w-3.5"
-                    />
-                  </div>
-
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-[10px] text-slate-400">Show Read Receipts (Blue Ticks)</span>
-                    <input 
-                      type="checkbox" 
-                      checked={user.showReadReceipts} 
-                      onChange={() => handleTogglePrivacy('showReadReceipts', user.showReadReceipts)}
-                      className="accent-indigo-500 h-3.5 w-3.5"
-                    />
-                  </div>
-
-                  <div className="flex justify-between items-center text-xs">
-                    <span className="text-[10px] text-slate-400">Enable Push Alerts</span>
-                    <input 
-                      type="checkbox" 
-                      checked={user.allowNotifications} 
-                      onChange={() => handleTogglePrivacy('allowNotifications', user.allowNotifications)}
-                      className="accent-indigo-500 h-3.5 w-3.5"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {/* Storage Management mock */}
-              <div className="pt-2 border-t border-slate-850 dark:border-slate-850 light:border-slate-200/60 space-y-2">
-                <div className="flex justify-between items-baseline">
-                  <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest">Storage Status</span>
-                  <span className="text-[9px] text-slate-500">124 MB of 5 GB used</span>
-                </div>
-                <div className="w-full bg-slate-950/80 rounded-full h-1.5 overflow-hidden">
-                  <div className="bg-indigo-500 h-full w-[2.5%] rounded-full"></div>
-                </div>
-              </div>
-
-            </div>
-          )}
 
           {/* Status Stories Row (WhatsApp Status style) */}
           <div className="p-3 border-b border-slate-900/60 dark:border-slate-900/60 light:border-slate-100">
@@ -702,7 +573,7 @@ export default function Home() {
                   className="flex flex-col items-center shrink-0 cursor-pointer"
                 >
                   <div className={`w-12 h-12 rounded-full border-2 ${themeStyle.ringAccent} p-0.5 mb-1 hover:scale-105 transition-transform`}>
-                    <div className="w-full h-full rounded-full bg-slate-850 flex items-center justify-center font-bold text-xs text-indigo-300 bg-slate-900 dark:bg-slate-900 light:bg-slate-100">
+                    <div className="w-full h-full rounded-full bg-slate-855 flex items-center justify-center font-bold text-xs text-indigo-300 bg-slate-900 dark:bg-slate-900 light:bg-slate-100">
                       {story.avatar}
                     </div>
                   </div>
@@ -712,7 +583,7 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Search Inputs (Filters local chats) */}
+          {/* Search Inputs (Filters local chats + global search) */}
           <div className="p-3 space-y-2">
             <div className="relative">
               <Search className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-505 w-4 h-4 my-auto pointer-events-none" />
@@ -725,7 +596,6 @@ export default function Home() {
               />
             </div>
             
-            {/* Global User Search */}
             <div className="relative">
               <Search className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-505 w-4 h-4 my-auto pointer-events-none" />
               <input
@@ -757,6 +627,7 @@ export default function Home() {
                     onClick={() => {
                       startChatWithUser(resultUser.id);
                       setSearchQuery('');
+                      setMobileView('chat');
                     }}
                     className="w-full flex items-center gap-3 p-2.5 rounded-2xl hover:bg-indigo-950/20 text-left transition-colors mb-1.5"
                   >
@@ -809,7 +680,7 @@ export default function Home() {
             </div>
           )}
 
-          {/* Active Lists (constrained height inside sidebar) */}
+          {/* Active Lists */}
           {searchQuery.trim().length <= 1 && (
             <div className="flex-1 overflow-y-auto p-2 min-h-0">
               {activeTab === 'chats' || activeTab === 'archived' ? (
@@ -834,10 +705,13 @@ export default function Home() {
                         }`}
                       >
                         <button
-                          onClick={() => selectChat(chat.id)}
+                          onClick={() => {
+                            selectChat(chat.id);
+                            setMobileView('chat');
+                          }}
                           className="flex-1 flex items-center gap-3 min-w-0"
                         >
-                          <div className="w-10 h-10 rounded-full bg-slate-900 dark:bg-slate-900 light:bg-slate-200 border border-slate-800 dark:border-slate-800 light:border-slate-300 flex items-center justify-center font-semibold text-xs relative">
+                          <div className="w-10 h-10 rounded-full bg-slate-900 dark:bg-slate-900 light:bg-slate-250 border border-slate-805 dark:border-slate-805 light:border-slate-300 flex items-center justify-center font-semibold text-xs relative">
                             {chat.name.slice(0, 2).toUpperCase()}
                             {isOnline && (
                               <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full animate-pulse"></div>
@@ -864,7 +738,6 @@ export default function Home() {
                           </div>
                         </button>
                         
-                        {/* Quick action buttons on hover (Pin, Archive) */}
                         <div className="opacity-0 group-hover/item:opacity-100 flex gap-1 shrink-0 ml-1.5 transition-opacity">
                           <button
                             onClick={() => togglePin(chat.id)}
@@ -898,6 +771,7 @@ export default function Home() {
                       onClick={() => {
                         startChatWithUser(contact.id);
                         setActiveTab('chats');
+                        setMobileView('chat');
                       }}
                       className="w-full flex items-center gap-3 p-3 rounded-2xl text-left hover:bg-slate-900/40 dark:hover:bg-slate-900/40 light:hover:bg-slate-100 text-slate-300 dark:text-slate-300 light:text-slate-700 hover:text-white dark:hover:text-white light:hover:text-slate-900 transition-all mb-1.5"
                     >
@@ -919,15 +793,26 @@ export default function Home() {
           )}
         </div>
 
-        {/* CHAT WINDOW (RIGHT SECTION - fixed height) */}
-        <div className="flex-1 flex flex-col h-full overflow-hidden relative">
+        {/* CHAT WINDOW (RIGHT SECTION - Responsive Toggling) */}
+        <div className={`flex-1 flex flex-col h-full overflow-hidden relative ${
+          mobileView === 'list' ? 'hidden md:flex' : 'flex'
+        }`}>
           
           {activeChat ? (
             <div className={`flex-1 flex flex-col h-full overflow-hidden ${getWallpaperClass()} relative z-10 transition-colors duration-300`}>
               
               {/* Chat Header */}
-              <div className="p-4 border-b border-slate-900/60 dark:border-slate-900/60 light:border-slate-200 flex items-center justify-between bg-slate-950/80 backdrop-blur-xl dark:bg-slate-950/80 light:bg-white relative z-20 shrink-0">
+              <div className="p-4 border-b border-slate-900/60 dark:border-slate-900/60 light:border-slate-205 flex items-center justify-between bg-slate-950/80 backdrop-blur-xl dark:bg-slate-950/80 light:bg-white relative z-20 shrink-0">
                 <div className="flex items-center gap-3">
+                  
+                  {/* Mobile Back Button */}
+                  <button 
+                    onClick={() => { selectChat(''); setMobileView('list'); }}
+                    className="block md:hidden p-1.5 rounded-lg hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 text-slate-400 hover:text-white dark:hover:text-white light:hover:text-slate-800 shrink-0 transition-colors"
+                  >
+                    <ArrowLeft className="w-4.5 h-4.5" />
+                  </button>
+
                   <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center font-bold text-xs">
                     {activeChat.name.slice(0, 2).toUpperCase()}
                   </div>
@@ -961,7 +846,7 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* Chat Message History (constrained scroll area) */}
+              {/* Chat Message History */}
               <div className="flex-1 overflow-y-auto p-4 space-y-4 relative z-10 flex flex-col min-h-0 bg-transparent">
                 <div className="flex-1"></div>
                 {messages.map((message) => {
@@ -979,68 +864,56 @@ export default function Home() {
                         setActiveMenuMessageId(null);
                       }}
                     >
-                      <div className="relative group max-w-[65%] flex items-center gap-2">
+                      <div className="relative group max-w-[85%] md:max-w-[65%] flex items-center gap-2">
                         
-                        {/* Hover Action Menu Button (left of bubble for current user, right for other user) */}
                         {isCurrentUser && hoveredMessageId === message.id && (
-                          <div className="flex shrink-0 gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex shrink-0 gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
-                              onClick={() => {
-                                setReplyingToMessage(message);
-                                setEditingMessage(null);
-                              }}
+                              onClick={() => { setReplyingToMessage(message); setEditingMessage(null); }}
                               title="Reply"
-                              className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-indigo-600 flex items-center justify-center text-white text-[10px]"
+                              className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-indigo-600 flex items-center justify-center text-white"
                             >
-                              <Reply className="w-3.5 h-3.5" />
+                              <Reply className="w-3 h-3" />
                             </button>
                             <button
-                              onClick={() => {
-                                setEditingMessage(message);
-                                setMessageInput(message.content);
-                                setReplyingToMessage(null);
-                              }}
+                              onClick={() => { setEditingMessage(message); setMessageInput(message.content); setReplyingToMessage(null); }}
                               title="Edit"
-                              className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-indigo-600 flex items-center justify-center text-white text-[10px]"
+                              className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-indigo-600 flex items-center justify-center text-white"
                             >
-                              <Edit2 className="w-3.5 h-3.5" />
+                              <Edit2 className="w-3 h-3" />
                             </button>
                             <button
                               onClick={() => setActiveMenuMessageId(activeMenuMessageId === message.id ? null : message.id)}
                               className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-slate-800 flex items-center justify-center text-white"
                             >
-                              <MoreVertical className="w-3.5 h-3.5" />
+                              <MoreVertical className="w-3 h-3" />
                             </button>
                           </div>
                         )}
 
-                        {/* Message Bubble */}
                         <div className={`rounded-2xl px-4 py-2.5 shadow-md relative transition-all duration-200 ${
                           isCurrentUser 
                             ? `${themeStyle.bubbleSent} rounded-tr-none` 
                             : 'bg-slate-900/90 dark:bg-slate-900/90 light:bg-white text-slate-200 dark:text-slate-200 light:text-slate-800 rounded-tl-none border border-slate-800/80 dark:border-slate-800/80 light:border-slate-200 shadow-lg shadow-black/10'
                         }`}>
                           
-                          {/* Star indicator at top right */}
                           {isStarred && (
                             <Star className="w-3 h-3 text-amber-400 fill-amber-400 absolute top-2 right-2" />
                           )}
 
-                          {/* Reply Quote Header */}
                           {isReplying && message.replyTo && (
                             <div className="mb-2 p-2 rounded-lg bg-black/20 border-l-4 border-indigo-400 text-left text-[10px] opacity-80 cursor-pointer max-w-full truncate">
                               <span className="font-semibold block text-indigo-300 leading-none">
                                 {message.replyTo.sender.displayName || message.replyTo.sender.username}
                               </span>
-                              <span className="text-slate-350 block mt-0.5 truncate leading-tight text-slate-300">
+                              <span className="text-slate-350 block mt-0.5 truncate leading-tight text-slate-350 dark:text-slate-300 light:text-slate-650">
                                 {message.replyTo.content}
                               </span>
                             </div>
                           )}
 
-                          {/* Message Content */}
                           {message.isDeleted ? (
-                            <p className="text-xs leading-relaxed italic text-slate-400 flex items-center gap-1.5">
+                            <p className="text-xs leading-relaxed italic text-slate-405 flex items-center gap-1.5">
                               <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-slate-500" />
                               <span>This message was deleted</span>
                             </p>
@@ -1050,7 +923,6 @@ export default function Home() {
                             </p>
                           )}
                           
-                          {/* Timestamp, Ticks, and Edit label */}
                           <div className="flex items-center justify-end gap-1.5 mt-1.5">
                             {message.isEdited && !message.isDeleted && (
                               <span className="text-[7px] opacity-60 uppercase font-bold tracking-wider">edited</span>
@@ -1071,9 +943,8 @@ export default function Home() {
                             )}
                           </div>
 
-                          {/* Float dropdown action overlay */}
                           {activeMenuMessageId === message.id && (
-                            <div className="absolute right-0 top-full mt-1.5 z-40 bg-slate-900 border border-slate-800 rounded-xl p-1.5 shadow-2xl space-y-1 w-36 animate-in fade-in zoom-in-95 duration-100">
+                            <div className="absolute right-0 top-full mt-1.5 z-40 bg-slate-900 border border-slate-800 rounded-xl p-1.5 shadow-2xl space-y-1 w-36 animate-in fade-in zoom-in-95 duration-100 text-white">
                               <button
                                 onClick={() => { handleCopyMessage(message.content); setActiveMenuMessageId(null); }}
                                 className="w-full text-left p-1.5 px-2.5 rounded-lg hover:bg-slate-800 text-[10px] flex items-center gap-2"
@@ -1116,24 +987,20 @@ export default function Home() {
 
                         </div>
 
-                        {/* Hover Action Menu Button for other user (right of bubble) */}
                         {!isCurrentUser && hoveredMessageId === message.id && (
-                          <div className="flex shrink-0 gap-1.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <div className="flex shrink-0 gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                             <button
-                              onClick={() => {
-                                setReplyingToMessage(message);
-                                setEditingMessage(null);
-                              }}
+                              onClick={() => { setReplyingToMessage(message); setEditingMessage(null); }}
                               title="Reply"
                               className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-indigo-600 flex items-center justify-center text-white"
                             >
-                              <Reply className="w-3.5 h-3.5" />
+                              <Reply className="w-3 h-3" />
                             </button>
                             <button
                               onClick={() => setActiveMenuMessageId(activeMenuMessageId === message.id ? null : message.id)}
                               className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-slate-800 flex items-center justify-center text-white"
                             >
-                              <MoreVertical className="w-3.5 h-3.5" />
+                              <MoreVertical className="w-3 h-3" />
                             </button>
                           </div>
                         )}
@@ -1144,8 +1011,8 @@ export default function Home() {
                 })}
                 {typingUsers[activeChat.otherMember?.id || ''] && (
                   <div className="flex justify-start">
-                    <div className="bg-slate-900/90 backdrop-blur-md border border-slate-805/80 rounded-2xl rounded-tl-none px-4 py-2.5 max-w-[60%] text-slate-400 flex items-center gap-1.5">
-                      <span className="text-[11px] font-light animate-pulse">typing</span>
+                    <div className="bg-slate-900/90 backdrop-blur-md border border-slate-805/80 rounded-2xl rounded-tl-none px-4 py-2.5 max-w-[60%] text-slate-400 flex items-center gap-1.5 animate-pulse">
+                      <span className="text-[11px] font-light">typing</span>
                       <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
                       <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
                       <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
@@ -1155,9 +1022,9 @@ export default function Home() {
                 <div ref={messagesEndRef} />
               </div>
 
-              {/* Input Action Previews (Reply Preview, Editing Preview) */}
+              {/* Input Action Previews */}
               {replyingToMessage && (
-                <div className="px-4 py-2 bg-slate-950/90 border-t border-slate-900 flex justify-between items-center relative z-20 shrink-0">
+                <div className="px-4 py-2 bg-slate-955/90 border-t border-slate-900 flex justify-between items-center relative z-20 shrink-0">
                   <div className="border-l-4 border-indigo-500 pl-3 py-1 flex-1 min-w-0">
                     <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider block">Replying to Message</span>
                     <p className="text-[11px] text-slate-300 truncate font-light mt-0.5">
@@ -1174,9 +1041,9 @@ export default function Home() {
               )}
 
               {editingMessage && (
-                <div className="px-4 py-2 bg-slate-950/90 border-t border-slate-900 flex justify-between items-center relative z-20 shrink-0">
+                <div className="px-4 py-2 bg-slate-955/90 border-t border-slate-900 flex justify-between items-center relative z-20 shrink-0">
                   <div className="border-l-4 border-amber-500 pl-3 py-1 flex-1 min-w-0">
-                    <span className="text-[9px] font-bold text-amber-500 uppercase tracking-wider block">Editing Message</span>
+                    <span className="text-[9px] font-bold text-amber-505 uppercase tracking-wider block">Editing Message</span>
                     <p className="text-[11px] text-slate-300 truncate font-light mt-0.5">
                       {editingMessage.content}
                     </p>
@@ -1195,7 +1062,7 @@ export default function Home() {
                 onSubmit={handleSend} 
                 className="p-4 border-t border-slate-900/60 dark:border-slate-900/60 light:border-slate-200 bg-slate-950/80 backdrop-blur-xl dark:bg-slate-950/80 light:bg-white relative z-20 shrink-0 flex items-center gap-3"
               >
-                <div className="flex-1 relative flex items-center bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100 border border-slate-800 dark:border-slate-800 light:border-slate-200 rounded-2xl focus-within:border-indigo-500/40 transition-colors">
+                <div className="flex-1 relative flex items-center bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100 border border-slate-805 dark:border-slate-805 light:border-slate-200 rounded-2xl focus-within:border-indigo-500/40 transition-colors">
                   <input
                     type="text"
                     placeholder={editingMessage ? 'Modify message...' : 'Type a message...'}
@@ -1214,7 +1081,7 @@ export default function Home() {
                 <button
                   type="submit"
                   disabled={!messageInput.trim()}
-                  className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all ${
+                  className={`w-11 h-11 rounded-2xl flex items-center justify-center transition-all shrink-0 ${
                     messageInput.trim() 
                       ? `${themeStyle.primary}` 
                       : 'bg-slate-900 text-slate-600 cursor-not-allowed border border-slate-850'
@@ -1229,7 +1096,7 @@ export default function Home() {
             <div className="flex-1 flex flex-col items-center justify-center text-center p-8 select-none h-full bg-slate-950 dark:bg-slate-950 light:bg-slate-100">
               <div className="relative mb-6">
                 <div className="w-16 h-16 rounded-3xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center shadow-lg shadow-indigo-500/5">
-                  <MessageSquare className="w-8 h-8 text-indigo-400 animate-pulse" />
+                  <MessageSquare className="w-8 h-8 text-indigo-400" />
                 </div>
                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-violet-600/30 rounded-full animate-ping"></div>
               </div>
@@ -1256,10 +1123,231 @@ export default function Home() {
 
       </div>
 
+      {/* ======================================================== */}
+      {/* 📱 MOBILE SIDEBAR DRAWER MENU: SLIDES FROM LEFT (z-50) */}
+      {/* ======================================================== */}
+      <div 
+        className={`fixed inset-0 z-40 transition-opacity duration-300 ${
+          showSettingsDrawer ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+        }`}
+      >
+        {/* Backdrop overlay */}
+        <div 
+          onClick={() => setShowSettingsDrawer(false)}
+          className="absolute inset-0 bg-black/60 backdrop-blur-xs"
+        />
+        
+        {/* Drawer Panel content */}
+        <div 
+          className={`absolute top-0 left-0 h-full w-[290px] md:w-[320px] bg-slate-950/98 dark:bg-slate-950/98 light:bg-white/98 backdrop-blur-2xl border-r border-slate-900 dark:border-slate-900 light:border-slate-200 shadow-2xl flex flex-col z-50 transition-transform duration-300 ease-out ${
+            showSettingsDrawer ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          {/* Header */}
+          <div className="p-4 border-b border-slate-900 dark:border-slate-900 light:border-slate-100 flex justify-between items-center shrink-0">
+            <span className="text-xs font-bold uppercase tracking-widest text-indigo-400">Settings & Profile</span>
+            <button 
+              onClick={() => setShowSettingsDrawer(false)}
+              className="w-7 h-7 rounded-full hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-white dark:hover:text-white light:hover:text-slate-800 transition-colors"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
+          {/* Drawer Body (Scrollable settings) */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-5 min-h-0 text-slate-200 dark:text-slate-200 light:text-slate-800">
+            
+            {/* 🔴 NEW PROFILE DESIGN (Separated Card style with Avatar upload mock) */}
+            <form onSubmit={handleSaveSettings} className="bg-slate-900/30 dark:bg-slate-900/30 light:bg-slate-50 border border-slate-850 dark:border-slate-850 light:border-slate-200 p-4 rounded-[24px] space-y-4 shadow-sm">
+              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block text-center">My Identity</span>
+              
+              {/* Circular Avatar Selector Mock */}
+              <div className="flex flex-col items-center gap-1.5 relative">
+                <div className="relative group cursor-pointer hover:scale-102 transition-transform">
+                  <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 p-0.5 shadow-md shadow-indigo-500/10">
+                    <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center font-extrabold text-white text-lg">
+                      {editDisplayName.slice(0, 2).toUpperCase() || 'HA'}
+                    </div>
+                  </div>
+                  {/* Camera overlay */}
+                  <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Camera className="w-4 h-4 text-white" />
+                  </div>
+                </div>
+                <span className="text-[8px] text-slate-500 font-light mt-0.5">Click to update photo</span>
+              </div>
+
+              {/* Input details */}
+              <div className="space-y-3.5">
+                <div>
+                  <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1">Display Name</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Enter display name"
+                    value={editDisplayName}
+                    onChange={(e) => setEditDisplayName(e.target.value)}
+                    className="w-full bg-slate-950 dark:bg-slate-950 light:bg-white border border-slate-805 dark:border-slate-805 light:border-slate-200 focus:border-indigo-500/60 rounded-xl py-2 px-3 text-xs outline-none text-white dark:text-white light:text-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1">Bio / Status</label>
+                  <input
+                    type="text"
+                    placeholder="E.g. Hey there! I am using Halo Chat."
+                    value={editBio}
+                    onChange={(e) => setEditBio(e.target.value)}
+                    className="w-full bg-slate-950 dark:bg-slate-950 light:bg-white border border-slate-805 dark:border-slate-805 light:border-slate-200 focus:border-indigo-500/60 rounded-xl py-2 px-3 text-xs outline-none text-white dark:text-white light:text-slate-800"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1">Avatar Image Link</label>
+                  <input
+                    type="text"
+                    placeholder="https://example.com/avatar.jpg"
+                    value={editAvatarUrl}
+                    onChange={(e) => setEditAvatarUrl(e.target.value)}
+                    className="w-full bg-slate-950 dark:bg-slate-950 light:bg-white border border-slate-805 dark:border-slate-805 light:border-slate-200 focus:border-indigo-500/60 rounded-xl py-2 px-3 text-xs outline-none text-white dark:text-white light:text-slate-800"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={isSavingSettings}
+                className={`w-full py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all ${themeStyle.primary}`}
+              >
+                {isSavingSettings ? 'Saving Updates...' : 'Save Profile Details'}
+              </button>
+            </form>
+
+            {/* Appearance settings */}
+            <div className="bg-slate-900/30 dark:bg-slate-900/30 light:bg-slate-50 border border-slate-850 dark:border-slate-850 light:border-slate-200 p-4 rounded-[24px] space-y-4 shadow-sm">
+              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block text-center">Appearance</span>
+              
+              <div className="flex justify-between items-center bg-slate-950/40 dark:bg-slate-950/40 light:bg-white p-2.5 rounded-xl border border-slate-850 dark:border-slate-850 light:border-slate-100">
+                <span className="text-[10px] font-medium text-slate-350 dark:text-slate-350 light:text-slate-650">Dark Interface Mode</span>
+                <button 
+                  type="button"
+                  onClick={() => setIsDarkMode(!isDarkMode)}
+                  className="w-8 h-8 rounded-lg hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-50 flex items-center justify-center text-slate-400 transition-colors"
+                >
+                  {isDarkMode ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
+                </button>
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Color Accent Theme</span>
+                <div className="flex gap-1.5">
+                  {(['royal', 'emerald', 'ocean', 'rose'] as ThemeName[]).map((theme) => (
+                    <button
+                      key={theme}
+                      type="button"
+                      onClick={() => setActiveTheme(theme)}
+                      className={`flex-1 py-1 rounded-lg text-[9px] font-bold uppercase tracking-wider transition-all border ${
+                        activeTheme === theme 
+                          ? 'bg-indigo-600/10 border-indigo-500 text-indigo-300'
+                          : 'bg-slate-950/40 dark:bg-slate-950/40 light:bg-white border-slate-850 dark:border-slate-850 light:border-slate-200 text-slate-500 hover:text-slate-300'
+                      }`}
+                    >
+                      {theme}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Select Wallpaper</span>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {[
+                    { id: 'mesh-indigo', label: 'Indigo Glow' },
+                    { id: 'mesh-violet', label: 'Violet Twilight' },
+                    { id: 'solid-slate', label: 'Dark Slate' },
+                    { id: 'solid-dark', label: 'Deep Black' }
+                  ].map((wallpaper) => (
+                    <button
+                      key={wallpaper.id}
+                      type="button"
+                      onClick={() => setChatWallpaper(wallpaper.id)}
+                      className={`py-1.5 px-2 rounded-lg text-[9px] truncate transition-all border ${
+                        chatWallpaper === wallpaper.id
+                          ? 'bg-indigo-600/10 border-indigo-500 text-indigo-300'
+                          : 'bg-slate-950/40 dark:bg-slate-950/40 light:bg-white border-slate-855 dark:border-slate-855 light:border-slate-200 text-slate-500 hover:text-slate-350'
+                      }`}
+                    >
+                      {wallpaper.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Privacy settings */}
+            {user && (
+              <div className="bg-slate-900/30 dark:bg-slate-900/30 light:bg-slate-50 border border-slate-850 dark:border-slate-850 light:border-slate-200 p-4 rounded-[24px] space-y-4 shadow-sm">
+                <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block text-center">Privacy settings</span>
+                
+                <div className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-slate-400 dark:text-slate-400 light:text-slate-600">Show Last Seen status</span>
+                    <button 
+                      type="button"
+                      onClick={() => handleTogglePrivacy('showLastSeen', user.showLastSeen)}
+                      className="text-slate-400 hover:text-indigo-400 transition-colors"
+                    >
+                      {user.showLastSeen ? <ToggleRight className="w-6 h-6 text-indigo-400" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
+                    </button>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-slate-400 dark:text-slate-400 light:text-slate-600">Read Receipts (Blue Ticks)</span>
+                    <button 
+                      type="button"
+                      onClick={() => handleTogglePrivacy('showReadReceipts', user.showReadReceipts)}
+                      className="text-slate-400 hover:text-indigo-400 transition-colors"
+                    >
+                      {user.showReadReceipts ? <ToggleRight className="w-6 h-6 text-indigo-400" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
+                    </button>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] text-slate-400 dark:text-slate-400 light:text-slate-600">Sound & Push Alerts</span>
+                    <button 
+                      type="button"
+                      onClick={() => handleTogglePrivacy('allowNotifications', user.allowNotifications)}
+                      className="text-slate-400 hover:text-indigo-400 transition-colors"
+                    >
+                      {user.allowNotifications ? <ToggleRight className="w-6 h-6 text-indigo-400" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Storage Progress */}
+            <div className="bg-slate-900/30 dark:bg-slate-900/30 light:bg-slate-50 border border-slate-850 dark:border-slate-850 light:border-slate-200 p-4 rounded-[24px] space-y-3 shadow-sm">
+              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block text-center">Local Data Status</span>
+              <div className="flex justify-between items-baseline text-[9px] text-slate-500">
+                <span>Disk Storage Used</span>
+                <span>124 MB of 5.0 GB</span>
+              </div>
+              <div className="w-full bg-slate-950/80 dark:bg-slate-950/80 light:bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                <div className="bg-indigo-500 h-full w-[2.5%] rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      {/* ======================================================== */}
+      {/* MODALS & OVERLAYS */}
+      {/* ======================================================== */}
+
       {/* MODAL: ADD CONTACT */}
       {showAddContact && (
         <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center px-4">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-800 rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+          <div className="w-full max-w-sm bg-slate-900 border border-slate-805 rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
             <h3 className="text-sm font-bold uppercase tracking-wider text-indigo-400 mb-4">Add Contact</h3>
             <form onSubmit={handleAddContactSubmit} className="space-y-4">
               <div>
@@ -1270,7 +1358,7 @@ export default function Home() {
                   placeholder="e.g. +919876543210"
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
-                  className="w-full bg-slate-955 border border-slate-850 focus:border-indigo-500/60 rounded-xl py-2.5 px-3.5 text-xs outline-none transition-all"
+                  className="w-full bg-slate-955 border border-slate-850 focus:border-indigo-500/60 rounded-xl py-2.5 px-3.5 text-xs outline-none transition-all text-white"
                 />
               </div>
               <div>
@@ -1280,7 +1368,7 @@ export default function Home() {
                   placeholder="e.g. Best Friend"
                   value={contactNickname}
                   onChange={(e) => setContactNickname(e.target.value)}
-                  className="w-full bg-slate-955 border border-slate-850 focus:border-indigo-500/60 rounded-xl py-2.5 px-3.5 text-xs outline-none transition-all"
+                  className="w-full bg-slate-955 border border-slate-850 focus:border-indigo-500/60 rounded-xl py-2.5 px-3.5 text-xs outline-none transition-all text-white"
                 />
               </div>
               <div className="flex gap-2 justify-end pt-2">
@@ -1306,7 +1394,7 @@ export default function Home() {
       {/* MODAL: CALLING DIALOG */}
       {callModal && (
         <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center px-4 animate-in fade-in duration-300">
-          <div className="w-full max-w-sm flex flex-col items-center p-8 bg-gradient-to-b from-slate-900 to-slate-955 border border-slate-850 rounded-[32px] text-center shadow-2xl relative">
+          <div className="w-full max-w-sm flex flex-col items-center p-8 bg-gradient-to-b from-slate-900 to-slate-955 border border-slate-855 rounded-[32px] text-center shadow-2xl relative">
             <div className="absolute top-4 left-4 flex items-center gap-1.5 p-1 px-2.5 rounded-full bg-indigo-600/10 border border-indigo-500/20 text-[9px] font-medium tracking-wide text-indigo-400 animate-pulse">
               <Shield className="w-3 h-3" />
               <span>Simulated WebRTC</span>
@@ -1357,7 +1445,7 @@ export default function Home() {
               "{forwardingMessage.content}"
             </div>
 
-            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block mb-2">Select Recipient Chat</span>
+            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block mb-2 font-semibold">Select Recipient Chat</span>
             <div className="flex-1 overflow-y-auto space-y-1 pr-1">
               {chats.map((c) => (
                 <button
@@ -1379,7 +1467,7 @@ export default function Home() {
       {/* STORY VIEWER FULLSCREEN MODAL */}
       {activeStory && (
         <div className="fixed inset-0 z-50 bg-black flex flex-col items-center justify-center select-none animate-in fade-in duration-300">
-          <div className="w-full max-w-lg h-full max-h-[85vh] md:max-h-[90vh] bg-slate-950 border border-slate-900 md:rounded-3xl flex flex-col relative overflow-hidden shadow-2xl">
+          <div className="w-full max-w-lg h-full max-h-[85vh] md:max-h-[90vh] bg-slate-955 border border-slate-900 md:rounded-3xl flex flex-col relative overflow-hidden shadow-2xl">
             <div className="absolute top-3 left-4 right-4 flex gap-1 z-30">
               <div className="h-1 flex-1 bg-slate-800 rounded-full overflow-hidden">
                 <div className="h-full bg-white transition-all duration-100 ease-linear" style={{ width: `${storyProgress}%` }}></div>
@@ -1404,7 +1492,7 @@ export default function Home() {
               </button>
             </div>
 
-            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-indigo-900/40 via-purple-950/20 to-slate-950 relative">
+            <div className="flex-1 flex flex-col items-center justify-center p-6 text-center bg-gradient-to-br from-indigo-900/40 via-purple-955/20 to-slate-950 relative">
               <div className="absolute top-1/3 left-10 text-indigo-500/10 pointer-events-none transform -rotate-12"><MessageSquare className="w-24 h-24" /></div>
               <div className="absolute bottom-1/3 right-10 text-pink-500/10 pointer-events-none transform rotate-12"><Heart className="w-24 h-24" /></div>
 
