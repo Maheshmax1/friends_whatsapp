@@ -1,0 +1,14 @@
+{
+  "name": "realtime-chat-app",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:backend": "npm run start:dev --workspace=apps/backend",
+    "dev:web": "npm run dev --workspace=apps/web",
+    "db:up": "docker-compose up -d",
+    "db:down": "docker-compose down"
+  }
+}

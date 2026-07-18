@@ -1,0 +1,217 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  VOICE_NOTE
+  DOCUMENT
+  STICKER
+  GIF
+  LOCATION
+  CONTACT_CARD
+}
+
+enum MessageStatus {
+  SENT
+  DELIVERED
+  READ
+}
+
+enum CallType {
+  VOICE
+  VIDEO
+}
+
+enum CallStatus {
+  MISSED
+  COMPLETED
+  REJECTED
+  ONGOING
+}
+
+model User {
+  id             String         @id @default(uuid())
+  phoneNumber    String?        @unique
+  email          String         @unique
+  passwordHash   String
+  username       String         @unique
+  displayName    String?
+  avatarUrl      String?
+  bio            String?
+  lastSeen       DateTime       @default(now())
+  isOnline       Boolean        @default(false)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  // Relations
+  sessions       Session[]
+  devices        Device[]
+  chatMembers    ChatMember[]
+  sentMessages   Message[]      @relation("SentMessages")
+  blockedUsers   BlockedUser[]  @relation("BlockedUsers")
+  blockedBy      BlockedUser[]  @relation("BlockedByUsers")
+  contacts       Contact[]      @relation("UserContacts")
+  contactOf      Contact[]      @relation("ContactOf")
+  statusStories  StatusStory[]
+  statusViews    StatusView[]
+  callsCreated   Call[]         @relation("CallInitiator")
+  callPartic     CallParticipant[]
+}
+
+model Session {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshToken String   @unique
+  userAgent    String?
+  ipAddress    String?
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+}
+
+model Device {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceToken String  @unique // For FCM/APNS push notifications
+  deviceType  String   // ios, android, web
+  createdAt  DateTime @default(now())
+}
+
+model Chat {
+  id          String       @id @default(uuid())
+  isGroup     Boolean      @default(false)
+  name        String?      // Null for 1-to-1 chats, group name for groups
+  avatarUrl   String?
+  description String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  // Relations
+  members     ChatMember[]
+  messages    Message[]
+  calls       Call[]
+}
+
+model ChatMember {
+  id        String   @id @default(uuid())
+  chatId    String
+  chat      Chat     @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isAdmin   Boolean  @default(false)
+  joinedAt  DateTime @default(now())
+
+  @@unique([chatId, userId])
+}
+
+model Message {
+  id          String        @id @default(uuid())
+  chatId      String
+  chat        Chat          @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  senderId    String
+  sender      User          @relation("SentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  type        MessageType   @default(TEXT)
+  content     String        // Contains text or JSON details/URL for attachments
+  status      MessageStatus @default(SENT)
+  isEdited    Boolean       @default(false)
+  replyToId   String?
+  replyTo     Message?      @relation("MessageReplies", fields: [replyToId], references: [id], onDelete: SetNull)
+  replies     Message[]     @relation("MessageReplies")
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  // Relations
+  attachments Attachment[]
+}
+
+model Attachment {
+  id        String   @id @default(uuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  url       String
+  fileSize  Int
+  mimeType  String
+  fileName  String
+  createdAt DateTime @default(now())
+}
+
+model Contact {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation("UserContacts", fields: [userId], references: [id], onDelete: Cascade)
+  contactId String
+  contact   User     @relation("ContactOf", fields: [contactId], references: [id], onDelete: Cascade)
+  nickname  String?
+  createdAt DateTime @default(now())
+
+  @@unique([userId, contactId])
+}
+
+model BlockedUser {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation("BlockedUsers", fields: [userId], references: [id], onDelete: Cascade)
+  blockedId String
+  blocked   User     @relation("BlockedByUsers", fields: [blockedId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([userId, blockedId])
+}
+
+model StatusStory {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mediaUrl  String?
+  text      String?
+  bgColor   String?  // hex code if text-only status
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  views     StatusView[]
+}
+
+model StatusView {
+  id        String      @id @default(uuid())
+  statusId  String
+  status    StatusStory @relation(fields: [statusId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  viewedAt  DateTime    @default(now())
+
+  @@unique([statusId, userId])
+}
+
+model Call {
+  id          String            @id @default(uuid())
+  chatId      String
+  chat        Chat              @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  initiatorId String
+  initiator   User              @relation("CallInitiator", fields: [initiatorId], references: [id], onDelete: Cascade)
+  type        CallType          @default(VOICE)
+  status      CallStatus        @default(ONGOING)
+  createdAt   DateTime          @default(now())
+  endedAt     DateTime?
+
+  participants CallParticipant[]
+}
+
+model CallParticipant {
+  id        String   @id @default(uuid())
+  callId    String
+  call      Call     @relation(fields: [callId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  joinedAt  DateTime @default(now())
+  leftAt    DateTime?
+}
