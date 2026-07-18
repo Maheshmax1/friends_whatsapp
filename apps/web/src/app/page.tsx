@@ -8,7 +8,7 @@ import {
   Check, CheckCheck, Loader2, ArrowRight, User, AlertCircle, Plus, X,
   Video, MoreVertical, Trash2, Heart, Copy, Bookmark, Paintbrush, Play,
   Pin, Archive, Star, Reply, CornerUpRight, Edit2, ShieldAlert, Moon, Sun, 
-  Database, ArrowLeft, Menu, Camera, ToggleLeft, ToggleRight, Mic, Lock, Smartphone,
+  Database, ArrowLeft, Menu, Camera, ToggleLeft, ToggleRight, Mic, Lock, Smartphone, Ban, AlertTriangle,
   ExternalLink, Bell, Volume2, Info, Eye, Paperclip
 } from 'lucide-react';
 
@@ -138,6 +138,10 @@ export default function Home() {
   // STATUS & STORIES
   const [activeStory, setActiveStory] = useState<Story | null>(null);
   const [storyProgress, setStoryProgress] = useState(0);
+
+  // USER PROFILE ACTION STATES (Mute, Block)
+  const [isMuted, setIsMuted] = useState(false);
+  const [isBlocked, setIsBlocked] = useState(false);
 
   // SWIPE EVENT TRACKERS (Mobile Gestures)
   const touchStartCoordsRef = useRef<{ x: number; y: number } | null>(null);
@@ -1669,12 +1673,16 @@ export default function Home() {
               </div>
 
               {/* ======================================================== */}
-              {/* 13. SHARED MEDIA & LINKS COLLAPSIBLE RIGHT SIDEBAR */}
+              {/* 16. USER INFORMATION & COLLAPSIBLE RIGHT SIDEBAR */}
               {/* ======================================================== */}
               {showSharedMedia && (
-                <div className="w-[280px] border-l border-slate-900 dark:border-slate-900 light:border-slate-200 bg-slate-955/90 backdrop-blur-2xl h-full flex flex-col shrink-0 relative z-20 animate-in slide-in-from-right duration-200 select-none text-white">
-                  <div className="p-4 border-b border-slate-900 flex justify-between items-center shrink-0">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-400">Media & Files</span>
+                <div className="w-[300px] md:w-[320px] border-l border-slate-900 dark:border-slate-900 light:border-slate-202 bg-slate-955/95 backdrop-blur-3xl h-full flex flex-col shrink-0 relative z-20 animate-in slide-in-from-right duration-200 select-none text-white overflow-hidden">
+                  
+                  {/* Header */}
+                  <div className="p-4 border-b border-slate-900 dark:border-slate-900 light:border-slate-200 flex justify-between items-center shrink-0">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-400">
+                      {activeChat.isGroup ? 'Group Information' : 'User Information'}
+                    </span>
                     <button 
                       onClick={() => setShowSharedMedia(false)}
                       className="w-7 h-7 rounded-full hover:bg-slate-900 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
@@ -1683,34 +1691,159 @@ export default function Home() {
                     </button>
                   </div>
                   
-                  {/* Category lists */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-4">
+                  {/* Body Content */}
+                  <div className="flex-1 overflow-y-auto p-4 space-y-5 scrollbar-thin">
+                    
+                    {/* 1. Profile Picture & Core Status */}
+                    <div className="flex flex-col items-center text-center pb-4 border-b border-slate-900/60 dark:border-slate-900/60 light:border-slate-100">
+                      <div className="relative mb-3">
+                        <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center font-bold text-2xl shadow-xl shadow-indigo-500/5">
+                          {activeChat.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        {/* Online Status Dot */}
+                        {!activeChat.isGroup && (
+                          <div className={`absolute bottom-0 right-0 w-4 h-4 border-2 border-slate-950 rounded-full ${
+                            activeChat.otherMember?.isOnline || onlineUsers[activeChat.otherMember?.id || '']
+                              ? 'bg-emerald-500 animate-pulse'
+                              : 'bg-slate-600'
+                          }`} />
+                        )}
+                      </div>
+                      
+                      <h4 className="text-sm font-bold text-slate-100 leading-tight">{activeChat.name}</h4>
+                      <p className="text-[10px] text-slate-500 mt-1">
+                        {activeChat.isGroup 
+                          ? 'Group Chat' 
+                          : activeChat.otherMember?.phoneNumber || 'No phone number'}
+                      </p>
+                      
+                      {/* Last Seen Status Text */}
+                      <span className="text-[9px] mt-2 block px-2.5 py-0.5 rounded-full bg-slate-900/80 border border-slate-850 font-light">
+                        {activeChat.isGroup ? (
+                          'Group conversation'
+                        ) : activeChat.otherMember?.isOnline || onlineUsers[activeChat.otherMember?.id || ''] ? (
+                          <span className="text-emerald-400 font-semibold">Online Status: Active Now</span>
+                        ) : (
+                          <span className="text-slate-400">Last Seen: Yesterday, 10:15 PM</span>
+                        )}
+                      </span>
+                    </div>
+
+                    {/* 2. Biography / About Card */}
                     <div>
-                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Links & References</span>
-                      <div className="space-y-1.5">
-                        <a href="https://railway.app" target="_blank" className="p-2.5 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-850 text-[10px] flex items-center justify-between text-indigo-300 hover:text-indigo-400 transition-colors">
-                          <span className="truncate max-w-[180px]">railway.app (Stellar Spirit Portal)</span>
-                          <ExternalLink className="w-3 h-3 shrink-0" />
-                        </a>
-                        <a href="https://friends-whatsapp-web.vercel.app" target="_blank" className="p-2.5 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-850 text-[10px] flex items-center justify-between text-indigo-300 hover:text-indigo-400 transition-colors">
-                          <span className="truncate max-w-[180px]">friends-whatsapp-web.vercel.app</span>
-                          <ExternalLink className="w-3 h-3 shrink-0" />
-                        </a>
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">About</span>
+                      <div className="p-3 rounded-2xl bg-slate-900/40 border border-slate-850 dark:border-slate-850 light:bg-slate-50 light:border-slate-200">
+                        <p className="text-xs text-slate-350 dark:text-slate-350 light:text-slate-700 leading-relaxed font-light break-words">
+                          {activeChat.isGroup 
+                            ? (activeChat.description || 'No group description set.')
+                            : (activeChat.otherMember?.bio || 'Hey there! I am using Halo Chat.')}
+                        </p>
                       </div>
                     </div>
 
-                    <div>
-                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Media & Attachments</span>
-                      <div className="grid grid-cols-3 gap-2">
-                        {/* Mock media archives */}
-                        {[1, 2, 3].map((num) => (
-                          <div key={num} className="aspect-square bg-slate-900/80 rounded-xl border border-slate-805 flex flex-col items-center justify-center text-slate-650 hover:border-indigo-500/30 transition-colors cursor-pointer group">
-                            <ImageIcon className="w-5 h-5 group-hover:scale-105 transition-transform" />
-                            <span className="text-[8px] mt-1">img_{num}.jpg</span>
-                          </div>
-                        ))}
+                    {/* 3. Mute Notifications Switch */}
+                    <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/30 border border-slate-850 dark:border-slate-850 light:bg-slate-50 light:border-slate-200">
+                      <div className="flex items-center gap-2.5">
+                        <Bell className={`w-4 h-4 ${isMuted ? 'text-indigo-400 animate-swing' : 'text-slate-405'}`} />
+                        <div className="text-left">
+                          <span className="text-xs font-semibold block text-slate-200 dark:text-slate-200 light:text-slate-800 leading-none">Mute Notifications</span>
+                          <span className="text-[9px] text-slate-500 font-light mt-1 block">Silence alerts for this conversation</span>
+                        </div>
+                      </div>
+                      <button 
+                        onClick={() => setIsMuted(!isMuted)} 
+                        className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-250 outline-none shrink-0 ${
+                          isMuted ? 'bg-indigo-500' : 'bg-slate-800 dark:bg-slate-800 light:bg-slate-300'
+                        }`}
+                      >
+                        <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-transform duration-250 ${
+                          isMuted ? 'translate-x-4' : 'translate-x-0'
+                        }`} />
+                      </button>
+                    </div>
+
+                    {/* 4. Shared Media & Attachments */}
+                    <div className="space-y-3">
+                      <div className="flex justify-between items-center">
+                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Shared Media</span>
+                        <span className="text-[9px] text-indigo-400 font-medium cursor-pointer hover:underline">See all</span>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        {/* Mock attachments */}
+                        <div className="grid grid-cols-3 gap-2">
+                          {[1, 2, 3].map((num) => (
+                            <div key={num} className="aspect-square bg-slate-900/60 hover:bg-slate-900 border border-slate-850 hover:border-indigo-500/20 rounded-xl flex flex-col items-center justify-center text-slate-650 hover:text-indigo-400 transition-colors cursor-pointer group">
+                              <ImageIcon className="w-5 h-5 group-hover:scale-105 transition-transform" />
+                              <span className="text-[8px] mt-1">img_{num}.jpg</span>
+                            </div>
+                          ))}
+                        </div>
+                        
+                        <div className="space-y-1.5">
+                          <a href="https://railway.app" target="_blank" className="p-2.5 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-850 text-[10px] flex items-center justify-between text-indigo-300 hover:text-indigo-400 transition-colors">
+                            <span className="truncate max-w-[180px]">railway.app (Stellar Spirit)</span>
+                            <ExternalLink className="w-3 h-3 shrink-0" />
+                          </a>
+                        </div>
                       </div>
                     </div>
+
+                    {/* 5. Shared Mutual Groups */}
+                    <div>
+                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Mutual Groups</span>
+                      <div className="space-y-1.5">
+                        <div className="p-2.5 rounded-xl bg-slate-900/40 border border-slate-850 flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center font-bold text-[10px] text-indigo-400 shrink-0">
+                            HC
+                          </div>
+                          <div className="text-left min-w-0">
+                            <h5 className="text-[11px] font-semibold text-slate-200 truncate leading-none">Halo Chat Developers</h5>
+                            <span className="text-[9px] text-slate-500 mt-1 block">4 members</span>
+                          </div>
+                        </div>
+                        <div className="p-2.5 rounded-xl bg-slate-900/40 border border-slate-850 flex items-center gap-3">
+                          <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center font-bold text-[10px] text-emerald-400 shrink-0">
+                            PR
+                          </div>
+                          <div className="text-left min-w-0">
+                            <h5 className="text-[11px] font-semibold text-slate-200 truncate leading-none">Premium Projects</h5>
+                            <span className="text-[9px] text-slate-500 mt-1 block">12 members</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 6. Danger Zone Action Buttons */}
+                    <div className="space-y-2 pt-2 border-t border-slate-900/60 dark:border-slate-900/60 light:border-slate-100">
+                      <button 
+                        onClick={() => {
+                          const confirm = window.confirm(`Are you sure you want to ${isBlocked ? 'unblock' : 'block'} ${activeChat.name}?`);
+                          if (confirm) {
+                            setIsBlocked(!isBlocked);
+                            alert(`User has been ${isBlocked ? 'unblocked' : 'blocked'}.`);
+                          }
+                        }}
+                        className={`w-full py-2.5 px-4 rounded-xl border border-rose-500/30 hover:bg-rose-500/10 text-rose-400 text-xs font-semibold flex items-center justify-center gap-2 transition-colors`}
+                      >
+                        <Ban className="w-4 h-4" />
+                        <span>{isBlocked ? 'Unblock Contact' : 'Block Contact'}</span>
+                      </button>
+
+                      <button 
+                        onClick={() => {
+                          const confirm = window.confirm(`Report ${activeChat.name} for spam or inappropriate activity?`);
+                          if (confirm) {
+                            alert("Thank you. The report has been sent to system administrators.");
+                          }
+                        }}
+                        className="w-full py-2.5 px-4 rounded-xl border border-slate-855 hover:bg-slate-900 text-slate-400 hover:text-slate-350 text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
+                      >
+                        <AlertTriangle className="w-4 h-4" />
+                        <span>Report Contact</span>
+                      </button>
+                    </div>
+
                   </div>
                 </div>
               )}
