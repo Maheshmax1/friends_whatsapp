@@ -5,6 +5,28 @@ import { PrismaService } from '../prisma/prisma.service';
 export class ChatsService {
   constructor(private prisma: PrismaService) {}
 
+  private statuses: any[] = [];
+
+  addStatus(userId: string, name: string, avatar: string, text: string) {
+    const newStatus = {
+      id: Math.random().toString(),
+      userId,
+      name,
+      avatar: avatar || name.slice(0, 2).toUpperCase(),
+      text,
+      time: 'Just now'
+    };
+    this.statuses.unshift(newStatus);
+    if (this.statuses.length > 25) {
+      this.statuses = this.statuses.slice(0, 25);
+    }
+    return newStatus;
+  }
+
+  getStatuses() {
+    return this.statuses;
+  }
+
   async getOrCreate1to1Chat(userId: string, recipientId: string) {
     if (userId === recipientId) {
       throw new BadRequestException('Cannot create a chat with yourself');

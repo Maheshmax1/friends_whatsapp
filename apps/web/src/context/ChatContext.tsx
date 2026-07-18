@@ -73,6 +73,15 @@ interface Chat {
   unreadCount: number;
 }
 
+export interface Story {
+  id: string;
+  userId: string;
+  name: string;
+  avatar: string;
+  text: string;
+  time: string;
+}
+
 interface ChatContextType {
   user: User | null;
   accessToken: string | null;
@@ -83,6 +92,7 @@ interface ChatContextType {
   contacts: any[];
   onlineUsers: Record<string, boolean>;
   typingUsers: Record<string, boolean>; // userId -> isTyping in active chat
+  statuses: Story[];
   isLoading: boolean;
   loginPhone: (phoneNumber: string) => Promise<{ success: boolean; otp?: string; error?: string }>;
   verifyOtp: (phoneNumber: string, otp: string) => Promise<{ success: boolean; error?: string }>;
@@ -90,6 +100,7 @@ interface ChatContextType {
   selectChat: (chatId: string) => void;
   sendMessage: (content: string, replyToId?: string) => void;
   sendTyping: (isTyping: boolean) => void;
+  postStatus: (text: string) => void;
   fetchContacts: () => Promise<void>;
   addContact: (phoneNumber: string, nickname?: string) => Promise<{ success: boolean; error?: string }>;
   searchUsers: (query: string) => Promise<User[]>;
@@ -118,6 +129,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [contacts, setContacts] = useState<any[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<Record<string, boolean>>({});
   const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
+  const [statuses, setStatuses] = useState<Story[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   const socketRef = useRef<Socket | null>(null);
@@ -255,6 +267,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
 
+    socket.on('load_statuses', (loaded: Story[]) => {
+      setStatuses(loaded);
+    });
+
+    socket.on('status_posted', (status: Story) => {
+      setStatuses((prev) => {
+        if (prev.some((s) => s.id === status.id)) return prev;
+        return [status, ...prev];
+      });
+    });
+
     return () => {
       socket.disconnect();
       socketRef.current = null;
@@ -357,6 +380,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const sendTyping = (isTyping: boolean) => {
     if (!socketRef.current || !activeChatId) return;
     socketRef.current.emit('typing', { chatId: activeChatId, isTyping });
+  };
+
+  const postStatus = (text: string) => {
+    if (socketRef.current && user) {
+      socketRef.current.emit('post_status', {
+        text,
+        name: user.displayName || user.username,
+        avatar: user.avatarUrl || '',
+        userId: user.id
+      });
+    }
   };
 
   const fetchContacts = async () => {
@@ -572,6 +606,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         contacts,
         onlineUsers,
         typingUsers,
+        statuses,
         isLoading,
         loginPhone,
         verifyOtp,
@@ -579,6 +614,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         selectChat: setActiveChatId,
         sendMessage,
         sendTyping,
+        postStatus,
         fetchContacts,
         addContact,
         searchUsers,

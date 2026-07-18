@@ -21,6 +21,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   server: Server;
 
   private activeUsers = new Map<string, string[]>();
+  private statuses: any[] = [];
 
   constructor(
     private jwtService: JwtService,
@@ -48,8 +49,14 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       this.activeUsers.set(userId, userSockets);
 
       const chats = await this.prisma.chat.findMany({
-        where: { members: { some: { userId } } },
+        where: {
+          members: {
+            some: { userId: userId },
+          },
+        },
+        select: { id: true },
       });
+
       for (const chat of chats) {
         await client.join(`chat:${chat.id}`);
       }
@@ -60,6 +67,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       });
 
       this.server.emit('user_status', { userId, isOnline: true });
+      client.emit('load_statuses', this.statuses);
       console.log(`Socket connected: ${client.id} (User: ${userId})`);
     } catch (err) {
       console.error('Socket connection auth error:', err.message);
@@ -249,6 +257,26 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       userId,
       isTyping: data.isTyping,
     });
+  }
+
+  @SubscribeMessage('post_status')
+  handlePostStatus(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { text: string; name: string; avatar: string; userId: string },
+  ) {
+    const newStatus = {
+      id: Math.random().toString(),
+      userId: data.userId,
+      name: data.name,
+      avatar: data.avatar || data.name.slice(0, 2).toUpperCase(),
+      text: data.text,
+      time: 'Just now'
+    };
+    this.statuses.unshift(newStatus);
+    if (this.statuses.length > 25) {
+      this.statuses = this.statuses.slice(0, 25);
+    }
+    this.server.emit('status_posted', newStatus);
   }
 
   @SubscribeMessage('read_receipt')

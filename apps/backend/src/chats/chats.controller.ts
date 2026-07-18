@@ -68,4 +68,9 @@ export class ChatsController {
   ) {
     return this.chatsService.createGroupChat(userId, body);
   }
+
+  @Get('status')
+  async getStatuses() {
+    return this.chatsService.getStatuses();
+  }
 }

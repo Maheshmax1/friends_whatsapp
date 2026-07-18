@@ -33,6 +33,8 @@ export default function Home() {
     contacts,
     onlineUsers,
     typingUsers,
+    statuses,
+    postStatus,
     isLoading,
     loginPhone,
     verifyOtp,
@@ -144,6 +146,42 @@ export default function Home() {
   const [isBlocked, setIsBlocked] = useState(false);
 
   // SWIPE EVENT TRACKERS (Mobile Gestures)
+  const [callStream, setCallStream] = useState<MediaStream | null>(null);
+  const callVideoRef = useRef<HTMLVideoElement | null>(null);
+
+  useEffect(() => {
+    let activeStream: MediaStream | null = null;
+    const startCallMedia = async () => {
+      if (callModal) {
+        try {
+          const constraints = {
+            video: callModal.type === 'video',
+            audio: true
+          };
+          activeStream = await navigator.mediaDevices.getUserMedia(constraints);
+          setCallStream(activeStream);
+          setTimeout(() => {
+            if (callVideoRef.current && activeStream) {
+              callVideoRef.current.srcObject = activeStream;
+            }
+          }, 300);
+        } catch (err) {
+          console.error('Call media stream request failed:', err);
+        }
+      }
+    };
+
+    startCallMedia();
+
+    return () => {
+      if (activeStream) {
+        activeStream.getTracks().forEach(track => track.stop());
+      }
+      setCallStream(null);
+    };
+  }, [callModal]);
+
+  // SWIPE EVENT TRACKERS (Mobile Gestures)
   const touchStartCoordsRef = useRef<{ x: number; y: number } | null>(null);
   const [swipedChatId, setSwipedChatId] = useState<string | null>(null);
 
@@ -151,14 +189,6 @@ export default function Home() {
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const waveCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
-
-  // Mock Stories (WhatsApp Status style)
-  const stories: Story[] = [
-    { id: '1', name: 'Rihz', avatar: 'RZ', mediaUrl: '', text: 'Weekend vibes only! 🥂✨', time: '2h ago' },
-    { id: '2', name: 'Abishek', avatar: 'AB', mediaUrl: '', text: 'Building the next big thing... 🚀💻', time: '5h ago' },
-    { id: '3', name: 'Sanjay', avatar: 'SJ', mediaUrl: '', text: 'Sunset at the beach 🌅🌊', time: '12h ago' },
-    { id: '4', name: 'Dharani', avatar: 'DH', mediaUrl: '', text: 'Coffee, code, repeat. ☕️🔋', time: '20h ago' },
-  ];
 
   // Auto scroll to bottom of chat
   useEffect(() => {
@@ -504,7 +534,7 @@ export default function Home() {
         ctx.drawImage(cameraVideoRef.current, 0, 0, canvas.width, canvas.height);
         const dataUrl = canvas.toDataURL('image/jpeg');
         // Send base64 camera image immediately in chat
-        sendMessage(`[Snapshot Attachment] Received camera snapshot`);
+        sendMessage(dataUrl);
         stopCamera();
       }
     }
@@ -529,8 +559,13 @@ export default function Home() {
       };
 
       mediaRecorder.onstop = () => {
-        // Create voice note mockup or save audio
-        sendMessage('[Audio Voice Note] Sent 🎙️ (Playable format)');
+        const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+        const reader = new FileReader();
+        reader.readAsDataURL(audioBlob);
+        reader.onloadend = () => {
+          const base64Audio = reader.result as string;
+          sendMessage(base64Audio);
+        };
         stream.getTracks().forEach(track => track.stop());
       };
 
@@ -947,9 +982,13 @@ export default function Home() {
             <div className="flex items-center gap-3">
               <button 
                 onClick={() => setShowSettingsDrawer(true)}
-                className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 flex items-center justify-center font-bold text-white text-xs shadow-md shadow-indigo-500/10 relative hover:scale-105 transition-transform"
+                className="w-10 h-10 rounded-full bg-slate-900 dark:bg-slate-900 light:bg-slate-250 border border-slate-805 dark:border-slate-805 light:border-slate-300 flex items-center justify-center font-bold text-white text-xs shadow-md shadow-indigo-500/10 relative hover:scale-105 transition-transform overflow-hidden shrink-0"
               >
-                {user.displayName?.slice(0, 2).toUpperCase() || 'HA'}
+                {user.avatarUrl ? (
+                  <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                ) : (
+                  <span>{user.displayName?.slice(0, 2).toUpperCase() || 'HA'}</span>
+                )}
                 <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full animate-pulse"></div>
               </button>
               <div className="truncate max-w-[110px]">
@@ -994,22 +1033,34 @@ export default function Home() {
           <div className="p-3 border-b border-slate-900/60 dark:border-slate-900/60 light:border-slate-100">
             <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-2 px-1">Status Updates</span>
             <div className="flex gap-3 overflow-x-auto pb-1 select-none">
-              <div className="flex flex-col items-center shrink-0 cursor-pointer group">
+              <div 
+                onClick={() => {
+                  const text = window.prompt("Post a new status update:");
+                  if (text && text.trim()) {
+                    postStatus(text.trim());
+                  }
+                }}
+                className="flex flex-col items-center shrink-0 cursor-pointer group"
+              >
                 <div className="w-12 h-12 rounded-full border border-dashed border-slate-700 flex items-center justify-center mb-1 group-hover:border-indigo-500 transition-colors">
                   <Plus className="w-4 h-4 text-slate-400 group-hover:text-indigo-400 transition-colors" />
                 </div>
                 <span className="text-[9px] text-slate-400 font-light truncate max-w-[50px]">My Status</span>
               </div>
               
-              {stories.map((story) => (
+              {statuses.map((story) => (
                 <div 
                   key={story.id} 
-                  onClick={() => setActiveStory(story)}
+                  onClick={() => setActiveStory(story as any)}
                   className="flex flex-col items-center shrink-0 cursor-pointer"
                 >
                   <div className={`w-12 h-12 rounded-full border-2 ${themeStyle.ringAccent} p-0.5 mb-1 hover:scale-105 transition-transform`}>
-                    <div className="w-full h-full rounded-full bg-slate-855 flex items-center justify-center font-bold text-xs text-indigo-300 bg-slate-900 dark:bg-slate-900 light:bg-slate-100">
-                      {story.avatar}
+                    <div className="w-full h-full rounded-full bg-slate-855 flex items-center justify-center font-bold text-xs text-indigo-300 bg-slate-900 dark:bg-slate-900 light:bg-slate-100 overflow-hidden shrink-0">
+                      {story.avatar.length > 2 && story.avatar.startsWith('data:') ? (
+                        <img src={story.avatar} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{story.avatar.slice(0, 2).toUpperCase()}</span>
+                      )}
                     </div>
                   </div>
                   <span className="text-[9px] text-slate-300 dark:text-slate-300 light:text-slate-700 font-light truncate max-w-[50px]">{story.name}</span>
@@ -1174,8 +1225,12 @@ export default function Home() {
                             }}
                             className="flex-1 flex items-center gap-3 min-w-0"
                           >
-                            <div className="w-10 h-10 rounded-full bg-slate-900 dark:bg-slate-900 light:bg-slate-250 border border-slate-805 dark:border-slate-805 light:border-slate-300 flex items-center justify-center font-semibold text-xs relative shrink-0">
-                              {chat.name.slice(0, 2).toUpperCase()}
+                            <div className="w-10 h-10 rounded-full bg-slate-900 dark:bg-slate-900 light:bg-slate-250 border border-slate-805 dark:border-slate-805 light:border-slate-300 flex items-center justify-center font-semibold text-xs relative shrink-0 overflow-hidden">
+                              {chat.otherMember?.avatarUrl ? (
+                                <img src={chat.otherMember.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                              ) : (
+                                <span>{chat.name.slice(0, 2).toUpperCase()}</span>
+                              )}
                               {chat.isGroup && (
                                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-indigo-500 border border-slate-950 rounded-full flex items-center justify-center text-[7px] text-white">G</div>
                               )}
@@ -1272,8 +1327,12 @@ export default function Home() {
                       <ArrowLeft className="w-4.5 h-4.5" />
                     </button>
 
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center font-bold text-xs cursor-pointer" onClick={() => setShowSharedMedia(!showSharedMedia)}>
-                      {activeChat.name.slice(0, 2).toUpperCase()}
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center font-bold text-xs cursor-pointer overflow-hidden shrink-0" onClick={() => setShowSharedMedia(!showSharedMedia)}>
+                      {activeChat.otherMember?.avatarUrl ? (
+                        <img src={activeChat.otherMember.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <span>{activeChat.name.slice(0, 2).toUpperCase()}</span>
+                      )}
                     </div>
                     <div className="cursor-pointer" onClick={() => setShowSharedMedia(!showSharedMedia)}>
                       <h4 className="text-xs font-semibold leading-tight">{activeChat.name}</h4>
@@ -1386,17 +1445,25 @@ export default function Home() {
                               </div>
                             )}
 
-                            {/* Main message text */}
-                            {message.isDeleted ? (
-                              <p className="text-xs leading-relaxed italic text-slate-455 flex items-center gap-1.5">
-                                <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-slate-500" />
-                                <span>This message was deleted</span>
-                              </p>
-                            ) : (
-                              <p className="text-xs leading-relaxed break-words whitespace-pre-wrap font-light">
-                                {message.content}
-                              </p>
-                            )}
+                             {/* Main message text */}
+                             {message.isDeleted ? (
+                               <p className="text-xs leading-relaxed italic text-slate-455 flex items-center gap-1.5">
+                                 <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-slate-500" />
+                                 <span>This message was deleted</span>
+                               </p>
+                             ) : message.content.startsWith('data:image') ? (
+                               <div className="max-w-[240px] overflow-hidden rounded-xl shadow-md border border-slate-800/40 my-1 cursor-pointer hover:opacity-95 transition-opacity" onClick={() => window.open(message.content, '_blank')}>
+                                 <img src={message.content} alt="Snapshot" className="w-full h-full object-cover" />
+                               </div>
+                             ) : message.content.startsWith('data:audio') ? (
+                               <div className="py-2 px-1 select-none">
+                                 <audio src={message.content} controls className="max-w-full h-9 outline-none text-xs custom-audio" style={{ filter: isDarkMode ? 'invert(90%) hue-rotate(180deg)' : 'none' }} />
+                               </div>
+                             ) : (
+                               <p className="text-xs leading-relaxed break-words whitespace-pre-wrap font-light">
+                                 {message.content}
+                               </p>
+                             )}
                             
                             {/* Timestamp, status checks & badges */}
                             <div className="flex items-center justify-end gap-1.5 mt-1.5">
@@ -1697,8 +1764,12 @@ export default function Home() {
                     {/* 1. Profile Picture & Core Status */}
                     <div className="flex flex-col items-center text-center pb-4 border-b border-slate-900/60 dark:border-slate-900/60 light:border-slate-100">
                       <div className="relative mb-3">
-                        <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center font-bold text-2xl shadow-xl shadow-indigo-500/5">
-                          {activeChat.name.slice(0, 2).toUpperCase()}
+                        <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center font-bold text-2xl shadow-xl shadow-indigo-500/5 overflow-hidden shrink-0">
+                          {activeChat.otherMember?.avatarUrl ? (
+                            <img src={activeChat.otherMember.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                          ) : (
+                            <span>{activeChat.name.slice(0, 2).toUpperCase()}</span>
+                          )}
                         </div>
                         {/* Online Status Dot */}
                         {!activeChat.isGroup && (
@@ -1949,14 +2020,34 @@ export default function Home() {
                   />
                 </div>
                 <div>
-                  <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1">Avatar Image Link</label>
-                  <input
-                    type="text"
-                    placeholder="https://example.com/avatar.jpg"
-                    value={editAvatarUrl}
-                    onChange={(e) => setEditAvatarUrl(e.target.value)}
-                    className="w-full bg-slate-955 dark:bg-slate-955 light:bg-white border border-slate-805 focus:border-indigo-500/60 rounded-xl py-2 px-3 text-xs outline-none text-white dark:text-white light:text-slate-800"
-                  />
+                  <label className="block text-[9px] font-bold uppercase tracking-wider text-slate-500 mb-1">Avatar Image Upload</label>
+                  <div className="relative">
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.readAsDataURL(file);
+                          reader.onloadend = () => {
+                            setEditAvatarUrl(reader.result as string);
+                          };
+                        }
+                      }}
+                      className="hidden"
+                      id="profile-avatar-upload"
+                    />
+                    <label 
+                      htmlFor="profile-avatar-upload"
+                      className="w-full bg-slate-955 dark:bg-slate-955 light:bg-white border border-slate-805 hover:border-indigo-500/50 rounded-xl py-2.5 px-3 text-xs outline-none text-slate-400 hover:text-white transition-colors cursor-pointer flex items-center justify-between"
+                    >
+                      <span className="truncate max-w-[190px]">
+                        {editAvatarUrl ? 'Image Selected (Base64)' : 'Choose Image File...'}
+                      </span>
+                      <ImageIcon className="w-4 h-4 shrink-0 text-slate-500" />
+                    </label>
+                  </div>
                 </div>
               </div>
 
@@ -2277,9 +2368,15 @@ export default function Home() {
           }}
           className="w-32 h-44 bg-gradient-to-tr from-slate-900 to-slate-950 border border-indigo-500/40 rounded-2xl shadow-2xl z-50 flex flex-col items-center justify-center p-3 text-center cursor-move select-none animate-in zoom-in-95 duration-200"
         >
-          <div className="w-9 h-9 rounded-full bg-indigo-600/20 border border-indigo-500/20 flex items-center justify-center mb-2 animate-pulse">
-            {callModal.type === 'voice' ? <Phone className="w-4.5 h-4.5 text-indigo-400" /> : <Video className="w-4.5 h-4.5 text-indigo-400" />}
-          </div>
+          {callModal.type === 'video' ? (
+            <div className="w-full h-24 rounded-lg overflow-hidden border border-indigo-500/20 mb-2 relative shrink-0">
+              <video ref={callVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+            </div>
+          ) : (
+            <div className="w-9 h-9 rounded-full bg-indigo-600/20 border border-indigo-500/20 flex items-center justify-center mb-2 animate-pulse">
+              <Phone className="w-4.5 h-4.5 text-indigo-400" />
+            </div>
+          )}
           <span className="text-[10px] font-bold text-white truncate max-w-full block mb-1">{callModal.name}</span>
           <span className="text-[8px] text-slate-500 block mb-3 animate-pulse">On call...</span>
           <button
@@ -2301,10 +2398,18 @@ export default function Home() {
             </div>
             
             <div className="relative mb-8 mt-4">
-              <div className="absolute inset-0 rounded-full border border-indigo-500/30 animate-ping" style={{ animationDuration: '2s' }}></div>
-              <div className="w-20 h-20 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center relative">
-                {callModal.type === 'voice' ? <Phone className="w-8 h-8 text-indigo-400" /> : <Video className="w-8 h-8 text-indigo-400 animate-pulse" />}
-              </div>
+              {callModal.type === 'video' ? (
+                <div className="w-48 h-48 rounded-2xl overflow-hidden border border-indigo-500/30 relative">
+                  <video ref={callVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                </div>
+              ) : (
+                <>
+                  <div className="absolute inset-0 rounded-full border border-indigo-500/30 animate-ping" style={{ animationDuration: '2s' }}></div>
+                  <div className="w-20 h-20 rounded-full bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center relative">
+                    <Phone className="w-8 h-8 text-indigo-400" />
+                  </div>
+                </>
+              )}
             </div>
 
             <h3 className="text-base font-bold text-white mb-1">{callModal.name}</h3>
