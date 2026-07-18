@@ -934,8 +934,8 @@ export default function Home() {
       <div className="flex-1 flex overflow-hidden relative z-10 h-full w-full">
         
         {/* SIDEBAR (LEFT SECTION) */}
-        <div className={`w-full md:w-[340px] border-r border-slate-900 dark:border-slate-900 light:border-slate-202 flex flex-col bg-slate-950/70 backdrop-blur-xl dark:bg-slate-950/70 light:bg-white/80 h-full overflow-hidden shrink-0 transition-all ${
-          mobileView === 'chat' ? 'hidden md:flex' : 'flex'
+        <div className={`w-full lg:w-[340px] border-r border-slate-900 dark:border-slate-900 light:border-slate-202 flex flex-col bg-slate-950/70 backdrop-blur-xl dark:bg-slate-950/70 light:bg-white/80 h-full overflow-hidden shrink-0 transition-all ${
+          mobileView === 'chat' ? 'hidden lg:flex' : 'flex'
         }`}>
           
           {/* Sidebar Header */}
@@ -1136,29 +1136,31 @@ export default function Home() {
                         className="relative overflow-hidden mb-1.5 rounded-2xl group/item select-none"
                       >
                         {/* Swipe Hidden Controls Drawer (2. Swipe-action Chat List) */}
-                        <div className="absolute inset-0 bg-slate-900/80 flex items-center justify-end pr-2 gap-1.5 z-0 transition-opacity">
-                          <button
-                            onClick={() => togglePin(chat.id)}
-                            className="h-8 p-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-[10px] font-bold text-white flex items-center gap-1 shadow-md shadow-indigo-600/10"
-                          >
-                            <Pin className="w-3.5 h-3.5" />
-                            <span>{chat.isPinned ? 'Unpin' : 'Pin'}</span>
-                          </button>
-                          <button
-                            onClick={() => toggleArchive(chat.id)}
-                            className="h-8 p-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-[10px] font-bold text-white flex items-center gap-1 shadow-md shadow-cyan-600/10"
-                          >
-                            <Archive className="w-3.5 h-3.5" />
-                            <span>{chat.isArchived ? 'Active' : 'Archive'}</span>
-                          </button>
-                        </div>
+                        {isSwiped && (
+                          <div className="absolute inset-0 bg-slate-900/90 flex items-center justify-end pr-2 gap-1.5 z-0 transition-opacity animate-in fade-in duration-100">
+                            <button
+                              onClick={() => togglePin(chat.id)}
+                              className="h-8 p-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-[10px] font-bold text-white flex items-center gap-1 shadow-md shadow-indigo-600/10"
+                            >
+                              <Pin className="w-3.5 h-3.5" />
+                              <span>{chat.isPinned ? 'Unpin' : 'Pin'}</span>
+                            </button>
+                            <button
+                              onClick={() => toggleArchive(chat.id)}
+                              className="h-8 p-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-[10px] font-bold text-white flex items-center gap-1 shadow-md shadow-cyan-600/10"
+                            >
+                              <Archive className="w-3.5 h-3.5" />
+                              <span>{chat.isArchived ? 'Active' : 'Archive'}</span>
+                            </button>
+                          </div>
+                        )}
 
                         {/* Slide panel */}
                         <div 
-                          className={`w-full flex items-center justify-between p-3 rounded-2xl text-left border border-transparent bg-slate-950/70 dark:bg-slate-950/70 light:bg-white relative z-10 transition-transform duration-200 ${
+                          className={`w-full flex items-center justify-between p-3 rounded-2xl text-left border border-transparent bg-slate-950 dark:bg-slate-950 light:bg-white relative z-10 transition-transform duration-200 ${
                             isChatActive 
                               ? 'bg-indigo-950/20 dark:bg-indigo-950/20 light:bg-indigo-50 border-indigo-500/20 text-white dark:text-white light:text-slate-800' 
-                              : 'hover:bg-slate-900/40 dark:hover:bg-slate-900/40 light:hover:bg-slate-100 text-slate-300 dark:text-slate-300 light:text-slate-700 hover:text-white dark:hover:text-white light:hover:text-slate-900'
+                              : 'hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 text-slate-300 dark:text-slate-300 light:text-slate-700 hover:text-white dark:hover:text-white light:hover:text-slate-900'
                           } ${isSwiped ? '-translate-x-[150px]' : 'translate-x-0'}`}
                         >
                           <button
@@ -1246,7 +1248,7 @@ export default function Home() {
 
         {/* CHAT WINDOW (RIGHT SECTION - Responsive Toggling) */}
         <div className={`flex-1 flex flex-col h-full overflow-hidden relative ${
-          mobileView === 'list' ? 'hidden md:flex' : 'flex'
+          mobileView === 'list' ? 'hidden lg:flex' : 'flex'
         }`}>
           
           {activeChat ? (
@@ -1261,7 +1263,7 @@ export default function Home() {
                     
                     <button 
                       onClick={() => { selectChat(''); setMobileView('list'); }}
-                      className="block md:hidden p-1.5 rounded-lg hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 text-slate-400 hover:text-white dark:hover:text-white light:hover:text-slate-800 shrink-0 transition-colors"
+                      className="block lg:hidden p-1.5 rounded-lg hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 text-slate-400 hover:text-white dark:hover:text-white light:hover:text-slate-800 shrink-0 transition-colors"
                     >
                       <ArrowLeft className="w-4.5 h-4.5" />
                     </button>
@@ -1426,6 +1428,17 @@ export default function Home() {
                             {/* Message actions context menu */}
                             {activeMenuMessageId === message.id && (
                               <div className="absolute right-0 top-full mt-1.5 z-40 bg-slate-900 border border-slate-800 rounded-xl p-1.5 shadow-2xl space-y-1 w-36 animate-in fade-in zoom-in-95 duration-100 text-white">
+                                <div className="flex justify-around p-1 border-b border-slate-800/60 pb-1.5 mb-1.5 select-none">
+                                  {['❤️', '👍', '😂', '🔥', '😢'].map((emoji) => (
+                                    <button
+                                      key={emoji}
+                                      onClick={() => { toggleReaction(message.id, emoji); setActiveMenuMessageId(null); }}
+                                      className="hover:scale-125 transition-transform text-xs"
+                                    >
+                                      {emoji}
+                                    </button>
+                                  ))}
+                                </div>
                                 <button
                                   onClick={() => { handleCopyMessage(message.content); setActiveMenuMessageId(null); }}
                                   className="w-full text-left p-1.5 px-2.5 rounded-lg hover:bg-slate-800 text-[10px] flex items-center gap-2"
@@ -1477,7 +1490,7 @@ export default function Home() {
 
                           {/* 9. HOVER / LONG-PRESS EMOJI REACTION SELECTION PILL (Float panel) */}
                           {hoveredMessageId === message.id && (
-                            <div className="absolute -top-9 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-800 rounded-full px-2 py-1 shadow-xl flex gap-1.5 z-40 animate-in fade-in slide-in-from-bottom-2 duration-100 select-none">
+                            <div className="absolute -top-9 left-1/2 -translate-x-1/2 bg-slate-900 border border-slate-800 rounded-full px-2 py-1 shadow-xl hidden lg:flex gap-1.5 z-40 animate-in fade-in slide-in-from-bottom-2 duration-100 select-none">
                               {['❤️', '👍', '😂', '🔥', '😢'].map((emoji) => (
                                 <button
                                   key={emoji}
