@@ -94,6 +94,12 @@ interface ChatContextType {
   onlineUsers: Record<string, boolean>;
   typingUsers: Record<string, boolean>; // userId -> isTyping in active chat
   statuses: Story[];
+  incomingCall: { callerId: string; callerName: string; type: 'voice' | 'video'; chatId: string } | null;
+  setIncomingCall: (call: any) => void;
+  emitCallUser: (type: 'voice' | 'video', recipientId: string, callerName: string) => void;
+  emitAcceptCall: () => void;
+  emitDeclineCall: () => void;
+  emitEndCall: (recipientId: string) => void;
   isLoading: boolean;
   loginPhone: (phoneNumber: string) => Promise<{ success: boolean; otp?: string; error?: string }>;
   verifyOtp: (phoneNumber: string, otp: string) => Promise<{ success: boolean; error?: string }>;
@@ -119,6 +125,65 @@ interface ChatContextType {
 
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
+let ringtoneInterval: any = null;
+
+export const playNotificationSound = () => {
+  try {
+    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const osc1 = audioCtx.createOscillator();
+    const gain1 = audioCtx.createGain();
+    osc1.connect(gain1);
+    gain1.connect(audioCtx.destination);
+    osc1.type = 'sine';
+    osc1.frequency.setValueAtTime(587.33, audioCtx.currentTime);
+    gain1.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    gain1.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
+    osc1.start(audioCtx.currentTime);
+    osc1.stop(audioCtx.currentTime + 0.12);
+
+    setTimeout(() => {
+      const osc2 = audioCtx.createOscillator();
+      const gain2 = audioCtx.createGain();
+      osc2.connect(gain2);
+      gain2.connect(audioCtx.destination);
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(880, audioCtx.currentTime);
+      gain2.gain.setValueAtTime(0.1, audioCtx.currentTime);
+      gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+      osc2.start(audioCtx.currentTime);
+      osc2.stop(audioCtx.currentTime + 0.2);
+    }, 70);
+  } catch (e) {}
+};
+
+const playIncomingRingtone = () => {
+  if (ringtoneInterval) clearInterval(ringtoneInterval);
+  const ring = () => {
+    try {
+      const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(480, audioCtx.currentTime);
+      gain.gain.setValueAtTime(0.08, audioCtx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 1.2);
+      osc.start(audioCtx.currentTime);
+      osc.stop(audioCtx.currentTime + 1.2);
+    } catch (e) {}
+  };
+  ring();
+  ringtoneInterval = setInterval(ring, 1800);
+};
+
+export const stopIncomingRingtone = () => {
+  if (ringtoneInterval) {
+    clearInterval(ringtoneInterval);
+    ringtoneInterval = null;
+  }
+};
+
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000';
 
 export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -131,6 +196,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [onlineUsers, setOnlineUsers] = useState<Record<string, boolean>>({});
   const [typingUsers, setTypingUsers] = useState<Record<string, boolean>>({});
   const [statuses, setStatuses] = useState<Story[]>([]);
+  const [incomingCall, setIncomingCall] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   const socketRef = useRef<Socket | null>(null);
@@ -301,12 +367,30 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     socket.on('load_statuses', (loaded: Story[]) => {
       setStatuses(loaded);
     });
-
     socket.on('status_posted', (status: Story) => {
       setStatuses((prev) => {
         if (prev.some((s) => s.id === status.id)) return prev;
         return [status, ...prev];
       });
+    });
+
+    socket.on('incoming_call', (data: any) => {
+      setIncomingCall(data);
+      playIncomingRingtone();
+    });
+
+    socket.on('call_accepted', (data: any) => {
+      window.dispatchEvent(new CustomEvent('call_accepted', { detail: data }));
+    });
+
+    socket.on('call_declined', (data: any) => {
+      window.dispatchEvent(new CustomEvent('call_declined', { detail: data }));
+    });
+
+    socket.on('call_ended', (data: any) => {
+      setIncomingCall(null);
+      stopIncomingRingtone();
+      window.dispatchEvent(new CustomEvent('call_ended', { detail: data }));
     });
 
     return () => {
@@ -421,6 +505,48 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         name: user.displayName || user.username,
         avatar: user.avatarUrl || '',
         userId: user.id
+      });
+    }
+  };
+
+  const emitCallUser = (type: 'voice' | 'video', recipientId: string, callerName: string) => {
+    if (socketRef.current && activeChatId) {
+      socketRef.current.emit('call_user', {
+        chatId: activeChatId,
+        type,
+        recipientId,
+        callerName
+      });
+    }
+  };
+
+  const emitAcceptCall = () => {
+    if (socketRef.current && incomingCall) {
+      socketRef.current.emit('accept_call', {
+        callerId: incomingCall.callerId,
+        chatId: incomingCall.chatId
+      });
+      setIncomingCall(null);
+      stopIncomingRingtone();
+    }
+  };
+
+  const emitDeclineCall = () => {
+    if (socketRef.current && incomingCall) {
+      socketRef.current.emit('decline_call', {
+        callerId: incomingCall.callerId,
+        chatId: incomingCall.chatId
+      });
+      setIncomingCall(null);
+      stopIncomingRingtone();
+    }
+  };
+
+  const emitEndCall = (recipientId: string) => {
+    if (socketRef.current && activeChatId) {
+      socketRef.current.emit('end_call', {
+        chatId: activeChatId,
+        recipientId
       });
     }
   };
@@ -639,6 +765,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         onlineUsers,
         typingUsers,
         statuses,
+        incomingCall,
+        setIncomingCall,
+        emitCallUser,
+        emitAcceptCall,
+        emitDeclineCall,
+        emitEndCall,
         isLoading,
         loginPhone,
         verifyOtp,

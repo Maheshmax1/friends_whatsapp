@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useChat } from '../context/ChatContext';
+import { useChat, playNotificationSound } from '../context/ChatContext';
 import { 
   Send, Phone, Search, UserPlus, LogOut, MessageSquare, 
   Settings, Users, Shield, Compass, Sparkles, Smile, Image as ImageIcon,
@@ -35,6 +35,12 @@ export default function Home() {
     typingUsers,
     statuses,
     postStatus,
+    incomingCall,
+    setIncomingCall,
+    emitCallUser,
+    emitAcceptCall,
+    emitDeclineCall,
+    emitEndCall,
     isLoading,
     loginPhone,
     verifyOtp,
@@ -132,7 +138,7 @@ export default function Home() {
   const [isDraggingFile, setIsDraggingFile] = useState(false);
 
   // PICTURE IN PICTURE CALL BUBBLE (Floating call screen)
-  const [callModal, setCallModal] = useState<{ isOpen: boolean; type: 'voice' | 'video'; name: string; isMinimized?: boolean } | null>(null);
+  const [callModal, setCallModal] = useState<{ isOpen: boolean; type: 'voice' | 'video'; name: string; isConnected?: boolean; isMinimized?: boolean } | null>(null);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [floatingPos, setFloatingPos] = useState({ x: 20, y: 80 });
   const isDraggingFloatingRef = useRef(false);
@@ -184,6 +190,32 @@ export default function Home() {
     };
   }, [callModal]);
 
+  // Listen for socket calling events via custom window events
+  useEffect(() => {
+    const onCallAccepted = () => {
+      setCallModal(prev => prev ? { ...prev, isConnected: true } : null);
+    };
+
+    const onCallDeclined = () => {
+      setCallModal(null);
+      alert('Call was declined by recipient');
+    };
+
+    const onCallEnded = () => {
+      setCallModal(null);
+    };
+
+    window.addEventListener('call_accepted', onCallAccepted);
+    window.addEventListener('call_declined', onCallDeclined);
+    window.addEventListener('call_ended', onCallEnded);
+
+    return () => {
+      window.removeEventListener('call_accepted', onCallAccepted);
+      window.removeEventListener('call_declined', onCallDeclined);
+      window.removeEventListener('call_ended', onCallEnded);
+    };
+  }, []);
+
   // SWIPE EVENT TRACKERS (Mobile Gestures)
   const touchStartCoordsRef = useRef<{ x: number; y: number } | null>(null);
   const [swipedChatId, setSwipedChatId] = useState<string | null>(null);
@@ -198,29 +230,52 @@ export default function Home() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, typingUsers]);
 
-  // Request HTML5 notification rights on load
+  // Request HTML5 notification rights on load and user interaction click
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window) {
       if (Notification.permission === 'default') {
         Notification.requestPermission();
       }
     }
+    const requestOnInteraction = () => {
+      if (typeof window !== 'undefined' && 'Notification' in window) {
+        if (Notification.permission === 'default') {
+          Notification.requestPermission();
+        }
+      }
+      document.removeEventListener('click', requestOnInteraction);
+    };
+    document.addEventListener('click', requestOnInteraction);
+    return () => document.removeEventListener('click', requestOnInteraction);
   }, []);
 
-  // Desktop native push notification trigger (HTML5 Notification API)
+  // Desktop/Mobile native push notification + audio chime trigger
   useEffect(() => {
     if (messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
-      if (lastMessage && lastMessage.senderId !== user?.id && document.visibilityState === 'hidden') {
-        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-          new Notification(lastMessage.sender.displayName || lastMessage.sender.username || 'Halo Chat', {
-            body: lastMessage.content,
-            icon: '/favicon.ico'
-          });
+      if (lastMessage && lastMessage.senderId !== user?.id) {
+        const isTabHidden = document.visibilityState === 'hidden';
+        const isDifferentChat = activeChatId !== lastMessage.chatId;
+
+        if (isTabHidden || isDifferentChat) {
+          // Play premium audio notification chime
+          playNotificationSound();
+
+          // Push alert
+          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            new Notification(lastMessage.sender.displayName || lastMessage.sender.username || 'Halo Chat', {
+              body: lastMessage.content.startsWith('data:image') 
+                ? '📷 Sent a photo' 
+                : lastMessage.content.startsWith('data:audio') 
+                ? '🎙️ Sent a voice note' 
+                : lastMessage.content,
+              icon: '/favicon.ico'
+            });
+          }
         }
       }
     }
-  }, [messages, user?.id]);
+  }, [messages, user?.id, activeChatId]);
 
   // Load profile editing values when settings drawer opens
   useEffect(() => {
@@ -348,11 +403,13 @@ export default function Home() {
   };
 
   const handleCall = (type: 'voice' | 'video') => {
-    if (!activeChat) return;
+    if (!activeChat || !activeChat.otherMember) return;
+    emitCallUser(type, activeChat.otherMember.id, user?.displayName || user?.username || 'Halo User');
     setCallModal({
       isOpen: true,
       type,
       name: activeChat.name,
+      isConnected: false
     });
   };
 
@@ -2403,7 +2460,7 @@ export default function Home() {
 
             <h3 className="text-base font-bold text-white mb-1">{callModal.name}</h3>
             <p className="text-slate-405 text-xs mb-8 animate-pulse font-light">
-              Connecting simulated {callModal.type} call...
+              {callModal.isConnected ? 'Call Active (Connected) 🟢' : `Ringing (Connecting simulated ${callModal.type} call)...`}
             </p>
 
             <div className="flex gap-2 w-full">
@@ -2414,10 +2471,64 @@ export default function Home() {
                 Minimize (PiP)
               </button>
               <button
-                onClick={() => setCallModal(null)}
+                onClick={() => {
+                  if (activeChat?.otherMember) {
+                    emitEndCall(activeChat.otherMember.id);
+                  }
+                  setCallModal(null);
+                }}
                 className="flex-1 bg-rose-600 hover:bg-rose-505 text-white rounded-2xl py-3 text-xs font-semibold transition-all"
               >
                 End Call
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL: INCOMING CALL RECEIVER */}
+      {incomingCall && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center px-4 animate-in fade-in duration-300 text-white">
+          <div className="w-full max-w-sm flex flex-col items-center p-8 bg-gradient-to-b from-slate-900 to-slate-955 border border-slate-855 rounded-[32px] text-center shadow-2xl relative">
+            <div className="absolute top-4 left-4 flex items-center gap-1.5 p-1 px-2.5 rounded-full bg-indigo-600/10 border border-indigo-500/20 text-[9px] font-medium tracking-wide text-indigo-400 animate-pulse">
+              <Phone className="w-3 h-3 animate-bounce" />
+              <span>Incoming {incomingCall.type === 'video' ? 'Video' : 'Voice'} Call</span>
+            </div>
+
+            <div className="relative mb-8 mt-6">
+              <div className="absolute inset-0 rounded-full border-2 border-indigo-500/30 animate-ping" style={{ animationDuration: '1.5s' }}></div>
+              <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-650 border border-indigo-500/30 flex items-center justify-center relative shadow-lg">
+                <span className="text-xl font-bold">{incomingCall.callerName.slice(0, 2).toUpperCase()}</span>
+              </div>
+            </div>
+
+            <h3 className="text-base font-bold text-white mb-1">{incomingCall.callerName}</h3>
+            <p className="text-slate-400 text-xs mb-8 animate-pulse font-light">
+              Ringing...
+            </p>
+
+            <div className="flex gap-3 w-full">
+              <button
+                onClick={() => {
+                  setCallModal({
+                    isOpen: true,
+                    type: incomingCall.type,
+                    name: incomingCall.callerName,
+                    isConnected: true
+                  });
+                  emitAcceptCall();
+                }}
+                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl py-3 text-xs font-semibold transition-all shadow-md shadow-emerald-500/10"
+              >
+                Accept
+              </button>
+              <button
+                onClick={() => {
+                  emitDeclineCall();
+                }}
+                className="flex-1 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl py-3 text-xs font-semibold transition-all shadow-md shadow-rose-500/10"
+              >
+                Decline
               </button>
             </div>
           </div>

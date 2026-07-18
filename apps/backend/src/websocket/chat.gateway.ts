@@ -336,6 +336,52 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
     });
   }
 
+  @SubscribeMessage('call_user')
+  handleCallUser(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { chatId: string; type: 'voice' | 'video'; recipientId: string; callerName: string },
+  ) {
+    const userId = client.data.userId;
+    if (!userId) return;
+
+    this.server.to(`user:${data.recipientId}`).emit('incoming_call', {
+      chatId: data.chatId,
+      type: data.type,
+      callerId: userId,
+      callerName: data.callerName,
+    });
+  }
+
+  @SubscribeMessage('accept_call')
+  handleAcceptCall(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { callerId: string; chatId: string },
+  ) {
+    this.server.to(`user:${data.callerId}`).emit('call_accepted', {
+      chatId: data.chatId,
+    });
+  }
+
+  @SubscribeMessage('decline_call')
+  handleDeclineCall(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { callerId: string; chatId: string },
+  ) {
+    this.server.to(`user:${data.callerId}`).emit('call_declined', {
+      chatId: data.chatId,
+    });
+  }
+
+  @SubscribeMessage('end_call')
+  handleEndCall(
+    @ConnectedSocket() client: Socket,
+    @MessageBody() data: { chatId: string; recipientId: string },
+  ) {
+    this.server.to(`user:${data.recipientId}`).emit('call_ended', {
+      chatId: data.chatId,
+    });
+  }
+
   @SubscribeMessage('read_receipt')
   async handleReadReceipt(
     @ConnectedSocket() client: Socket,
