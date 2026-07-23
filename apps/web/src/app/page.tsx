@@ -272,6 +272,7 @@ export default function Home() {
         peerConnectionRef.current.close();
         peerConnectionRef.current = null;
       }
+      iceCandidatesQueueRef.current = [];
       return;
     }
 
@@ -330,6 +331,7 @@ export default function Home() {
         peerConnectionRef.current.close();
         peerConnectionRef.current = null;
       }
+      iceCandidatesQueueRef.current = [];
       setIsCallMuted(false);
       setIsCallVideoOff(false);
     };
@@ -344,17 +346,44 @@ export default function Home() {
 
       try {
         if (data.offer) {
-          await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
-          const answer = await pc.createAnswer();
-          await pc.setLocalDescription(answer);
-          const targetId = incomingCall?.callerId || activeChat?.otherMember?.id;
-          if (targetId) {
-            emitCallSignal(targetId, { answer });
+          if (pc.signalingState === 'stable') {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            const targetId = incomingCall?.callerId || activeChat?.otherMember?.id;
+            if (targetId) {
+              emitCallSignal(targetId, { answer });
+            }
+            // Process queued candidates
+            if (iceCandidatesQueueRef.current.length > 0) {
+              for (const cand of iceCandidatesQueueRef.current) {
+                await pc.addIceCandidate(new RTCIceCandidate(cand)).catch(e => console.warn('Delayed candidate failed:', e));
+              }
+              iceCandidatesQueueRef.current = [];
+            }
+          } else {
+            console.warn('Received offer but signalingState is not stable:', pc.signalingState);
           }
         } else if (data.answer) {
-          await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          if (pc.signalingState === 'have-local-offer') {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+            // Process queued candidates
+            if (iceCandidatesQueueRef.current.length > 0) {
+              for (const cand of iceCandidatesQueueRef.current) {
+                await pc.addIceCandidate(new RTCIceCandidate(cand)).catch(e => console.warn('Delayed candidate failed:', e));
+              }
+              iceCandidatesQueueRef.current = [];
+            }
+          } else {
+            console.log('Received answer but signalingState is already stable (or not have-local-offer):', pc.signalingState);
+          }
         } else if (data.candidate) {
-          await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+          if (pc.remoteDescription && pc.remoteDescription.type) {
+            await pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(e => console.warn('Add ICE candidate failed:', e));
+          } else {
+            console.log('Queueing ICE candidate because remoteDescription is not set yet');
+            iceCandidatesQueueRef.current.push(data.candidate);
+          }
         }
       } catch (err) {
         console.error('Error handling WebRTC signaling:', err);
@@ -394,6 +423,7 @@ export default function Home() {
   const waveCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement | null>(null);
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
+  const iceCandidatesQueueRef = useRef<RTCIceCandidateInit[]>([]);
 
   // Auto scroll to bottom of chat
   useEffect(() => {
