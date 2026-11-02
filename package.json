@@ -6,9 +6,20 @@
     "apps/*"
   ],
   "scripts": {
+    "dev": "concurrently -k -p \"[{name}]\" -n \"DB,BACKEND,WEB\" -c \"yellow,blue,green\" \"npm run db:start\" \"npm run dev:backend\" \"npm run dev:web\"",
     "dev:backend": "npm run start:dev --workspace=apps/backend",
     "dev:web": "npm run dev --workspace=apps/web",
+    "db:start": "node scripts/start-db.js",
+    "db:push": "npm run prisma:push --workspace=apps/backend",
+    "db:generate": "npm run prisma:generate --workspace=apps/backend",
+    "build": "npm run build --workspace=apps/backend && npm run build --workspace=apps/web",
     "db:up": "docker-compose up -d",
     "db:down": "docker-compose down"
+  },
+  "dependencies": {
+    "embedded-postgres": "^18.6.0-beta.19"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
   }
 }
