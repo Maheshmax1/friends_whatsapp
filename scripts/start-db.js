@@ -1,6 +1,26 @@
 const EmbeddedPostgres = require('embedded-postgres').default;
 const path = require('path');
 const net = require('net');
+const fs = require('fs');
+
+// Load .env if present
+const envPath = path.resolve(__dirname, '..', '.env');
+if (fs.existsSync(envPath)) {
+  const envContent = fs.readFileSync(envPath, 'utf8');
+  for (const line of envContent.split('\n')) {
+    const trimmed = line.trim();
+    if (trimmed && !trimmed.startsWith('#')) {
+      const idx = trimmed.indexOf('=');
+      if (idx !== -1) {
+        const key = trimmed.slice(0, idx).trim();
+        const val = trimmed.slice(idx + 1).trim().replace(/^["']|["']$/g, '');
+        if (!process.env[key]) {
+          process.env[key] = val;
+        }
+      }
+    }
+  }
+}
 
 function isPortInUse(port) {
   return new Promise((resolve) => {
@@ -20,9 +40,18 @@ function isPortInUse(port) {
 }
 
 async function start() {
+  const dbUrl = process.env.DATABASE_URL || '';
+  if (dbUrl && !dbUrl.includes('localhost') && !dbUrl.includes('127.0.0.1')) {
+    console.log('[DB] Remote cloud database configured in DATABASE_URL (e.g. Supabase). Skipping local PostgreSQL.');
+    // Keep alive as a dummy service so concurrently doesn't terminate with -k
+    setInterval(() => {}, 60000);
+    return;
+  }
+
   const inUse = await isPortInUse(5432);
   if (inUse) {
-    console.log('Port 5432 is already in use. Assuming PostgreSQL is already running.');
+    console.log('[DB] Port 5432 is already in use. Assuming PostgreSQL is already running.');
+    setInterval(() => {}, 60000);
     return;
   }
 
