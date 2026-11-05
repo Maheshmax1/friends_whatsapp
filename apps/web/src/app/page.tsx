@@ -115,8 +115,8 @@ export default function Home() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // UI CONFIG STATES
-  const [activeTheme, setActiveTheme] = useState<ThemeName>('royal');
-  const [chatWallpaper, setChatWallpaper] = useState<string>('mesh-indigo');
+  const [activeTheme, setActiveTheme] = useState<ThemeName>('classic-wa');
+  const [chatWallpaper, setChatWallpaper] = useState<string>('wa-doodle');
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'profile' | 'appearance' | 'privacy'>('profile');
   const [isDarkMode, setIsDarkMode] = useState(true);
@@ -1284,19 +1284,16 @@ export default function Home() {
   // AUTH SCREEN
   if (!user) {
     return (
-      <div className="h-dvh w-screen flex items-center justify-center bg-slate-950 relative overflow-hidden px-4">
-        <div className="absolute top-1/4 left-1/4 w-[35rem] h-[35rem] bg-indigo-500/10 rounded-full blur-[150px] pointer-events-none animate-pulse" style={{ animationDuration: '8s' }}></div>
-        <div className="absolute bottom-1/4 right-1/4 w-[35rem] h-[35rem] bg-violet-600/10 rounded-full blur-[150px] pointer-events-none animate-pulse" style={{ animationDuration: '12s' }}></div>
-
-        <div className="w-full max-w-md glass bg-slate-900/30 backdrop-blur-3xl border border-slate-800/80 shadow-[0_0_50px_rgba(99,102,241,0.15)] rounded-[32px] p-8 relative z-10 text-white">
+      <div className="h-dvh w-screen flex items-center justify-center bg-[#0b141a] wa-doodle-bg relative overflow-hidden px-4">
+        <div className="w-full max-w-md bg-[#111b21] border border-[#222e35] shadow-2xl rounded-[32px] p-8 relative z-10 text-[#e9edef]">
           <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 bg-gradient-to-tr from-indigo-500 to-violet-500 rounded-2xl flex items-center justify-center shadow-lg shadow-indigo-500/20 mb-4 animate-bounce" style={{ animationDuration: '3s' }}>
-              <Sparkles className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 bg-[#00a884] rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 mb-4 animate-bounce" style={{ animationDuration: '3s' }}>
+              <MessageSquare className="w-8 h-8 text-[#111b21]" />
             </div>
-            <h1 className="text-3xl font-extrabold bg-clip-text text-transparent bg-gradient-to-r from-indigo-200 via-violet-100 to-pink-200 tracking-tight">
-              Halo Chat
+            <h1 className="text-2xl font-bold tracking-tight text-[#e9edef]">
+              WhatsApp Web
             </h1>
-            <p className="text-slate-400 text-xs mt-1.5 font-light tracking-wide">Premium Encrypted Communication</p>
+            <p className="text-[#8696a0] text-xs mt-1.5 font-normal tracking-wide">End-to-end encrypted messaging</p>
           </div>
 
           {authError && (
@@ -1436,156 +1433,211 @@ export default function Home() {
       )}
 
       {/* DASHBOARD WORKSPACE CONTAINER */}
-      <div className="flex-1 flex overflow-hidden relative z-10 h-full w-full">
+      <div className="flex-1 flex overflow-hidden relative z-10 h-full w-full bg-[#0b141a]">
         
-        {/* SIDEBAR (LEFT SECTION) */}
-        <div className={`w-full ${themeLayout.sidebarWidth} border-r flex flex-col h-full overflow-hidden shrink-0 transition-all ${
-          themeLayout.border
-        } ${
-          themeLayout.sidebarBg
-        } ${
+        {/* 1. AUTHENTIC WHATSAPP LEFTMOST ICON RAIL (DESKTOP) */}
+        <div className="hidden md:flex flex-col justify-between items-center w-16 bg-[#202c33] border-r border-[#222e35] py-3 shrink-0 z-30 select-none">
+          {/* Top Rail Actions */}
+          <div className="flex flex-col items-center gap-4 w-full">
+            {/* Chats icon with green badge */}
+            <button 
+              onClick={() => setActiveTab('chats')}
+              className={`relative p-2.5 rounded-xl transition-colors group ${activeTab === 'chats' ? 'bg-[#2a3942] text-[#00a884]' : 'text-[#8696a0] hover:text-[#e9edef] hover:bg-[#2a3942]'}`}
+              title="Chats"
+            >
+              <MessageSquare className="w-5 h-5 text-[#00a884]" />
+              <span className="absolute -top-1 -right-1 bg-[#25d366] text-[#111b21] font-bold text-[9px] px-1.5 py-0.2 rounded-full">
+                99+
+              </span>
+            </button>
+
+            {/* Status / Stories icon */}
+            <button 
+              onClick={() => {
+                setStoryCreatorText('');
+                setStoryCreatorImage('');
+                setShowStoryCreator(true);
+              }}
+              className="relative p-2.5 rounded-xl hover:bg-[#2a3942] transition-colors text-[#8696a0] hover:text-[#e9edef]"
+              title="Status"
+            >
+              <Compass className="w-5 h-5" />
+              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-[#25d366]"></span>
+            </button>
+
+            {/* Channels / Broadcast */}
+            <button 
+              onClick={() => alert('Channels available in WhatsApp v2.0!')}
+              className="p-2.5 rounded-xl hover:bg-[#2a3942] transition-colors text-[#8696a0] hover:text-[#e9edef]"
+              title="Channels"
+            >
+              <Volume2 className="w-5 h-5" />
+            </button>
+
+            {/* Communities */}
+            <button 
+              onClick={() => setShowGroupWizard(true)}
+              className="p-2.5 rounded-xl hover:bg-[#2a3942] transition-colors text-[#8696a0] hover:text-[#e9edef]"
+              title="Communities & Groups"
+            >
+              <Users className="w-5 h-5" />
+            </button>
+
+            {/* Meta AI Ring */}
+            <button 
+              onClick={() => {
+                alert('Meta AI Chat assistant connected to Friends WhatsApp!');
+              }}
+              className="p-2.5 rounded-xl hover:bg-[#2a3942] transition-colors text-cyan-400 group relative"
+              title="Meta AI"
+            >
+              <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-500 via-indigo-500 to-purple-500 p-0.5 flex items-center justify-center">
+                <div className="w-full h-full bg-[#202c33] rounded-full flex items-center justify-center">
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-300" />
+                </div>
+              </div>
+            </button>
+          </div>
+
+          {/* Bottom Rail Actions */}
+          <div className="flex flex-col items-center gap-3.5 w-full">
+            {/* Archived Chats */}
+            <button 
+              onClick={() => setActiveTab(activeTab === 'archived' ? 'chats' : 'archived')}
+              className={`p-2.5 rounded-xl hover:bg-[#2a3942] transition-colors ${activeTab === 'archived' ? 'text-[#00a884] bg-[#2a3942]' : 'text-[#8696a0] hover:text-[#e9edef]'}`}
+              title="Archived"
+            >
+              <Archive className="w-5 h-5" />
+            </button>
+
+            {/* Settings */}
+            <button 
+              onClick={() => setShowSettingsDrawer(true)}
+              className="p-2.5 rounded-xl hover:bg-[#2a3942] transition-colors text-[#8696a0] hover:text-[#e9edef]"
+              title="Settings"
+            >
+              <Settings className="w-5 h-5" />
+            </button>
+
+            {/* Profile Avatar */}
+            <button 
+              onClick={() => setShowSettingsDrawer(true)}
+              className="relative w-8 h-8 rounded-full overflow-hidden border border-[#222e35] hover:ring-2 hover:ring-[#00a884] transition-all"
+              title="Profile"
+            >
+              {user.avatarUrl ? (
+                <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full bg-[#2a3942] flex items-center justify-center font-bold text-xs text-[#e9edef]">
+                  {user.displayName?.slice(0, 2).toUpperCase() || 'U'}
+                </div>
+              )}
+            </button>
+          </div>
+        </div>
+        
+        {/* 2. CHATS SIDEBAR (AUTHENTIC WHATSAPP WEB STYLE) */}
+        <div className={`w-full ${themeLayout.sidebarWidth} border-r border-[#222e35] bg-[#111b21] flex flex-col h-full overflow-hidden shrink-0 transition-all ${
           mobileView === 'chat' ? 'hidden lg:flex' : 'flex'
         }`}>
           
-          {/* Sidebar Header */}
-          <div className={`p-4 flex items-center justify-between border-b ${
-            themeLayout.sidebarHeader || themeLayout.border
-          }`}>
-            <div className="flex items-center gap-3">
-              <button 
-                onClick={() => setShowSettingsDrawer(true)}
-                className="w-10 h-10 rounded-full bg-slate-900 dark:bg-slate-900 light:bg-slate-250 border border-slate-805 dark:border-slate-805 light:border-slate-300 flex items-center justify-center font-bold text-white text-xs shadow-md shadow-indigo-500/10 relative hover:scale-105 transition-transform overflow-hidden shrink-0"
-              >
-                {user.avatarUrl ? (
-                  <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                ) : (
-                  <span>{user.displayName?.slice(0, 2).toUpperCase() || 'HA'}</span>
-                )}
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full animate-pulse"></div>
-              </button>
-              <div className="truncate max-w-[110px]">
-                <h4 className="text-xs font-semibold leading-none truncate dark:text-white light:text-slate-800">{user.displayName || 'Halo User'}</h4>
-                <span className="text-[10px] text-slate-450 mt-1 truncate block font-light dark:text-slate-400 light:text-slate-500">{user.phoneNumber}</span>
-              </div>
-            </div>
+          {/* WhatsApp Sidebar Header */}
+          <div className="p-3.5 px-4 flex items-center justify-between border-b border-[#222e35] bg-[#111b21]">
+            <h2 className="text-xl font-bold tracking-tight text-[#e9edef]">WhatsApp</h2>
             
-            <div className="flex items-center gap-1.5">
-              <button 
-                onClick={() => setShowGroupWizard(true)} 
-                title="Create Group"
-                className="w-8 h-8 rounded-lg hover:bg-slate-905 dark:hover:bg-slate-905 light:hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-indigo-400 transition-colors"
-              >
-                <Users className="w-4.5 h-4.5" />
-              </button>
-              <button 
-                onClick={() => setShowSettingsDrawer(true)} 
-                title="Settings & Profile"
-                className="w-8 h-8 rounded-lg hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-white dark:hover:text-white light:hover:text-slate-800 transition-colors"
-              >
-                <Settings className="w-4 h-4" />
-              </button>
+            <div className="flex items-center gap-2">
               <button 
                 onClick={() => setShowAddContact(true)} 
-                title="Add Contact"
-                className="w-8 h-8 rounded-lg hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-white dark:hover:text-white light:hover:text-slate-800 transition-colors"
+                title="New chat"
+                className="w-8 h-8 rounded-full bg-[#00a884] hover:bg-[#008f72] text-[#111b21] flex items-center justify-center font-bold transition-transform hover:scale-105 shadow-sm"
               >
-                <UserPlus className="w-4 h-4" />
+                <Plus className="w-4 h-4 stroke-[2.5]" />
               </button>
+
               <button 
-                onClick={logout} 
-                title="Logout"
-                className="w-8 h-8 rounded-lg hover:bg-rose-955/20 dark:hover:bg-rose-955/20 light:hover:bg-rose-100 flex items-center justify-center text-slate-400 hover:text-rose-455 transition-colors"
+                onClick={() => setShowSettingsDrawer(true)} 
+                title="Menu"
+                className="w-8 h-8 rounded-full hover:bg-[#202c33] flex items-center justify-center text-[#8696a0] hover:text-[#e9edef] transition-colors"
               >
-                <LogOut className="w-4 h-4" />
+                <MoreVertical className="w-4 h-4" />
               </button>
             </div>
           </div>
 
-          {/* Status Stories Row (WhatsApp Status style) */}
-          <div className={`p-3 border-b ${themeLayout.border}`}>
-            <span className="text-[9px] font-bold text-slate-400 uppercase tracking-widest block mb-2 px-1">Status Updates</span>
-            <div className="flex gap-3 overflow-x-auto pb-1 select-none">
-              <div 
-                onClick={() => {
-                  setStoryCreatorText('');
-                  setStoryCreatorImage('');
-                  setShowStoryCreator(true);
+          {/* Search Bar & WhatsApp Filter Tabs */}
+          <div className="p-3 pb-2.5 bg-[#111b21] border-b border-[#222e35] space-y-2.5">
+            <div className="relative flex items-center bg-[#202c33] rounded-lg px-3 py-1.5 focus-within:ring-1 focus-within:ring-[#00a884]">
+              <Search className="w-4 h-4 text-[#8696a0] shrink-0 mr-3" />
+              <input
+                type="text"
+                placeholder="Search or start a new chat"
+                value={localChatSearch || searchQuery}
+                onChange={(e) => {
+                  setLocalChatSearch(e.target.value);
+                  setSearchQuery(e.target.value);
                 }}
-                className="flex flex-col items-center shrink-0 cursor-pointer group"
-              >
-                <div className="w-12 h-12 rounded-full border border-dashed border-slate-700 flex items-center justify-center mb-1 group-hover:border-indigo-500 transition-colors">
-                  <Plus className="w-4 h-4 text-slate-400 group-hover:text-indigo-400 transition-colors" />
-                </div>
-                <span className="text-[9px] text-slate-400 font-light truncate max-w-[50px]">My Status</span>
-              </div>
-              
-              {statuses.map((story) => (
-                <div 
-                  key={story.id} 
-                  onClick={() => setActiveStory(story as any)}
-                  className="flex flex-col items-center shrink-0 cursor-pointer"
+                className="w-full bg-transparent text-xs text-[#e9edef] placeholder-[#8696a0] outline-none"
+              />
+              {(localChatSearch || searchQuery) && (
+                <button 
+                  onClick={() => { setLocalChatSearch(''); setSearchQuery(''); }}
+                  className="text-[#8696a0] hover:text-[#e9edef] p-0.5"
                 >
-                  <div className={`w-12 h-12 rounded-full border-2 ${themeStyle.ringAccent} p-0.5 mb-1 hover:scale-105 transition-transform`}>
-                    <div className="w-full h-full rounded-full bg-slate-855 flex items-center justify-center font-bold text-xs text-indigo-300 bg-slate-900 dark:bg-slate-900 light:bg-slate-100 overflow-hidden shrink-0">
-                      {story.avatar.length > 2 && story.avatar.startsWith('data:') ? (
-                        <img src={story.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                      ) : (
-                        <span>{story.avatar.slice(0, 2).toUpperCase()}</span>
-                      )}
-                    </div>
-                  </div>
-                  <span className="text-[9px] text-slate-300 dark:text-slate-300 light:text-slate-700 font-light truncate max-w-[50px]">{story.name}</span>
-                </div>
-              ))}
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
-          </div>
 
-          {/* Search Inputs (Filters local chats + global search) */}
-          <div className={`p-3 space-y-2 border-b ${themeLayout.border}`}>
-            <div className="relative">
-              <Search className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-505 w-4 h-4 my-auto pointer-events-none" />
-              <input
-                type="text"
-                placeholder="Search active chats..."
-                value={localChatSearch}
-                onChange={(e) => setLocalChatSearch(e.target.value)}
-                className={`w-full border focus:border-indigo-500/50 rounded-xl py-2 pl-10 pr-4 text-xs outline-none transition-all focus:ring-1 focus:ring-indigo-500/10 ${
-                  activeTheme === 'classic-wa'
-                    ? 'bg-[#efeae2]/10 dark:bg-[#202c33]/50 text-slate-800 dark:text-white border-[#e9edef] dark:border-[#222e35]'
-                    : 'bg-slate-900/50 dark:bg-slate-900/50 light:bg-slate-50 text-white dark:text-white light:text-slate-800 border-slate-900 dark:border-slate-900 light:border-slate-200'
+            {/* Filter Pills (All, Unread 122, Favourites, Groups) */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 text-xs select-none">
+              <button
+                onClick={() => setActiveTab('chats')}
+                className={`px-3 py-1 rounded-full font-medium transition-colors ${
+                  activeTab === 'chats'
+                    ? 'bg-[#00a884]/20 text-[#00a884] border border-[#00a884]/30'
+                    : 'bg-[#202c33] text-[#8696a0] hover:text-[#e9edef]'
                 }`}
-              />
-            </div>
-            
-            <div className="relative">
-              <Search className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-505 w-4 h-4 my-auto pointer-events-none" />
-              <input
-                ref={searchInputRef}
-                type="text"
-                placeholder="Search global directory (add contacts)..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className={`w-full border focus:border-indigo-500/50 rounded-xl py-2 pl-10 pr-4 text-xs outline-none transition-all focus:ring-1 focus:ring-indigo-500/10 ${
-                  activeTheme === 'classic-wa'
-                    ? 'bg-[#efeae2]/10 dark:bg-[#202c33]/50 text-slate-800 dark:text-white border-[#e9edef] dark:border-[#222e35]'
-                    : 'bg-slate-900/50 dark:bg-slate-900/50 light:bg-slate-50 text-white dark:text-white light:text-slate-800 border-slate-900 dark:border-slate-900 light:border-slate-200'
+              >
+                All
+              </button>
+              <button
+                onClick={() => setActiveTab('chats')}
+                className="px-3 py-1 rounded-full bg-[#202c33] text-[#8696a0] hover:text-[#e9edef] font-medium transition-colors flex items-center gap-1.5"
+              >
+                <span>Unread</span>
+                <span className="text-[10px] bg-[#25d366]/20 text-[#25d366] px-1 rounded-full font-bold">122</span>
+              </button>
+              <button
+                onClick={() => setActiveTab(activeTab === 'contacts' ? 'chats' : 'contacts')}
+                className={`px-3 py-1 rounded-full font-medium transition-colors ${
+                  activeTab === 'contacts'
+                    ? 'bg-[#00a884]/20 text-[#00a884] border border-[#00a884]/30'
+                    : 'bg-[#202c33] text-[#8696a0] hover:text-[#e9edef]'
                 }`}
-              />
+              >
+                Favourites
+              </button>
+              <button
+                onClick={() => setShowGroupWizard(true)}
+                className="px-3 py-1 rounded-full bg-[#202c33] text-[#8696a0] hover:text-[#e9edef] font-medium transition-colors"
+              >
+                Groups
+              </button>
             </div>
           </div>
 
           {/* Search Results Drawer */}
           {searchQuery.trim().length > 1 && (
-            <div className="flex-1 overflow-y-auto px-2 border-b border-slate-900/60 dark:border-slate-900/60 light:border-slate-100 bg-slate-950/40 animate-in slide-in-from-top duration-150">
-              <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest px-2 block mb-2 mt-2">
+            <div className="flex-1 overflow-y-auto px-2 border-b border-[#222e35] bg-[#111b21] animate-in slide-in-from-top duration-150">
+              <span className="text-[9px] font-bold text-[#00a884] uppercase tracking-widest px-2 block mb-2 mt-2">
                 Global Users Found
               </span>
               {isSearching ? (
                 <div className="flex justify-center py-4">
-                  <Loader2 className="w-4 h-4 animate-spin text-slate-550" />
+                  <Loader2 className="w-4 h-4 animate-spin text-[#8696a0]" />
                 </div>
               ) : searchResults.length === 0 ? (
-                <p className="text-[11px] text-slate-500 text-center py-4">No users found</p>
+                <p className="text-[11px] text-[#8696a0] text-center py-4">No users found</p>
               ) : (
                 searchResults.map((resultUser) => (
                   <button
@@ -1595,14 +1647,14 @@ export default function Home() {
                       setSearchQuery('');
                       setMobileView('chat');
                     }}
-                    className="w-full flex items-center gap-3 p-2.5 rounded-2xl hover:bg-indigo-950/20 text-left transition-colors mb-1.5"
+                    className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#202c33] text-left transition-colors mb-1"
                   >
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500/30 to-violet-500/30 border border-indigo-500/20 flex items-center justify-center text-xs font-semibold">
+                    <div className="w-9 h-9 rounded-full bg-[#202c33] border border-[#222e35] flex items-center justify-center text-xs font-semibold text-[#e9edef]">
                       {resultUser.displayName?.slice(0, 2).toUpperCase() || 'U'}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <h5 className="text-xs font-medium text-slate-200 dark:text-slate-200 light:text-slate-700 truncate">{resultUser.displayName || resultUser.username}</h5>
-                      <p className="text-[10px] text-slate-500 truncate">{resultUser.phoneNumber}</p>
+                      <h5 className="text-xs font-medium text-[#e9edef] truncate">{resultUser.displayName || resultUser.username}</h5>
+                      <p className="text-[10px] text-[#8696a0] truncate">{resultUser.phoneNumber}</p>
                     </div>
                   </button>
                 ))
@@ -1610,154 +1662,91 @@ export default function Home() {
             </div>
           )}
 
-          {/* Tab Navigation */}
-          {searchQuery.trim().length <= 1 && (
-            <div className="flex px-3 gap-1 pb-2">
-              <button
-                onClick={() => { setActiveTab('chats'); }}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  activeTab === 'chats' 
-                    ? themeStyle.activeBg
-                    : 'text-slate-500 hover:text-slate-350 dark:hover:text-slate-355 light:hover:text-slate-700'
-                }`}
-              >
-                Chats
-              </button>
-              <button
-                onClick={() => { setActiveTab('contacts'); }}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  activeTab === 'contacts' 
-                    ? themeStyle.activeBg
-                    : 'text-slate-500 hover:text-slate-355 dark:hover:text-slate-355 light:hover:text-slate-700'
-                }`}
-              >
-                Contacts
-              </button>
-              <button
-                onClick={() => { setActiveTab('archived'); }}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  activeTab === 'archived' 
-                    ? themeStyle.activeBg
-                    : 'text-slate-500 hover:text-slate-355 dark:hover:text-slate-355 light:hover:text-slate-700'
-                }`}
-              >
-                Archived
-              </button>
-            </div>
-          )}
-
           {/* Active Lists */}
           {searchQuery.trim().length <= 1 && (
-            <div className="flex-1 overflow-y-auto p-2 min-h-0">
+            <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-[#222e35]/60">
               {activeTab === 'chats' || activeTab === 'archived' ? (
                 filteredChatsList.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-slate-600 px-4 py-8">
-                    <MessageSquare className="w-8 h-8 mb-2 opacity-50" />
-                    <p className="text-[11px] text-center font-light leading-relaxed">No conversations here.</p>
+                  <div className="flex flex-col items-center justify-center h-full text-[#8696a0] px-4 py-8">
+                    <MessageSquare className="w-8 h-8 mb-2 opacity-50 text-[#00a884]" />
+                    <p className="text-xs text-center font-normal leading-relaxed">No conversations here.</p>
                   </div>
                 ) : (
                   filteredChatsList.map((chat) => {
                     const isChatActive = chat.id === activeChatId;
                     const isOnline = chat.otherMember?.isOnline || onlineUsers[chat.otherMember?.id || ''];
                     const isTyping = typingUsers[chat.otherMember?.id || ''];
-                    const isSwiped = swipedChatId === chat.id;
 
                     return (
                       <div 
                         key={chat.id}
-                        onTouchStart={(e) => handleTouchStart(e, 'chatItem', chat.id)}
-                        onTouchEnd={(e) => handleTouchEnd(e, 'chatItem', chat)}
-                        className="relative overflow-hidden mb-1.5 rounded-2xl group/item select-none"
+                        onClick={() => {
+                          selectChat(chat.id);
+                          setMobileView('chat');
+                        }}
+                        className={`w-full flex items-center justify-between p-3 px-4 text-left transition-colors cursor-pointer select-none border-b border-[#222e35]/40 ${
+                          isChatActive ? 'bg-[#2a3942]' : 'bg-[#111b21] hover:bg-[#202c33]'
+                        }`}
                       >
-                        {/* Swipe Hidden Controls Drawer (2. Swipe-action Chat List) */}
-                        {isSwiped && (
-                          <div className="absolute inset-0 bg-slate-900/90 flex items-center justify-end pr-2 gap-1.5 z-0 transition-opacity animate-in fade-in duration-100">
-                            <button
-                              onClick={() => togglePin(chat.id)}
-                              className="h-8 p-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-[10px] font-bold text-white flex items-center gap-1 shadow-md shadow-indigo-600/10"
-                            >
-                              <Pin className="w-3.5 h-3.5" />
-                              <span>{chat.isPinned ? 'Unpin' : 'Pin'}</span>
-                            </button>
-                            <button
-                              onClick={() => toggleArchive(chat.id)}
-                              className="h-8 p-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-[10px] font-bold text-white flex items-center gap-1 shadow-md shadow-cyan-600/10"
-                            >
-                              <Archive className="w-3.5 h-3.5" />
-                              <span>{chat.isArchived ? 'Active' : 'Archive'}</span>
-                            </button>
+                        <div className="flex items-center gap-3.5 min-w-0 flex-1">
+                          <div className="w-12 h-12 rounded-full bg-[#202c33] border border-[#222e35] flex items-center justify-center font-medium text-sm text-[#e9edef] relative shrink-0 overflow-hidden">
+                            {chat.otherMember?.avatarUrl ? (
+                              <img src={chat.otherMember.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                            ) : (
+                              <span>{chat.name.slice(0, 2).toUpperCase()}</span>
+                            )}
+                            {chat.isGroup && (
+                              <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#00a884] border border-[#111b21] rounded-full flex items-center justify-center text-[7px] text-[#111b21] font-bold">G</div>
+                            )}
+                            {isOnline && !chat.isGroup && (
+                              <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#25d366] border-2 border-[#111b21] rounded-full animate-pulse"></div>
+                            )}
                           </div>
-                        )}
-
-                        {/* Slide panel */}
-                        <div 
-                          className={`w-full flex items-center justify-between p-3 rounded-2xl text-left border border-transparent relative z-10 transition-transform duration-200 ${
-                            isChatActive 
-                              ? themeLayout.activeChatBg + ' ' + themeLayout.textPrimary
-                              : 'bg-slate-950 dark:bg-slate-950 light:bg-white ' + themeLayout.chatItemHover + ' ' + themeLayout.textSecondary
-                          } ${isSwiped ? '-translate-x-[150px]' : 'translate-x-0'}`}
-                        >
-                          <button
-                            onClick={() => {
-                              selectChat(chat.id);
-                              setMobileView('chat');
-                            }}
-                            className="flex-1 flex items-center gap-3 min-w-0"
-                          >
-                            <div className={`w-10 h-10 rounded-full bg-slate-900 dark:bg-slate-900 light:bg-slate-250 border flex items-center justify-center font-semibold text-xs relative shrink-0 overflow-hidden ${
-                              activeTheme === 'classic-wa' ? 'border-[#e9edef] dark:border-[#222e35]' : 'border-slate-805 dark:border-slate-805 light:border-slate-300'
-                            }`}>
-                              {chat.otherMember?.avatarUrl ? (
-                                <img src={chat.otherMember.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                              ) : (
-                                <span>{chat.name.slice(0, 2).toUpperCase()}</span>
-                              )}
-                              {chat.isGroup && (
-                                <div className="absolute -top-1 -right-1 w-4 h-4 bg-indigo-500 border border-slate-950 rounded-full flex items-center justify-center text-[7px] text-white">G</div>
-                              )}
-                              {isOnline && !chat.isGroup && (
-                                <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full animate-pulse"></div>
-                              )}
+                          
+                          <div className="flex-1 min-w-0">
+                            <div className="flex justify-between items-baseline mb-0.5">
+                              <h5 className="text-[15px] font-normal truncate leading-tight text-[#e9edef]">
+                                {chat.name}
+                              </h5>
+                              <span className="text-xs text-[#8696a0] shrink-0 ml-2">
+                                {chat.lastMessage 
+                                  ? new Date(chat.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+                                  : ''}
+                              </span>
                             </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex justify-between items-baseline mb-0.5">
-                                <h5 className={`text-xs font-semibold truncate leading-none ${
-                                  isChatActive ? themeLayout.textPrimary : 'text-slate-800 dark:text-slate-200'
-                                }`}>{chat.name}</h5>
-                                <span className="text-[9px] text-slate-500 shrink-0">
-                                  {chat.lastMessage 
-                                    ? new Date(chat.lastMessage.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
-                                    : ''}
-                                </span>
-                              </div>
-                              <p className="text-[11px] text-slate-500 truncate leading-tight mt-0.5">
+                            
+                            <div className="flex items-center justify-between">
+                              <p className="text-xs text-[#8696a0] truncate leading-tight flex-1">
                                 {isTyping ? (
-                                  <span className="text-indigo-400 font-medium animate-pulse">typing...</span>
+                                  <span className="text-[#25d366] font-normal animate-pulse">typing...</span>
                                 ) : chat.lastMessage?.isDeleted ? (
-                                  <span className="italic text-slate-550">This message was deleted</span>
+                                  <span className="italic text-[#8696a0]">This message was deleted</span>
                                 ) : (
                                   chat.lastMessage?.content || 'No messages yet'
                                 )}
                               </p>
+                              
+                              <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                                {chat.isPinned && <Pin className="w-3 h-3 text-[#8696a0]" />}
+                                {chat.isArchived && <Archive className="w-3 h-3 text-[#00a884]" />}
+                                {chat.lastMessage && !isChatActive && (
+                                  <span className="bg-[#25d366] text-[#111b21] font-bold text-[10px] min-w-4 h-4 px-1 rounded-full flex items-center justify-center">
+                                    1
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          </button>
-                          
-                          {/* Pin details / archive indicators */}
-                          <div className="flex gap-1 items-center shrink-0 ml-1.5">
-                            {chat.isPinned && <Pin className="w-3 h-3 text-indigo-400" />}
-                            {chat.isArchived && <Archive className="w-3 h-3 text-cyan-400" />}
                           </div>
                         </div>
-
                       </div>
                     );
                   })
                 )
               ) : (
                 contacts.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-slate-600 px-4 py-8">
-                    <Users className="w-8 h-8 mb-2 opacity-50" />
-                    <p className="text-[11px] text-center font-light leading-relaxed">No contacts yet.</p>
+                  <div className="flex flex-col items-center justify-center h-full text-[#8696a0] px-4 py-8">
+                    <Users className="w-8 h-8 mb-2 opacity-50 text-[#00a884]" />
+                    <p className="text-xs text-center font-normal leading-relaxed">No contacts yet.</p>
                   </div>
                 ) : (
                   contacts.map((contact) => (
@@ -1768,17 +1757,17 @@ export default function Home() {
                         setActiveTab('chats');
                         setMobileView('chat');
                       }}
-                      className="w-full flex items-center gap-3 p-3 rounded-2xl text-left hover:bg-slate-900/40 dark:hover:bg-slate-900/40 light:hover:bg-slate-100 text-slate-300 dark:text-slate-300 light:text-slate-700 hover:text-white dark:hover:text-white light:hover:text-slate-900 transition-all mb-1.5"
+                      className="w-full flex items-center gap-3 p-3 px-4 text-left hover:bg-[#202c33] text-[#e9edef] transition-colors border-b border-[#222e35]/60"
                     >
-                      <div className="w-10 h-10 rounded-full bg-slate-900 dark:bg-slate-900 light:bg-slate-200 border border-slate-800 dark:border-slate-800 light:border-slate-300 flex items-center justify-center font-semibold text-xs relative">
+                      <div className="w-11 h-11 rounded-full bg-[#202c33] border border-[#222e35] flex items-center justify-center font-medium text-xs text-[#e9edef] relative shrink-0">
                         {contact.displayName.slice(0, 2).toUpperCase()}
                         {contact.isOnline && (
-                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-slate-950 rounded-full"></div>
+                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#25d366] border-2 border-[#111b21] rounded-full"></div>
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <h5 className="text-xs font-semibold truncate leading-none mb-1">{contact.displayName}</h5>
-                        <p className="text-[10px] text-slate-500 truncate leading-none">{contact.phoneNumber}</p>
+                        <h5 className="text-[15px] font-normal truncate leading-none mb-1 text-[#e9edef]">{contact.displayName}</h5>
+                        <p className="text-xs text-[#8696a0] truncate leading-none">{contact.phoneNumber}</p>
                       </div>
                     </button>
                   ))
@@ -1786,6 +1775,14 @@ export default function Home() {
               )}
             </div>
           )}
+
+          {/* Bottom Windows promo bar */}
+          <div className="mt-auto p-3 px-4 bg-[#111b21] border-t border-[#222e35] flex items-center gap-3 select-none">
+            <div className="w-7 h-7 rounded-lg bg-[#00a884] text-[#111b21] flex items-center justify-center font-bold text-xs shadow-sm">
+              <Smartphone className="w-4 h-4" />
+            </div>
+            <span className="text-xs text-[#00a884] font-medium">Get WhatsApp for Windows</span>
+          </div>
         </div>
 
         {/* CHAT WINDOW (RIGHT SECTION - Responsive Toggling) */}
@@ -1799,33 +1796,34 @@ export default function Home() {
               {/* Message Panel Area */}
               <div className={`flex-1 flex flex-col h-full overflow-hidden ${themeLayout.chatBg} relative z-10 transition-colors duration-300`}>
                 
-                {/* Chat Header */}
-                <div className={`p-4 border-b flex items-center justify-between relative z-20 shrink-0 ${themeLayout.chatHeader || themeLayout.border}`}>
+                {/* Chat Header (WhatsApp Web style) */}
+                <div className="p-2.5 px-4 border-b border-[#222e35] bg-[#202c33] flex items-center justify-between relative z-20 shrink-0">
                   <div className="flex items-center gap-3">
                     
                     <button 
                       onClick={() => { selectChat(''); setMobileView('list'); }}
-                      className="block lg:hidden p-1.5 rounded-lg hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 text-slate-400 hover:text-white dark:hover:text-white light:hover:text-slate-800 shrink-0 transition-colors"
+                      className="block lg:hidden p-1.5 rounded-lg hover:bg-[#2a3942] text-[#aebac1] hover:text-[#e9edef] shrink-0 transition-colors"
                     >
-                      <ArrowLeft className="w-4.5 h-4.5" />
+                      <ArrowLeft className="w-5 h-5" />
                     </button>
 
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center font-bold text-xs cursor-pointer overflow-hidden shrink-0" onClick={() => setShowSharedMedia(!showSharedMedia)}>
+                    <div className="w-10 h-10 rounded-full bg-[#2a3942] border border-[#222e35] flex items-center justify-center font-medium text-xs cursor-pointer overflow-hidden shrink-0 text-[#e9edef]" onClick={() => setShowSharedMedia(!showSharedMedia)}>
                       {activeChat.otherMember?.avatarUrl ? (
                         <img src={activeChat.otherMember.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                       ) : (
                         <span>{activeChat.name.slice(0, 2).toUpperCase()}</span>
                       )}
                     </div>
+                    
                     <div className="cursor-pointer text-left" onClick={() => setShowSharedMedia(!showSharedMedia)}>
-                      <h4 className={`text-xs font-semibold leading-tight ${activeTheme === 'classic-wa' ? 'text-slate-900 dark:text-slate-100' : 'text-white'}`}>{activeChat.name}</h4>
-                      <span className="text-[9px] text-slate-405 block">
+                      <h4 className="text-[15px] font-normal leading-tight text-[#e9edef]">{activeChat.name}</h4>
+                      <span className="text-xs text-[#8696a0] block truncate">
                         {typingUsers[activeChat.otherMember?.id || ''] ? (
-                          <span className="text-indigo-400 font-medium animate-pulse">typing...</span>
+                          <span className="text-[#25d366] font-normal animate-pulse">typing...</span>
                         ) : activeChat.isGroup ? (
-                          <span className="text-slate-500">Group conversation</span>
+                          <span className="text-[#8696a0]">Hari, Joo, Kavinisha, ~Priya, +91 70100 42985...</span>
                         ) : activeChat.otherMember?.isOnline || onlineUsers[activeChat.otherMember?.id || ''] ? (
-                          <span className="text-emerald-400 font-medium">online</span>
+                          <span className="text-[#25d366] font-normal">online</span>
                         ) : (
                           'offline'
                         )}
@@ -1833,25 +1831,34 @@ export default function Home() {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex items-center gap-3 text-[#aebac1]">
                     <button 
-                      onClick={() => setShowSharedMedia(!showSharedMedia)}
-                      title="Shared Files & Media"
-                      className="w-9 h-9 rounded-xl hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                      onClick={() => handleCall('video')}
+                      title="Video call"
+                      className="p-2 rounded-full hover:bg-[#2a3942] hover:text-[#e9edef] transition-colors"
                     >
-                      <Paperclip className="w-4.5 h-4.5" />
+                      <Video className="w-5 h-5" />
                     </button>
                     <button 
                       onClick={() => handleCall('voice')}
-                      className="w-9 h-9 rounded-xl hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                      title="Voice call"
+                      className="p-2 rounded-full hover:bg-[#2a3942] hover:text-[#e9edef] transition-colors"
                     >
-                      <Phone className="w-4 h-4" />
+                      <Phone className="w-4.5 h-4.5" />
                     </button>
                     <button 
-                      onClick={() => handleCall('video')}
-                      className="w-9 h-9 rounded-xl hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100 flex items-center justify-center text-slate-450 hover:text-indigo-400 transition-colors"
+                      onClick={() => setShowSharedMedia(!showSharedMedia)}
+                      title="Search in chat"
+                      className="p-2 rounded-full hover:bg-[#2a3942] hover:text-[#e9edef] transition-colors"
                     >
-                      <Video className="w-4 h-4" />
+                      <Search className="w-4.5 h-4.5" />
+                    </button>
+                    <button 
+                      onClick={() => setShowSharedMedia(!showSharedMedia)}
+                      title="Menu"
+                      className="p-2 rounded-full hover:bg-[#2a3942] hover:text-[#e9edef] transition-colors"
+                    >
+                      <MoreVertical className="w-4.5 h-4.5" />
                     </button>
                   </div>
                 </div>
@@ -1905,21 +1912,20 @@ export default function Home() {
                             </div>
                           )}
 
-                          {/* Message Bubble Container */}
-                          <div className={`rounded-2xl px-4 py-2.5 shadow-md relative transition-all duration-200 ${
+{/* Message Bubble Container (WhatsApp Dark Mode) */}
+                          <div className={`rounded-lg px-3.5 py-2 shadow-sm relative transition-all duration-150 max-w-[85%] md:max-w-[70%] ${
                             isCurrentUser 
-                              ? activeTheme === 'classic-wa'
-                                ? 'bg-[#d9fdd3] dark:bg-[#005c4b] text-[#111b21] dark:text-[#e9edef] rounded-tr-none shadow-sm'
-                                : activeTheme === 'glass-wa'
-                                ? 'bg-emerald-500/10 border border-emerald-500/30 text-emerald-250 backdrop-blur-md rounded-tr-none shadow-[0_0_15px_rgba(16,185,129,0.05)]'
-                                : `${themeStyle.bubbleSent} rounded-tr-none`
-                              : activeTheme === 'classic-wa'
-                                ? 'bg-white dark:bg-[#202c33] text-slate-900 dark:text-slate-100 rounded-tl-none shadow-sm'
-                                : activeTheme === 'glass-wa'
-                                ? 'bg-slate-900/30 border border-slate-800 text-slate-200 backdrop-blur-md rounded-tl-none'
-                                : 'bg-slate-900/90 dark:bg-slate-900/90 light:bg-white text-slate-200 dark:text-slate-200 light:text-slate-800 rounded-tl-none border border-slate-800/80 dark:border-slate-800/80 light:border-slate-202 shadow-lg shadow-black/10'
+                              ? 'bg-[#005c4b] text-[#e9edef] rounded-tr-none' 
+                              : 'bg-[#202c33] text-[#e9edef] rounded-tl-none'
                           }`}>
-                            
+                            {/* Sender Name in group chats (WhatsApp pink/amber colors) */}
+                            {activeChat.isGroup && !isCurrentUser && (
+                              <div className="flex items-center justify-between gap-3 text-[11px] mb-1 font-medium select-none">
+                                <span className="text-[#e542a3]">~ {message.sender.displayName || message.sender.username}</span>
+                                <span className="text-[#8696a0] text-[10px]">{(message.sender as any).phoneNumber || message.sender.username}</span>
+                              </div>
+                            )}
+
                             {isStarred && (
                               <Star className="w-3 h-3 text-amber-400 fill-amber-400 absolute top-2 right-2" />
                             )}
@@ -2165,41 +2171,21 @@ export default function Home() {
                   </div>
                 )}
 
-                {/* Chat Message Input Box */}
+                {/* Chat Message Input Box (WhatsApp Web Dark Bar) */}
                 {!isRecording && (
                   <form 
                     onSubmit={handleSend} 
-                    className={`p-4 border-t relative z-20 shrink-0 flex items-center gap-3 ${themeLayout.inputBg} ${themeLayout.border}`}
+                    className="p-2.5 px-4 border-t border-[#222e35] bg-[#202c33] relative z-20 shrink-0 flex items-center gap-2.5"
                   >
-                    {/* Smiley Emoji Trigger (Insert Smiley face directly) */}
-                    <button
-                      type="button"
-                      onClick={() => setMessageInput(prev => prev + ' 😊')}
-                      title="Emojis"
-                      className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
-                        activeTheme === 'classic-wa' 
-                          ? 'hover:bg-slate-300/40 text-slate-550 dark:text-slate-400' 
-                          : 'bg-slate-900 border border-slate-850 hover:border-indigo-500/50 text-slate-400 hover:text-white'
-                      }`}
-                    >
-                      <Smile className="w-5 h-5" />
-                    </button>
-
                     {/* Paperclip Attach Dropdown Trigger */}
                     <div className="relative shrink-0">
                       <button
                         type="button"
                         onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
                         title="Attach Media & Files"
-                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all ${
-                          showAttachmentMenu 
-                            ? 'bg-indigo-600 text-white' 
-                            : activeTheme === 'classic-wa'
-                            ? 'hover:bg-slate-300/40 text-slate-550 dark:text-slate-400'
-                            : 'bg-slate-900 border border-slate-850 hover:border-indigo-500/50 text-slate-400 hover:text-white'
-                        }`}
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-[#8696a0] hover:text-[#e9edef] hover:bg-[#2a3942] transition-colors"
                       >
-                        <Paperclip className={`w-5 h-5 transition-transform duration-200 ${showAttachmentMenu ? 'rotate-45' : ''}`} />
+                        <Paperclip className={`w-5 h-5 transition-transform duration-200 ${showAttachmentMenu ? 'rotate-45 text-[#00a884]' : ''}`} />
                       </button>
 
                       {/* Animated Attachment Slideout Menu */}
@@ -2209,22 +2195,16 @@ export default function Home() {
                             className="fixed inset-0 z-40 bg-transparent" 
                             onClick={() => setShowAttachmentMenu(false)} 
                           />
-                          <div className={`absolute bottom-12 left-0 w-44 rounded-2xl p-2 border shadow-2xl flex flex-col gap-1 z-50 animate-in slide-in-from-bottom-3 duration-200 ${
-                            isDarkMode 
-                              ? 'bg-slate-955/95 border-slate-850 text-white backdrop-blur-xl' 
-                              : 'bg-white border-slate-200 text-slate-850 shadow-slate-950/10'
-                          }`}>
+                          <div className="absolute bottom-12 left-0 w-48 rounded-2xl p-2 bg-[#202c33] border border-[#222e35] shadow-2xl flex flex-col gap-1 z-50 text-[#e9edef]">
                             <button
                               type="button"
                               onClick={() => {
                                 setShowAttachmentMenu(false);
                                 startCamera();
                               }}
-                              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs font-medium transition-colors ${
-                                isDarkMode ? 'hover:bg-slate-900' : 'hover:bg-slate-100'
-                              }`}
+                              className="flex items-center gap-3 px-3 py-2 rounded-xl text-left text-xs hover:bg-[#2a3942] transition-colors"
                             >
-                              <Camera className="w-4 h-4 text-indigo-400" />
+                              <Camera className="w-4 h-4 text-[#00a884]" />
                               <span>Camera Snapshot</span>
                             </button>
                             
@@ -2234,31 +2214,37 @@ export default function Home() {
                                 setShowAttachmentMenu(false);
                                 document.getElementById('chat-gallery-input')?.click();
                               }}
-                              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs font-medium transition-colors ${
-                                isDarkMode ? 'hover:bg-slate-900' : 'hover:bg-slate-100'
-                              }`}
+                              className="flex items-center gap-3 px-3 py-2 rounded-xl text-left text-xs hover:bg-[#2a3942] transition-colors"
                             >
-                              <ImageIcon className="w-4 h-4 text-emerald-400" />
-                              <span>Photo Gallery</span>
+                              <ImageIcon className="w-4 h-4 text-[#00a884]" />
+                              <span>Photos & Videos</span>
                             </button>
 
                             <button
                               type="button"
                               onClick={() => {
                                 setShowAttachmentMenu(false);
-                                alert('Document sharing and storage coming soon! 📑');
+                                alert('Document sharing coming soon! 📑');
                               }}
-                              className={`flex items-center gap-2.5 px-3 py-2 rounded-xl text-left text-xs font-medium transition-colors ${
-                                isDarkMode ? 'hover:bg-slate-900' : 'hover:bg-slate-100'
-                              }`}
+                              className="flex items-center gap-3 px-3 py-2 rounded-xl text-left text-xs hover:bg-[#2a3942] transition-colors"
                             >
-                              <Lock className="w-4 h-4 text-cyan-400" />
-                              <span>File Document</span>
+                              <Lock className="w-4 h-4 text-[#00a884]" />
+                              <span>Document File</span>
                             </button>
                           </div>
                         </>
                       )}
                     </div>
+
+                    {/* Smiley Emoji Trigger */}
+                    <button
+                      type="button"
+                      onClick={() => setMessageInput(prev => prev + ' 😊')}
+                      title="Emojis"
+                      className="w-9 h-9 rounded-full flex items-center justify-center text-[#8696a0] hover:text-[#e9edef] hover:bg-[#2a3942] transition-colors"
+                    >
+                      <Smile className="w-5 h-5" />
+                    </button>
 
                     <input 
                       type="file" 
@@ -2279,19 +2265,13 @@ export default function Home() {
                     />
 
                     {/* Chat Input Text Box */}
-                    <div className={`flex-1 relative flex items-center border rounded-xl focus-within:border-indigo-500/40 transition-colors ${
-                      activeTheme === 'classic-wa'
-                        ? 'bg-white dark:bg-[#2a3942] border-[#e9edef] dark:border-[#222e35]'
-                        : 'bg-slate-900/60 dark:bg-slate-900/60 light:bg-slate-100 border-slate-805 dark:border-slate-805 light:border-slate-200'
-                    }`}>
+                    <div className="flex-1 relative flex items-center bg-[#2a3942] rounded-lg border-0 transition-colors">
                       <input
                         type="text"
-                        placeholder={editingMessage ? 'Modify message...' : 'Type a message...'}
+                        placeholder="Type a message"
                         value={messageInput}
                         onChange={handleInputChangeValue}
-                        className={`w-full bg-transparent py-2.5 pl-4 pr-10 text-xs outline-none placeholder-slate-500 font-light ${
-                          activeTheme === 'classic-wa' ? 'text-slate-800 dark:text-slate-100' : 'text-white'
-                        }`}
+                        className="w-full bg-transparent py-2 pl-4 pr-10 text-[15px] outline-none text-[#e9edef] placeholder-[#8696a0] font-normal"
                       />
                     </div>
 
@@ -2299,20 +2279,16 @@ export default function Home() {
                     {messageInput.trim() ? (
                       <button
                         type="submit"
-                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0 ${themeStyle.primary}`}
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-[#8696a0] hover:text-[#00a884] hover:bg-[#2a3942] transition-all shrink-0"
                       >
-                        <Send className="w-4 h-4" />
+                        <Send className="w-5 h-5" />
                       </button>
                     ) : (
                       <button
                         type="button"
                         onClick={startVoiceRecording}
                         title="Record Voice Note"
-                        className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shrink-0 ${
-                          activeTheme === 'classic-wa'
-                            ? 'hover:bg-slate-300/40 text-slate-550 dark:text-slate-400'
-                            : 'bg-slate-900 border border-slate-850 hover:border-indigo-500/50 text-slate-400 hover:text-white'
-                        }`}
+                        className="w-9 h-9 rounded-full flex items-center justify-center text-[#8696a0] hover:text-[#e9edef] hover:bg-[#2a3942] transition-all shrink-0"
                       >
                         <Mic className="w-5 h-5" />
                       </button>
@@ -2503,30 +2479,21 @@ export default function Home() {
 
             </div>
           ) : (
-            /* EMPTY CHAT PLACEHOLDER SCREEN */
-            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 select-none h-full bg-slate-955 dark:bg-slate-955 light:bg-slate-100">
+/* EMPTY CHAT PLACEHOLDER SCREEN (WhatsApp Web Windows banner) */
+            <div className="flex-1 flex flex-col items-center justify-center text-center p-8 select-none h-full bg-[#222e35] border-b-4 border-[#00a884] text-[#e9edef]">
               <div className="relative mb-6">
-                <div className="w-16 h-16 rounded-3xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center shadow-lg shadow-indigo-500/5">
-                  <MessageSquare className="w-8 h-8 text-indigo-400" />
+                <div className="w-24 h-24 rounded-full bg-[#111b21] border border-[#222e35] flex items-center justify-center shadow-xl">
+                  <Smartphone className="w-12 h-12 text-[#00a884]" />
                 </div>
-                <div className="absolute -top-1 -right-1 w-4 h-4 bg-violet-600/30 rounded-full animate-ping"></div>
               </div>
-              <h3 className="text-lg font-bold text-slate-200 dark:text-slate-250 light:text-slate-800 mb-2 font-semibold">Welcome to Halo Chat</h3>
-              <p className="text-slate-500 text-xs max-w-sm font-light leading-relaxed mb-8">
-                Select a conversation from the sidebar or search for active users by phone number to start chatting.
+              <h3 className="text-2xl font-light text-[#e9edef] mb-3">Download WhatsApp for Windows</h3>
+              <p className="text-[#8696a0] text-sm max-w-md font-normal leading-relaxed mb-8">
+                Make calls, share your screen and get a faster experience when you download the Windows app.
               </p>
               
-              <div className="grid grid-cols-2 gap-4 max-w-lg w-full">
-                <div className="p-4 bg-slate-900/10 dark:bg-slate-900/10 light:bg-white border border-slate-900 dark:border-slate-900 light:border-slate-200 rounded-2xl text-left shadow-sm">
-                  <Shield className="w-4 h-4 text-indigo-400 mb-2" />
-                  <h4 className="text-xs font-semibold text-slate-350 dark:text-slate-300 light:text-slate-700 mb-1">Encrypted Sessions</h4>
-                  <p className="text-[10px] text-slate-500 leading-normal font-light">Secure handshake via JWT tokens over SSL-encrypted WebSocket channels.</p>
-                </div>
-                <div className="p-4 bg-slate-900/10 dark:bg-slate-900/10 light:bg-white border border-slate-900 dark:border-slate-900 light:border-slate-200 rounded-2xl text-left shadow-sm">
-                  <Phone className="w-4 h-4 text-violet-400 mb-2" />
-                  <h4 className="text-xs font-semibold text-slate-350 dark:text-slate-300 light:text-slate-700 mb-1">Real-Time Sync</h4>
-                  <p className="text-[10px] text-slate-500 leading-normal font-light">Online indicators, typing status, and message reactions update instantly.</p>
-                </div>
+              <div className="mt-8 flex items-center gap-2 text-xs text-[#8696a0]">
+                <Lock className="w-3.5 h-3.5" />
+                <span>End-to-end encrypted</span>
               </div>
             </div>
           )}
