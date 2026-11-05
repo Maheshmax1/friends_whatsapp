@@ -703,7 +703,7 @@ export default function Home() {
 
   const handleCall = (type: 'voice' | 'video') => {
     if (!activeChat || !activeChat.otherMember) return;
-    emitCallUser(type, activeChat.otherMember.id, user?.displayName || user?.username || 'Halo User');
+    emitCallUser(type, activeChat.otherMember.id, user?.displayName || user?.username || 'WhatsApp User');
     setCallModal({
       isOpen: true,
       type,
@@ -1090,11 +1090,11 @@ export default function Home() {
         return {
           primary: 'bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-cyan-500/10',
           bubbleSent: 'bg-gradient-to-tr from-cyan-600 to-blue-500 text-white',
-          textAccent: 'text-cyan-400',
+          textAccent: 'text-[#53bdeb]',
           borderAccent: 'focus:border-cyan-500/60 focus:ring-cyan-500/20',
           ringAccent: 'border-cyan-500',
-          textAccentHover: 'hover:text-cyan-400',
-          activeBg: 'bg-cyan-600/10 text-cyan-400 border border-cyan-500/20',
+          textAccentHover: 'hover:text-[#53bdeb]',
+          activeBg: 'bg-cyan-600/10 text-[#53bdeb] border border-cyan-500/20',
         };
       case 'rose':
         return {
@@ -1129,13 +1129,13 @@ export default function Home() {
       case 'royal':
       default:
         return {
-          primary: 'bg-indigo-600 hover:bg-indigo-500 text-white shadow-indigo-600/10',
+          primary: 'bg-[#00a884] hover:bg-[#00a884] text-white shadow-indigo-600/10',
           bubbleSent: 'bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 text-white',
-          textAccent: 'text-indigo-400',
-          borderAccent: 'focus:border-indigo-500/60 focus:ring-indigo-500/20',
-          ringAccent: 'border-indigo-500',
-          textAccentHover: 'hover:text-indigo-400',
-          activeBg: 'bg-indigo-600/10 text-indigo-400 border border-indigo-500/20',
+          textAccent: 'text-[#00a884]',
+          borderAccent: 'focus:border-[#00a884]/60 focus:ring-indigo-500/20',
+          ringAccent: 'border-[#00a884]',
+          textAccentHover: 'hover:text-[#00a884]',
+          activeBg: 'bg-[#00a884]/10 text-[#00a884] border border-[#00a884]/20',
         };
     }
   };
@@ -1177,7 +1177,7 @@ export default function Home() {
         chatHeader: 'bg-slate-955/40 dark:bg-slate-955/40 light:bg-slate-100/50 backdrop-blur-md',
         chatBg: 'bg-gradient-to-br from-slate-950 via-indigo-950/10 to-slate-955',
         inputBg: 'bg-slate-955/40 dark:bg-slate-955/40 light:bg-slate-100/50 backdrop-blur-md',
-        activeChatBg: 'bg-indigo-900/20 text-indigo-200 border border-indigo-500/20',
+        activeChatBg: 'bg-[#00a884]/20 text-indigo-200 border border-[#00a884]/20',
         chatItemHover: 'hover:bg-slate-900/60 dark:hover:bg-slate-900/60 light:hover:bg-slate-100/60',
         textPrimary: 'text-white dark:text-white light:text-slate-800',
         textSecondary: 'text-slate-450 dark:text-slate-400 light:text-slate-500',
@@ -1192,7 +1192,7 @@ export default function Home() {
       chatHeader: 'bg-slate-955/45 dark:bg-slate-955/45 light:bg-white/85 backdrop-blur-md',
       chatBg: getWallpaperClass(),
       inputBg: 'bg-slate-955/80 dark:bg-slate-955/80 light:bg-white backdrop-blur-xl',
-      activeChatBg: 'bg-indigo-950/20 border border-indigo-500/20',
+      activeChatBg: 'bg-indigo-950/20 border border-[#00a884]/20',
       chatItemHover: 'hover:bg-slate-900 dark:hover:bg-slate-900 light:hover:bg-slate-100',
       textPrimary: 'text-white dark:text-white light:text-slate-800',
       textSecondary: 'text-slate-450 dark:text-slate-400 light:text-slate-500',
@@ -1223,17 +1223,17 @@ export default function Home() {
   // APP PIN CODE LOCK SCREEN LAYOUT (Rendered on load if lock active)
   if (appLocked) {
     return (
-      <div className="h-dvh w-screen flex items-center justify-center bg-slate-955 relative overflow-hidden px-4">
+      <div className="h-dvh w-screen flex items-center justify-center bg-[#0b141a] wa-doodle-bg relative overflow-hidden px-4">
         {/* Glow decoration */}
-        <div className="absolute top-1/3 left-1/3 w-[30rem] h-[30rem] bg-indigo-500/10 rounded-full blur-[130px] pointer-events-none animate-pulse"></div>
+        <div className="absolute top-1/3 left-1/3 w-[30rem] h-[30rem] bg-[#00a884]/10 rounded-full blur-[130px] pointer-events-none animate-pulse"></div>
 
-        <div className="w-full max-w-sm glass bg-slate-900/40 backdrop-blur-3xl border border-slate-805/80 shadow-[0_0_50px_rgba(99,102,241,0.12)] rounded-[32px] p-8 relative z-10 text-center flex flex-col items-center">
-          <div className="w-14 h-14 bg-gradient-to-tr from-indigo-500 to-purple-500 rounded-2xl flex items-center justify-center shadow-lg mb-6">
-            <Lock className="w-7 h-7 text-white" />
+        <div className="w-full max-w-sm bg-[#111b21] border border-[#222e35] shadow-2xl rounded-[32px] p-8 relative z-10 text-center flex flex-col items-center text-[#e9edef]">
+          <div className="w-14 h-14 bg-[#00a884] rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 mb-6">
+            <Lock className="w-7 h-7 text-[#111b21]" />
           </div>
           
-          <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-200 to-violet-100 mb-1">Halo Chat Locked</h2>
-          <p className="text-[11px] text-slate-500 font-light mb-8">Enter access code or scan biometric fingerprint</p>
+          <h2 className="text-xl font-bold text-[#e9edef] mb-1">WhatsApp Locked</h2>
+          <p className="text-xs text-[#8696a0] font-normal mb-8">Enter access PIN or use fingerprint scanner</p>
 
           <form onSubmit={handlePinSubmit} className="w-full space-y-4">
             <input
@@ -1246,23 +1246,23 @@ export default function Home() {
                 setPinInput(e.target.value);
                 setPinError(false);
               }}
-              className="w-full bg-slate-950/80 border border-slate-805 focus:border-indigo-500/80 rounded-xl py-3 text-center text-xl tracking-[1em] outline-none text-white font-bold"
+              className="w-full bg-[#202c33] border border-[#222e35] focus:border-[#00a884] rounded-xl py-3 text-center text-xl tracking-[1em] outline-none text-[#e9edef] font-bold"
             />
             {pinError && (
-              <span className="text-[10px] text-rose-400 block font-light">Incorrect PIN. Try again.</span>
+              <span className="text-[11px] text-rose-400 block font-normal">Incorrect PIN. Try again.</span>
             )}
             <button
               type="submit"
-              className={`w-full py-3 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all ${themeStyle.primary}`}
+              className="w-full py-3 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all bg-[#00a884] hover:bg-[#008f6f] text-white shadow-md"
             >
-              Verify PIN Code
+              Unlock WhatsApp
             </button>
           </form>
 
           <div className="w-full flex items-center justify-center my-6 gap-2">
-            <div className="h-[1px] bg-slate-850 flex-1"></div>
-            <span className="text-[9px] text-slate-500 uppercase tracking-widest">or</span>
-            <div className="h-[1px] bg-slate-850 flex-1"></div>
+            <div className="h-[1px] bg-[#222e35] flex-1"></div>
+            <span className="text-[10px] text-[#8696a0] uppercase tracking-widest">or</span>
+            <div className="h-[1px] bg-[#222e35] flex-1"></div>
           </div>
 
           {/* Fingerprint click simulation (4. App Lock) */}
@@ -1270,17 +1270,17 @@ export default function Home() {
             type="button"
             onClick={handleFingerprintScan}
             disabled={isScanningFingerprint}
-            className={`w-16 h-16 rounded-full border border-slate-800 hover:border-indigo-500/50 flex items-center justify-center transition-colors group relative ${
-              isScanningFingerprint ? 'bg-indigo-900/20 border-indigo-500' : 'bg-slate-950/40'
+            className={`w-16 h-16 rounded-full border border-[#222e35] hover:border-[#00a884]/60 flex items-center justify-center transition-colors group relative ${
+              isScanningFingerprint ? 'bg-[#00a884]/20 border-[#00a884]' : 'bg-[#202c33]'
             }`}
           >
             {isScanningFingerprint ? (
-              <Loader2 className="w-7 h-7 text-indigo-400 animate-spin" />
+              <Loader2 className="w-7 h-7 text-[#00a884] animate-spin" />
             ) : (
-              <Smartphone className="w-7 h-7 text-slate-400 group-hover:text-indigo-400 transition-colors" />
+              <Smartphone className="w-7 h-7 text-[#8696a0] group-hover:text-[#00a884] transition-colors" />
             )}
           </button>
-          <span className="text-[9px] text-slate-500 mt-2 block font-light">Click sensor to scan (PIN is 1111)</span>
+          <span className="text-[11px] text-[#8696a0] mt-2 block font-normal">Click sensor to scan (PIN is 1111)</span>
         </div>
       </div>
     );
@@ -1311,9 +1311,9 @@ export default function Home() {
           {step === 'phone' ? (
             <form onSubmit={handleCheckPhone} className="space-y-5">
               <div>
-                <label className="block text-slate-400 text-[10px] font-bold uppercase tracking-widest mb-2">Phone Number</label>
+                <label className="block text-[#8696a0] text-[11px] font-semibold uppercase tracking-wider mb-2">Phone Number</label>
                 <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 text-sm font-semibold">
+                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#8696a0] text-sm font-semibold">
                     +91
                   </div>
                   <input
@@ -1322,7 +1322,7 @@ export default function Home() {
                     placeholder="Enter phone number (e.g. 9876543210)"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
-                    className="w-full bg-slate-950/80 border border-slate-805 focus:border-indigo-500/80 rounded-xl py-3.5 pl-14 pr-4 text-white text-xs outline-none transition-all focus:ring-1 focus:ring-indigo-500/20"
+                    className="w-full bg-[#202c33] border border-[#222e35] focus:border-[#00a884] rounded-xl py-3.5 pl-14 pr-4 text-[#e9edef] text-xs outline-none transition-all placeholder-[#8696a0]"
                   />
                 </div>
               </div>
@@ -1330,7 +1330,7 @@ export default function Home() {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-gradient-to-tr from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-500 text-white rounded-xl py-3.5 text-xs font-semibold transition-all shadow-lg shadow-indigo-600/15 flex items-center justify-center gap-2 group disabled:opacity-50"
+                className="w-full bg-[#00a884] hover:bg-[#008f6f] text-white rounded-xl py-3.5 text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-2 group disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -1346,8 +1346,8 @@ export default function Home() {
             <form onSubmit={handleLoginWithPassword} className="space-y-5">
               <div>
                 <div className="flex justify-between items-baseline mb-2">
-                  <label className="block text-slate-400 text-[10px] font-bold uppercase tracking-widest">Enter Password</label>
-                  <button type="button" onClick={() => setStep('phone')} className="text-indigo-400 text-xs hover:underline">
+                  <label className="block text-[#8696a0] text-[11px] font-semibold uppercase tracking-wider">Enter Password</label>
+                  <button type="button" onClick={() => setStep('phone')} className="text-[#00a884] text-xs hover:underline">
                     Change Number
                   </button>
                 </div>
@@ -1357,18 +1357,18 @@ export default function Home() {
                   placeholder="Enter password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-slate-950/80 border border-slate-805 focus:border-indigo-500/80 rounded-xl py-3.5 px-4 text-white text-xs outline-none transition-all focus:ring-1 focus:ring-indigo-500/20 font-medium animate-in fade-in"
+                  className="w-full bg-[#202c33] border border-[#222e35] focus:border-[#00a884] rounded-xl py-3.5 px-4 text-[#e9edef] text-xs outline-none transition-all font-medium animate-in fade-in placeholder-[#8696a0]"
                 />
               </div>
 
-              <div className="p-3 bg-slate-950/40 border border-slate-850 rounded-2xl text-[10px] text-slate-500 text-center leading-relaxed font-light">
+              <div className="p-3 bg-[#182229] border border-[#222e35] rounded-2xl text-[11px] text-[#8696a0] text-center leading-relaxed font-normal">
                 This number is registered. Enter your account password to log in.
               </div>
 
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-gradient-to-tr from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-505 text-white rounded-xl py-3.5 text-xs font-semibold transition-all shadow-lg shadow-indigo-600/15 flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full bg-[#00a884] hover:bg-[#008f6f] text-white rounded-xl py-3.5 text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -1381,8 +1381,8 @@ export default function Home() {
             <form onSubmit={handleRegisterWithPassword} className="space-y-5">
               <div>
                 <div className="flex justify-between items-baseline mb-2">
-                  <label className="block text-slate-400 text-[10px] font-bold uppercase tracking-widest">Set Password</label>
-                  <button type="button" onClick={() => setStep('phone')} className="text-indigo-400 text-xs hover:underline">
+                  <label className="block text-[#8696a0] text-[11px] font-semibold uppercase tracking-wider">Set Password</label>
+                  <button type="button" onClick={() => setStep('phone')} className="text-[#00a884] text-xs hover:underline">
                     Change Number
                   </button>
                 </div>
@@ -1392,18 +1392,18 @@ export default function Home() {
                   placeholder="Choose password for next login"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-slate-950/80 border border-slate-805 focus:border-indigo-500/80 rounded-xl py-3.5 px-4 text-white text-xs outline-none transition-all focus:ring-1 focus:ring-indigo-500/20 font-medium animate-in fade-in"
+                  className="w-full bg-[#202c33] border border-[#222e35] focus:border-[#00a884] rounded-xl py-3.5 px-4 text-[#e9edef] text-xs outline-none transition-all font-medium animate-in fade-in placeholder-[#8696a0]"
                 />
               </div>
 
-              <div className="p-3 bg-indigo-950/20 border border-indigo-900/30 rounded-2xl text-[10px] text-indigo-300 text-center leading-relaxed font-light">
+              <div className="p-3 bg-[#182229] border border-[#222e35] rounded-2xl text-[11px] text-[#00a884] text-center leading-relaxed font-normal">
                 This number is not registered. Choose a password now to create your account and use it for future logins.
               </div>
 
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="w-full bg-gradient-to-tr from-indigo-600 to-violet-600 hover:from-indigo-500 hover:to-violet-505 text-white rounded-xl py-3.5 text-xs font-semibold transition-all shadow-lg shadow-indigo-600/15 flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full bg-[#00a884] hover:bg-[#008f6f] text-white rounded-xl py-3.5 text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {isSubmitting ? (
                   <Loader2 className="w-4 h-4 animate-spin" />
@@ -1429,8 +1429,8 @@ export default function Home() {
       {/* 5. DRAG & DROP attachment visual overlay */}
       {isDraggingFile && (
         <div className="absolute inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center text-center pointer-events-none animate-in fade-in duration-200">
-          <div className="w-24 h-24 rounded-full border border-dashed border-indigo-500 flex items-center justify-center mb-6 animate-pulse">
-            <Paperclip className="w-10 h-10 text-indigo-400" />
+          <div className="w-24 h-24 rounded-full border border-dashed border-[#00a884] flex items-center justify-center mb-6 animate-pulse">
+            <Paperclip className="w-10 h-10 text-[#00a884]" />
           </div>
           <h2 className="text-xl font-bold text-white">Send Media File</h2>
           <p className="text-slate-400 text-xs mt-1 font-light">Drop attachments anywhere to send them instantly</p>
@@ -1489,7 +1489,7 @@ export default function Home() {
               onClick={() => {
                 alert('Meta AI Chat assistant connected to Friends WhatsApp!');
               }}
-              className="p-2.5 rounded-xl hover:bg-[#2a3942] transition-colors text-cyan-400 group relative"
+              className="p-2.5 rounded-xl hover:bg-[#2a3942] transition-colors text-[#53bdeb] group relative"
               title="Meta AI"
             >
               <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-blue-500 via-indigo-500 to-purple-500 p-0.5 flex items-center justify-center">
@@ -2045,14 +2045,14 @@ export default function Home() {
                               <button
                                 onClick={() => { setReplyingToMessage(message); setEditingMessage(null); }}
                                 title="Reply"
-                                className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-indigo-600 flex items-center justify-center text-white"
+                                className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-[#00a884] flex items-center justify-center text-white"
                               >
                                 <Reply className="w-3 h-3" />
                               </button>
                               <button
                                 onClick={() => { setEditingMessage(message); setMessageInput(message.content); setReplyingToMessage(null); }}
                                 title="Edit"
-                                className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-indigo-600 flex items-center justify-center text-white"
+                                className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-[#00a884] flex items-center justify-center text-white"
                               >
                                 <Edit2 className="w-3 h-3" />
                               </button>
@@ -2085,8 +2085,8 @@ export default function Home() {
 
                             {/* Reply Header Quote Block */}
                             {isReplying && message.replyTo && (
-                              <div className="mb-2 p-2 rounded-lg bg-black/20 border-l-4 border-indigo-400 text-left text-[10px] opacity-80 cursor-pointer max-w-full truncate">
-                                <span className="font-semibold block text-indigo-300 leading-none">
+                              <div className="mb-2 p-2 rounded-lg bg-black/20 border-l-4 border-[#00a884] text-left text-[10px] opacity-80 cursor-pointer max-w-full truncate">
+                                <span className="font-semibold block text-[#00a884] leading-none">
                                   {message.replyTo.sender.displayName || message.replyTo.sender.username}
                                 </span>
                                 <span className="text-slate-350 block mt-0.5 truncate leading-tight">
@@ -2124,7 +2124,7 @@ export default function Home() {
                                 isCurrentUser 
                                   ? activeTheme === 'classic-wa' 
                                     ? 'text-slate-500/80 dark:text-[#aebac1]/80' 
-                                    : 'text-indigo-200/80' 
+                                    : 'text-[#8696a0]' 
                                   : 'text-slate-500 dark:text-[#aebac1]/60'
                               }`}>
                                 {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
@@ -2148,7 +2148,7 @@ export default function Home() {
                                 {Array.from(new Set(messageReactions.map(r => r.emoji))).slice(0, 3).map((emoji, idx) => (
                                   <span key={idx}>{emoji}</span>
                                 ))}
-                                <span className="text-[8px] font-bold text-indigo-400 ml-1">{messageReactions.length}</span>
+                                <span className="text-[8px] font-bold text-[#00a884] ml-1">{messageReactions.length}</span>
                               </div>
                             )}
 
@@ -2222,7 +2222,7 @@ export default function Home() {
                               <button
                                 onClick={() => { setReplyingToMessage(message); setEditingMessage(null); }}
                                 title="Reply"
-                                className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-indigo-600 flex items-center justify-center text-white"
+                                className="w-6 h-6 rounded-full bg-slate-900/80 hover:bg-[#00a884] flex items-center justify-center text-white"
                               >
                                 <Reply className="w-3 h-3" />
                               </button>
@@ -2243,9 +2243,9 @@ export default function Home() {
                     <div className="flex justify-start">
                       <div className="bg-slate-900/90 backdrop-blur-md border border-slate-805/80 rounded-2xl rounded-tl-none px-4 py-2.5 max-w-[60%] text-slate-400 flex items-center gap-1.5 animate-pulse">
                         <span className="text-[11px] font-light">typing</span>
-                        <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
-                        <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
-                        <span className="w-1 h-1 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
+                        <span className="w-1.5 h-1.5 bg-[#25d366] rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
+                        <span className="w-1.5 h-1.5 bg-[#25d366] rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
+                        <span className="w-1.5 h-1.5 bg-[#25d366] rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                       </div>
                     </div>
                   )}
@@ -2255,8 +2255,8 @@ export default function Home() {
                 {/* Input Action Previews */}
                 {replyingToMessage && (
                   <div className="px-4 py-2 bg-slate-955/90 border-t border-slate-900 flex justify-between items-center relative z-20 shrink-0">
-                    <div className="border-l-4 border-indigo-500 pl-3 py-1 flex-1 min-w-0">
-                      <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-wider block">Replying to Message</span>
+                    <div className="border-l-4 border-[#00a884] pl-3 py-1 flex-1 min-w-0">
+                      <span className="text-[9px] font-semibold text-[#00a884] uppercase tracking-wider block">Replying to Message</span>
                       <p className="text-[11px] text-slate-300 truncate font-light mt-0.5">
                         {replyingToMessage.content}
                       </p>
@@ -2451,31 +2451,31 @@ export default function Home() {
               </div>
 
               {/* ======================================================== */}
-              {/* 16. USER INFORMATION & COLLAPSIBLE RIGHT SIDEBAR */}
+              {/* 16. USER INFORMATION & COLLAPSIBLE RIGHT SIDEBAR (WhatsApp Web) */}
               {/* ======================================================== */}
               {showSharedMedia && (
-                <div className="w-[300px] md:w-[320px] border-l border-slate-900 dark:border-slate-900 light:border-slate-202 bg-slate-955/95 backdrop-blur-3xl h-full flex flex-col shrink-0 relative z-20 animate-in slide-in-from-right duration-200 select-none text-white overflow-hidden">
+                <div className="w-[300px] md:w-[340px] border-l border-[#222e35] bg-[#111b21] h-full flex flex-col shrink-0 relative z-20 animate-in slide-in-from-right duration-200 select-none text-[#e9edef] overflow-hidden">
                   
                   {/* Header */}
-                  <div className="p-4 border-b border-slate-900 dark:border-slate-900 light:border-slate-200 flex justify-between items-center shrink-0">
-                    <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-400">
-                      {activeChat.isGroup ? 'Group Information' : 'User Information'}
+                  <div className="p-3.5 px-4 bg-[#202c33] border-b border-[#222e35] flex justify-between items-center shrink-0">
+                    <span className="text-xs font-semibold text-[#e9edef]">
+                      {activeChat.isGroup ? 'Group info' : 'Contact info'}
                     </span>
                     <button 
                       onClick={() => setShowSharedMedia(false)}
-                      className="w-7 h-7 rounded-full hover:bg-slate-900 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                      className="w-7 h-7 rounded-full hover:bg-[#2a3942] flex items-center justify-center text-[#8696a0] hover:text-[#e9edef] transition-colors"
                     >
-                      <X className="w-4 h-4" />
+                      <X className="w-4.5 h-4.5" />
                     </button>
                   </div>
                   
                   {/* Body Content */}
-                  <div className="flex-1 overflow-y-auto p-4 space-y-5 scrollbar-thin">
+                  <div className="flex-1 overflow-y-auto p-4 space-y-4 divide-y divide-[#222e35]/60">
                     
                     {/* 1. Profile Picture & Core Status */}
-                    <div className="flex flex-col items-center text-center pb-4 border-b border-slate-900/60 dark:border-slate-900/60 light:border-slate-100">
+                    <div className="flex flex-col items-center text-center pb-4">
                       <div className="relative mb-3">
-                        <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-indigo-500/20 to-violet-500/20 border border-indigo-500/20 flex items-center justify-center font-bold text-2xl shadow-xl shadow-indigo-500/5 overflow-hidden shrink-0">
+                        <div className="w-24 h-24 rounded-full bg-[#202c33] border-2 border-[#222e35] flex items-center justify-center font-bold text-2xl shadow-xl overflow-hidden shrink-0 text-[#e9edef]">
                           {activeChat.otherMember?.avatarUrl ? (
                             <img src={activeChat.otherMember.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
                           ) : (
@@ -2484,120 +2484,101 @@ export default function Home() {
                         </div>
                         {/* Online Status Dot */}
                         {!activeChat.isGroup && (
-                          <div className={`absolute bottom-0 right-0 w-4 h-4 border-2 border-slate-950 rounded-full ${
+                          <div className={`absolute bottom-1 right-1 w-4 h-4 border-2 border-[#111b21] rounded-full ${
                             activeChat.otherMember?.isOnline || onlineUsers[activeChat.otherMember?.id || '']
-                              ? 'bg-emerald-500 animate-pulse'
-                              : 'bg-slate-600'
+                              ? 'bg-[#25d366]'
+                              : 'bg-[#8696a0]'
                           }`} />
                         )}
                       </div>
                       
-                      <h4 className="text-sm font-bold text-slate-100 leading-tight">{activeChat.name}</h4>
-                      <p className="text-[10px] text-slate-500 mt-1">
+                      <h4 className="text-base font-normal text-[#e9edef] leading-tight">{activeChat.name}</h4>
+                      <p className="text-xs text-[#8696a0] mt-1 font-normal">
                         {activeChat.isGroup 
-                          ? 'Group Chat' 
+                          ? 'Group conversation' 
                           : activeChat.otherMember?.phoneNumber || 'No phone number'}
                       </p>
                       
                       {/* Last Seen Status Text */}
-                      <span className="text-[9px] mt-2 block px-2.5 py-0.5 rounded-full bg-slate-900/80 border border-slate-850 font-light">
+                      <span className="text-xs mt-2 block px-3 py-1 rounded-full bg-[#202c33] border border-[#222e35] text-[#8696a0]">
                         {activeChat.isGroup ? (
                           'Group conversation'
                         ) : activeChat.otherMember?.isOnline || onlineUsers[activeChat.otherMember?.id || ''] ? (
-                          <span className="text-emerald-400 font-semibold">Online Status: Active Now</span>
+                          <span className="text-[#25d366] font-medium">online</span>
                         ) : (
-                          <span className="text-slate-400">Last Seen: Yesterday, 10:15 PM</span>
+                          <span>last seen recently</span>
                         )}
                       </span>
                     </div>
 
                     {/* 2. Biography / About Card */}
-                    <div>
-                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">About</span>
-                      <div className="p-3 rounded-2xl bg-slate-900/40 border border-slate-850 dark:border-slate-850 light:bg-slate-50 light:border-slate-200">
-                        <p className="text-xs text-slate-350 dark:text-slate-350 light:text-slate-700 leading-relaxed font-light break-words">
+                    <div className="pt-3">
+                      <span className="text-xs font-semibold text-[#8696a0] uppercase tracking-wider block mb-1.5">About</span>
+                      <div className="p-3 rounded-xl bg-[#202c33] border border-[#222e35]">
+                        <p className="text-xs text-[#e9edef] leading-relaxed break-words">
                           {activeChat.isGroup 
                             ? (activeChat.description || 'No group description set.')
-                            : (activeChat.otherMember?.bio || 'Hey there! I am using Halo Chat.')}
+                            : (activeChat.otherMember?.bio || 'Hey there! I am using WhatsApp.')}
                         </p>
                       </div>
                     </div>
 
                     {/* 3. Mute Notifications Switch */}
-                    <div className="flex items-center justify-between p-3 rounded-2xl bg-slate-900/30 border border-slate-850 dark:border-slate-850 light:bg-slate-50 light:border-slate-200">
+                    <div className="pt-3 flex items-center justify-between p-3 rounded-xl bg-[#202c33] border border-[#222e35]">
                       <div className="flex items-center gap-2.5">
-                        <Bell className={`w-4 h-4 ${isMuted ? 'text-indigo-400 animate-swing' : 'text-slate-405'}`} />
+                        <Bell className={`w-4 h-4 ${isMuted ? 'text-[#00a884]' : 'text-[#8696a0]'}`} />
                         <div className="text-left">
-                          <span className="text-xs font-semibold block text-slate-200 dark:text-slate-200 light:text-slate-800 leading-none">Mute Notifications</span>
-                          <span className="text-[9px] text-slate-500 font-light mt-1 block">Silence alerts for this conversation</span>
+                          <span className="text-xs font-medium block text-[#e9edef] leading-none">Mute notifications</span>
+                          <span className="text-[11px] text-[#8696a0] mt-1 block">Silence alerts for this chat</span>
                         </div>
                       </div>
                       <button 
                         onClick={() => setIsMuted(!isMuted)} 
-                        className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-250 outline-none shrink-0 ${
-                          isMuted ? 'bg-indigo-500' : 'bg-slate-800 dark:bg-slate-800 light:bg-slate-300'
+                        className={`w-9 h-5 rounded-full p-0.5 transition-colors duration-200 outline-none shrink-0 ${
+                          isMuted ? 'bg-[#00a884]' : 'bg-[#111b21] border border-[#222e35]'
                         }`}
                       >
-                        <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-transform duration-250 ${
+                        <div className={`w-4 h-4 bg-white rounded-full shadow-md transition-transform duration-200 ${
                           isMuted ? 'translate-x-4' : 'translate-x-0'
                         }`} />
                       </button>
                     </div>
 
                     {/* 4. Shared Media & Attachments */}
-                    <div className="space-y-3">
+                    <div className="pt-3 space-y-2.5">
                       <div className="flex justify-between items-center">
-                        <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider">Shared Media</span>
-                        <span className="text-[9px] text-indigo-400 font-medium cursor-pointer hover:underline">See all</span>
+                        <span className="text-xs font-semibold text-[#8696a0] uppercase tracking-wider">Media, links and docs</span>
+                        <span className="text-xs text-[#00a884] font-medium cursor-pointer hover:underline">See all</span>
                       </div>
                       
-                      <div className="space-y-2">
-                        {/* Mock attachments */}
-                        <div className="grid grid-cols-3 gap-2">
-                          {[1, 2, 3].map((num) => (
-                            <div key={num} className="aspect-square bg-slate-900/60 hover:bg-slate-900 border border-slate-850 hover:border-indigo-500/20 rounded-xl flex flex-col items-center justify-center text-slate-650 hover:text-indigo-400 transition-colors cursor-pointer group">
-                              <ImageIcon className="w-5 h-5 group-hover:scale-105 transition-transform" />
-                              <span className="text-[8px] mt-1">img_{num}.jpg</span>
-                            </div>
-                          ))}
-                        </div>
-                        
-                        <div className="space-y-1.5">
-                          <a href="https://railway.app" target="_blank" className="p-2.5 rounded-xl bg-slate-900/60 hover:bg-slate-900 border border-slate-850 text-[10px] flex items-center justify-between text-indigo-300 hover:text-indigo-400 transition-colors">
-                            <span className="truncate max-w-[180px]">railway.app (Stellar Spirit)</span>
-                            <ExternalLink className="w-3 h-3 shrink-0" />
-                          </a>
-                        </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[1, 2, 3].map((num) => (
+                          <div key={num} className="aspect-square bg-[#202c33] hover:bg-[#2a3942] border border-[#222e35] rounded-lg flex flex-col items-center justify-center text-[#8696a0] hover:text-[#00a884] transition-colors cursor-pointer group">
+                            <ImageIcon className="w-5 h-5 group-hover:scale-105 transition-transform" />
+                            <span className="text-[9px] mt-1 text-[#8696a0]">media_{num}</span>
+                          </div>
+                        ))}
                       </div>
                     </div>
 
                     {/* 5. Shared Mutual Groups */}
-                    <div>
-                      <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-2">Mutual Groups</span>
+                    <div className="pt-3">
+                      <span className="text-xs font-semibold text-[#8696a0] uppercase tracking-wider block mb-2">Groups in common</span>
                       <div className="space-y-1.5">
-                        <div className="p-2.5 rounded-xl bg-slate-900/40 border border-slate-850 flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-lg bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center font-bold text-[10px] text-indigo-400 shrink-0">
-                            HC
+                        <div className="p-2.5 rounded-xl bg-[#202c33] border border-[#222e35] flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-[#00a884]/20 border border-[#00a884]/30 flex items-center justify-center font-bold text-xs text-[#00a884] shrink-0">
+                            WA
                           </div>
                           <div className="text-left min-w-0">
-                            <h5 className="text-[11px] font-semibold text-slate-200 truncate leading-none">Halo Chat Developers</h5>
-                            <span className="text-[9px] text-slate-500 mt-1 block">4 members</span>
-                          </div>
-                        </div>
-                        <div className="p-2.5 rounded-xl bg-slate-900/40 border border-slate-850 flex items-center gap-3">
-                          <div className="w-7 h-7 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center font-bold text-[10px] text-emerald-400 shrink-0">
-                            PR
-                          </div>
-                          <div className="text-left min-w-0">
-                            <h5 className="text-[11px] font-semibold text-slate-200 truncate leading-none">Premium Projects</h5>
-                            <span className="text-[9px] text-slate-500 mt-1 block">12 members</span>
+                            <h5 className="text-xs font-medium text-[#e9edef] truncate leading-none">WhatsApp Developers</h5>
+                            <span className="text-[10px] text-[#8696a0] mt-1 block">4 members</span>
                           </div>
                         </div>
                       </div>
                     </div>
 
                     {/* 6. Danger Zone Action Buttons */}
-                    <div className="space-y-2 pt-2 border-t border-slate-900/60 dark:border-slate-900/60 light:border-slate-100">
+                    <div className="pt-3 space-y-2">
                       <button 
                         onClick={() => {
                           const confirm = window.confirm(`Are you sure you want to ${isBlocked ? 'unblock' : 'block'} ${activeChat.name}?`);
@@ -2606,7 +2587,7 @@ export default function Home() {
                             alert(`User has been ${isBlocked ? 'unblocked' : 'blocked'}.`);
                           }
                         }}
-                        className={`w-full py-2.5 px-4 rounded-xl border border-rose-500/30 hover:bg-rose-500/10 text-rose-400 text-xs font-semibold flex items-center justify-center gap-2 transition-colors`}
+                        className="w-full py-2.5 px-4 rounded-xl border border-rose-500/30 hover:bg-rose-500/10 text-rose-400 text-xs font-medium flex items-center justify-center gap-2 transition-colors"
                       >
                         <Ban className="w-4 h-4" />
                         <span>{isBlocked ? 'Unblock Contact' : 'Block Contact'}</span>
@@ -2619,7 +2600,7 @@ export default function Home() {
                             alert("Thank you. The report has been sent to system administrators.");
                           }
                         }}
-                        className="w-full py-2.5 px-4 rounded-xl border border-slate-855 hover:bg-slate-900 text-slate-400 hover:text-slate-350 text-xs font-semibold flex items-center justify-center gap-2 transition-colors"
+                        className="w-full py-2.5 px-4 rounded-xl border border-[#222e35] hover:bg-[#202c33] text-[#8696a0] hover:text-[#e9edef] text-xs font-medium flex items-center justify-center gap-2 transition-colors"
                       >
                         <AlertTriangle className="w-4 h-4" />
                         <span>Report Contact</span>
@@ -2667,41 +2648,29 @@ export default function Home() {
         <div 
           className={`absolute top-0 left-0 h-full w-[310px] md:w-[340px] border-r shadow-2xl flex flex-col z-50 transition-transform duration-300 ease-out ${
             showSettingsDrawer ? 'translate-x-0' : '-translate-x-full'
-          } ${
-            isDarkMode 
-              ? 'bg-slate-955/80 border-slate-900/60 backdrop-blur-2xl text-white shadow-indigo-500/5' 
-              : 'bg-white/85 border-slate-200/80 backdrop-blur-2xl text-slate-800 shadow-slate-950/5'
-          }`}
+          } bg-[#111b21] border-r border-[#222e35] text-[#e9edef] shadow-2xl`}
         >
           {/* Header Area */}
-          <div className={`p-4 border-b flex justify-between items-center shrink-0 ${
-            isDarkMode ? 'border-slate-900/65' : 'border-slate-250/60'
-          }`}>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-indigo-400">Settings Center</span>
+          <div className="p-4 bg-[#202c33] border-b border-[#222e35] flex justify-between items-center shrink-0">
+            <span className="text-sm font-semibold text-[#e9edef]">Settings</span>
             <button 
               onClick={() => setShowSettingsDrawer(false)}
-              className={`w-7 h-7 rounded-full flex items-center justify-center transition-colors ${
-                isDarkMode ? 'hover:bg-slate-900 text-slate-450 hover:text-white' : 'hover:bg-slate-100 text-slate-550 hover:text-slate-900'
-              }`}
+              className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#2a3942] text-[#8696a0] hover:text-[#e9edef] transition-colors"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
 
           {/* Tab Selection Bar */}
-          <div className={`p-2 flex gap-1 border-b shrink-0 ${
-            isDarkMode ? 'border-slate-900/65' : 'border-slate-250/60'
-          }`}>
+          <div className="p-2 flex gap-1 border-b border-[#222e35] bg-[#111b21] shrink-0">
             {(['profile', 'appearance', 'privacy'] as const).map((tab) => (
               <button
                 key={tab}
                 onClick={() => setSettingsTab(tab)}
-                className={`flex-1 py-2 text-[9px] font-bold uppercase tracking-wider rounded-xl transition-all ${
+                className={`flex-1 py-2 text-xs font-medium uppercase tracking-wider rounded-xl transition-all ${
                   settingsTab === tab
-                    ? isDarkMode 
-                      ? 'bg-indigo-650/20 text-indigo-300 border border-indigo-500/30'
-                      : 'bg-indigo-50 text-indigo-600 border border-indigo-200'
-                    : 'bg-transparent text-slate-450 hover:text-indigo-400 border border-transparent'
+                    ? 'bg-[#00a884]/20 text-[#00a884] border border-[#00a884]/30'
+                    : 'bg-transparent text-[#8696a0] hover:text-[#e9edef] border border-transparent'
                 }`}
               >
                 {tab}
@@ -2714,61 +2683,51 @@ export default function Home() {
             {settingsTab === 'profile' && (
               <form onSubmit={handleSaveSettings} className="space-y-4">
                 {/* Profile Identity Card */}
-                <div className={`p-4 rounded-3xl border space-y-4 shadow-sm relative overflow-hidden ${
-                  isDarkMode ? 'bg-slate-900/30 border-slate-850/50' : 'bg-slate-50/50 border-slate-200/80'
-                }`}>
-                  <span className="text-[9px] font-extrabold text-indigo-400 uppercase tracking-widest block text-center">My Identity</span>
+                <div className="p-4 rounded-2xl bg-[#202c33] border border-[#222e35] space-y-4">
+                  <span className="text-xs font-semibold text-[#00a884] uppercase tracking-wider block text-center">My Profile</span>
                   
                   <div className="flex flex-col items-center gap-1.5 relative">
-                    <div className="relative group cursor-pointer hover:scale-102 transition-transform">
-                      <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-indigo-500 via-purple-500 to-pink-500 p-0.5 shadow-md shadow-indigo-500/10">
+                    <div className="relative group cursor-pointer hover:scale-105 transition-transform">
+                      <div className="w-20 h-20 rounded-full border-2 border-[#00a884] p-0.5 overflow-hidden">
                         {editAvatarUrl ? (
                           <img src={editAvatarUrl} alt="Avatar" className="w-full h-full rounded-full object-cover" />
                         ) : (
-                          <div className="w-full h-full rounded-full bg-slate-950 flex items-center justify-center font-extrabold text-white text-lg">
-                            {editDisplayName.slice(0, 2).toUpperCase() || 'HA'}
+                          <div className="w-full h-full rounded-full bg-[#111b21] flex items-center justify-center font-bold text-[#e9edef] text-xl">
+                            {editDisplayName.slice(0, 2).toUpperCase() || 'WA'}
                           </div>
                         )}
                       </div>
                       <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Camera className="w-4 h-4 text-white" />
+                        <Camera className="w-5 h-5 text-white" />
                       </div>
                     </div>
-                    <span className="text-[8px] text-slate-500 font-light mt-0.5">Profile Photo</span>
+                    <span className="text-[11px] text-[#8696a0] mt-0.5">Profile Photo</span>
                   </div>
 
                   <div className="space-y-3">
                     <div>
-                      <label className="block text-[8px] font-bold uppercase tracking-wider text-slate-500 mb-1">Display Name</label>
+                      <label className="block text-xs font-medium text-[#8696a0] mb-1">Display Name</label>
                       <input
                         type="text"
                         required
                         placeholder="Enter display name"
                         value={editDisplayName}
                         onChange={(e) => setEditDisplayName(e.target.value)}
-                        className={`w-full border rounded-xl py-2 px-3 text-xs outline-none transition-all ${
-                          isDarkMode 
-                            ? 'bg-slate-955 border-slate-805 text-white focus:border-indigo-500/60' 
-                            : 'bg-white border-slate-200 text-slate-805 focus:border-indigo-500/60 shadow-inner'
-                        }`}
+                        className="w-full bg-[#111b21] border border-[#222e35] focus:border-[#00a884] text-[#e9edef] rounded-xl py-2 px-3 text-xs outline-none transition-all placeholder-[#8696a0]"
                       />
                     </div>
                     <div>
-                      <label className="block text-[8px] font-bold uppercase tracking-wider text-slate-500 mb-1">Bio / Status</label>
+                      <label className="block text-xs font-medium text-[#8696a0] mb-1">About</label>
                       <input
                         type="text"
-                        placeholder="E.g. Hey there! I am using Halo Chat."
+                        placeholder="E.g. Hey there! I am using WhatsApp."
                         value={editBio}
                         onChange={(e) => setEditBio(e.target.value)}
-                        className={`w-full border rounded-xl py-2 px-3 text-xs outline-none transition-all ${
-                          isDarkMode 
-                            ? 'bg-slate-955 border-slate-805 text-white focus:border-indigo-500/60' 
-                            : 'bg-white border-slate-200 text-slate-805 focus:border-indigo-500/60 shadow-inner'
-                        }`}
+                        className="w-full bg-[#111b21] border border-[#222e35] focus:border-[#00a884] text-[#e9edef] rounded-xl py-2 px-3 text-xs outline-none transition-all placeholder-[#8696a0]"
                       />
                     </div>
                     <div>
-                      <label className="block text-[8px] font-bold uppercase tracking-wider text-slate-500 mb-1">Avatar Image Upload</label>
+                      <label className="block text-xs font-medium text-[#8696a0] mb-1">Avatar Image Upload</label>
                       <div className="relative">
                         <input
                           type="file"
@@ -2789,16 +2748,12 @@ export default function Home() {
                         />
                         <label 
                           htmlFor="profile-avatar-upload"
-                          className={`w-full border rounded-xl py-2 px-3 text-xs outline-none transition-colors cursor-pointer flex items-center justify-between ${
-                            isDarkMode 
-                              ? 'bg-slate-955 border-slate-805 hover:border-indigo-500/50 text-slate-400 hover:text-white' 
-                              : 'bg-white border-slate-250 hover:border-indigo-500/50 text-slate-600 hover:text-slate-900 shadow-inner'
-                          }`}
+                          className="w-full bg-[#111b21] border border-[#222e35] hover:border-[#00a884] text-[#8696a0] hover:text-[#e9edef] rounded-xl py-2 px-3 text-xs outline-none transition-colors cursor-pointer flex items-center justify-between"
                         >
                           <span className="truncate max-w-[190px]">
-                            {editAvatarUrl ? 'Image Selected (Base64)' : 'Choose Image File...'}
+                            {editAvatarUrl ? 'Image Selected' : 'Choose Image File...'}
                           </span>
-                          <ImageIcon className="w-4 h-4 shrink-0 text-slate-500" />
+                          <ImageIcon className="w-4 h-4 shrink-0 text-[#00a884]" />
                         </label>
                       </div>
                     </div>
@@ -2808,7 +2763,7 @@ export default function Home() {
                 <button
                   type="submit"
                   disabled={isSavingSettings}
-                  className={`w-full py-3.5 rounded-2xl text-[10px] font-bold uppercase tracking-wider transition-all shadow-md active:scale-98 ${themeStyle.primary}`}
+                  className="w-full py-3 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all bg-[#00a884] hover:bg-[#008f6f] text-white shadow-md disabled:opacity-50"
                 >
                   {isSavingSettings ? 'Saving Updates...' : 'Save Profile Details'}
                 </button>
@@ -2820,7 +2775,7 @@ export default function Home() {
                 <div className={`p-4 rounded-3xl border space-y-4 shadow-sm ${
                   isDarkMode ? 'bg-slate-900/30 border-slate-850/50' : 'bg-slate-50/50 border-slate-200/80'
                 }`}>
-                  <span className="text-[9px] font-extrabold text-indigo-400 uppercase tracking-widest block text-center">Theme Settings</span>
+                  <span className="text-[9px] font-extrabold text-[#00a884] uppercase tracking-wider block text-center font-semibold">Theme Settings</span>
                   
                   {/* Dark Mode Switcher */}
                   <div className={`flex justify-between items-center p-2.5 rounded-xl border ${
@@ -2834,7 +2789,7 @@ export default function Home() {
                         isDarkMode ? 'hover:bg-slate-900 text-slate-450' : 'hover:bg-slate-50 text-slate-550'
                       }`}
                     >
-                      {isDarkMode ? <Moon className="w-4 h-4 text-indigo-400" /> : <Sun className="w-4 h-4 text-amber-500" />}
+                      {isDarkMode ? <Moon className="w-4 h-4 text-[#00a884]" /> : <Sun className="w-4 h-4 text-amber-500" />}
                     </button>
                   </div>
 
@@ -2849,7 +2804,7 @@ export default function Home() {
                           onClick={() => setActiveTheme(theme)}
                           className={`py-1.5 rounded-lg text-[8px] font-bold uppercase tracking-wider transition-all border ${
                             activeTheme === theme 
-                              ? 'bg-indigo-650/20 border-indigo-500 text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.15)]'
+                              ? 'bg-indigo-650/20 border-[#00a884] text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.15)]'
                               : isDarkMode
                               ? 'bg-slate-950/40 border-slate-850 text-slate-500 hover:text-slate-355'
                               : 'bg-white border-slate-200 text-slate-500 hover:text-slate-850 shadow-sm'
@@ -2877,7 +2832,7 @@ export default function Home() {
                           onClick={() => setChatWallpaper(wallpaper.id)}
                           className={`py-1.5 px-2 rounded-lg text-[9px] truncate transition-all border ${
                             chatWallpaper === wallpaper.id
-                              ? 'bg-indigo-600/10 border-indigo-500 text-indigo-300 shadow-sm'
+                              ? 'bg-[#00a884]/10 border-[#00a884] text-indigo-300 shadow-sm'
                               : isDarkMode
                               ? 'bg-slate-955 border-slate-855 text-slate-500 hover:text-slate-350'
                               : 'bg-white border-slate-200 text-slate-550 hover:text-slate-900 shadow-sm'
@@ -2899,7 +2854,7 @@ export default function Home() {
                   <div className={`p-4 rounded-3xl border space-y-3 shadow-sm ${
                     isDarkMode ? 'bg-slate-900/30 border-slate-850/50' : 'bg-slate-50/50 border-slate-200/80'
                   }`}>
-                    <span className="text-[9px] font-extrabold text-indigo-400 uppercase tracking-widest block text-center">Privacy & Security</span>
+                    <span className="text-[9px] font-extrabold text-[#00a884] uppercase tracking-wider block text-center font-semibold">Privacy & Security</span>
                     
                     <div className="space-y-3.5 pt-1">
                       <div className="flex justify-between items-center">
@@ -2907,9 +2862,9 @@ export default function Home() {
                         <button 
                           type="button"
                           onClick={() => handleTogglePrivacy('showLastSeen', user.showLastSeen)}
-                          className="text-slate-450 hover:text-indigo-400 transition-colors"
+                          className="text-slate-450 hover:text-[#00a884] transition-colors"
                         >
-                          {user.showLastSeen ? <ToggleRight className="w-6 h-6 text-indigo-400" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
+                          {user.showLastSeen ? <ToggleRight className="w-6 h-6 text-[#00a884]" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
                         </button>
                       </div>
 
@@ -2918,9 +2873,9 @@ export default function Home() {
                         <button 
                           type="button"
                           onClick={() => handleTogglePrivacy('showReadReceipts', user.showReadReceipts)}
-                          className="text-slate-455 hover:text-indigo-400 transition-colors"
+                          className="text-slate-455 hover:text-[#00a884] transition-colors"
                         >
-                          {user.showReadReceipts ? <ToggleRight className="w-6 h-6 text-indigo-400" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
+                          {user.showReadReceipts ? <ToggleRight className="w-6 h-6 text-[#00a884]" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
                         </button>
                       </div>
 
@@ -2929,9 +2884,9 @@ export default function Home() {
                         <button 
                           type="button"
                           onClick={() => handleTogglePrivacy('allowNotifications', user.allowNotifications)}
-                          className="text-slate-455 hover:text-indigo-400 transition-colors"
+                          className="text-slate-455 hover:text-[#00a884] transition-colors"
                         >
-                          {user.allowNotifications ? <ToggleRight className="w-6 h-6 text-indigo-400" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
+                          {user.allowNotifications ? <ToggleRight className="w-6 h-6 text-[#00a884]" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
                         </button>
                       </div>
                     </div>
@@ -2942,7 +2897,7 @@ export default function Home() {
                 <div className={`p-4 rounded-3xl border space-y-3 shadow-sm ${
                   isDarkMode ? 'bg-slate-900/30 border-slate-850/50' : 'bg-slate-50/50 border-slate-200/80'
                 }`}>
-                  <span className="text-[9px] font-extrabold text-indigo-400 uppercase tracking-widest block text-center">Hardware Access</span>
+                  <span className="text-[9px] font-extrabold text-[#00a884] uppercase tracking-wider block text-center font-semibold">Hardware Access</span>
                   
                   <p className="text-[9px] text-slate-500 text-center font-light leading-normal">
                     Verify camera and microphone hardware loops to troubleshoot device connection lags.
@@ -2962,7 +2917,7 @@ export default function Home() {
                     }}
                     className={`w-full border rounded-xl py-2.5 px-3 text-xs font-semibold transition-all flex items-center justify-center gap-2 ${
                       isDarkMode 
-                        ? 'bg-slate-950/40 hover:bg-indigo-600/10 border-slate-850 text-slate-350 hover:text-indigo-400 hover:border-indigo-500' 
+                        ? 'bg-slate-950/40 hover:bg-[#00a884]/10 border-slate-850 text-slate-350 hover:text-[#00a884] hover:border-[#00a884]' 
                         : 'bg-white hover:bg-indigo-50 border-slate-200 text-slate-650 hover:text-indigo-650 hover:border-indigo-400 shadow-sm'
                     }`}
                   >
@@ -2977,7 +2932,7 @@ export default function Home() {
             <div className={`p-4 rounded-3xl border space-y-2.5 shadow-sm mt-2 shrink-0 ${
               isDarkMode ? 'bg-slate-900/30 border-slate-850/50' : 'bg-slate-50/50 border-slate-200/80'
             }`}>
-              <span className="text-[9px] font-bold text-indigo-400 uppercase tracking-widest block text-center">Local Data Status</span>
+              <span className="text-[9px] font-bold text-[#00a884] uppercase tracking-wider block text-center font-semibold">Local Data Status</span>
               <div className="flex justify-between items-baseline text-[8px] text-slate-500">
                 <span>Disk Storage Used</span>
                 <span>124 MB of 5.0 GB</span>
@@ -2985,7 +2940,7 @@ export default function Home() {
               <div className={`w-full rounded-full h-1.5 overflow-hidden ${
                 isDarkMode ? 'bg-slate-950/80' : 'bg-slate-200 shadow-inner'
               }`}>
-                <div className="bg-indigo-500 h-full w-[2.5%] rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]"></div>
+                <div className="bg-[#00a884] h-full w-[2.5%] rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]"></div>
               </div>
             </div>
           </div>
@@ -2998,14 +2953,14 @@ export default function Home() {
 
       {/* 11. GROUP CREATION WIZARD MODAL */}
       {showGroupWizard && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-md flex items-center justify-center px-4">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-805 rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[85vh] text-white">
-            <div className="flex justify-between items-center mb-4 border-b border-slate-850 pb-2.5">
-              <h3 className="text-sm font-bold uppercase tracking-wider text-indigo-400">Create Group Chat</h3>
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center px-4">
+          <div className="w-full max-w-md bg-[#202c33] border border-[#222e35] rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[85vh] text-[#e9edef]">
+            <div className="flex justify-between items-center mb-4 border-b border-[#222e35] pb-2.5">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-[#00a884]">Create Group</h3>
               <button 
                 type="button"
                 onClick={() => setShowGroupWizard(false)}
-                className="w-6 h-6 rounded-full hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white"
+                className="w-7 h-7 rounded-full hover:bg-[#2a3942] flex items-center justify-center text-[#8696a0] hover:text-[#e9edef] transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -3014,34 +2969,34 @@ export default function Home() {
             <form onSubmit={handleGroupWizardSubmit} className="space-y-4 flex-1 flex flex-col overflow-hidden">
               <div className="space-y-3 shrink-0">
                 <div>
-                  <label className="block text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Group Name</label>
+                  <label className="block text-[#8696a0] text-xs font-medium uppercase tracking-wider mb-1">Group Name</label>
                   <input
                     type="text"
                     required
-                    placeholder="E.g. Squad Goals 💥"
+                    placeholder="E.g. Friends WhatsApp Group"
                     value={groupName}
                     onChange={(e) => setGroupName(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-805 rounded-xl py-2 px-3 text-xs outline-none focus:border-indigo-500"
+                    className="w-full bg-[#111b21] border border-[#222e35] focus:border-[#00a884] rounded-xl py-2 px-3 text-xs outline-none text-[#e9edef] placeholder-[#8696a0]"
                   />
                 </div>
                 <div>
-                  <label className="block text-slate-400 text-[10px] font-bold uppercase tracking-wider mb-1">Group Description</label>
+                  <label className="block text-[#8696a0] text-xs font-medium uppercase tracking-wider mb-1">Group Description</label>
                   <input
                     type="text"
                     placeholder="What is this group about?"
                     value={groupDescription}
                     onChange={(e) => setGroupDescription(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-805 rounded-xl py-2 px-3 text-xs outline-none focus:border-indigo-500"
+                    className="w-full bg-[#111b21] border border-[#222e35] focus:border-[#00a884] rounded-xl py-2 px-3 text-xs outline-none text-[#e9edef] placeholder-[#8696a0]"
                   />
                 </div>
               </div>
 
               {/* Contacts Selection */}
               <div className="flex-1 flex flex-col min-h-0">
-                <span className="block text-slate-450 text-[10px] font-bold uppercase tracking-wider mb-2 shrink-0">Select Group Members</span>
-                <div className="flex-1 overflow-y-auto space-y-1.5 pr-1">
+                <span className="block text-[#8696a0] text-xs font-medium uppercase tracking-wider mb-2 shrink-0">Select Group Members</span>
+                <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 divide-y divide-[#222e35]/40">
                   {contacts.length === 0 ? (
-                    <p className="text-[10px] text-slate-500 text-center py-4">Add some contacts first to create groups</p>
+                    <p className="text-xs text-[#8696a0] text-center py-4">Add some contacts first to create groups</p>
                   ) : (
                     contacts.map((contact) => {
                       const isSelected = selectedContacts.includes(contact.id);
@@ -3050,22 +3005,22 @@ export default function Home() {
                           key={contact.id}
                           type="button"
                           onClick={() => handleToggleWizardContact(contact.id)}
-                          className={`w-full p-2.5 rounded-2xl text-left text-xs flex items-center justify-between transition-colors ${
+                          className={"w-full p-2.5 rounded-xl text-left text-xs flex items-center justify-between transition-colors " + (
                             isSelected 
-                              ? 'bg-indigo-900/20 border border-indigo-500/30 text-indigo-200' 
-                              : 'bg-slate-950/40 hover:bg-slate-800 border border-slate-900'
-                          }`}
+                              ? 'bg-[#00a884]/20 border border-[#00a884]/40 text-[#e9edef]' 
+                              : 'bg-[#111b21] hover:bg-[#2a3942] border border-[#222e35]'
+                          )}
                         >
                           <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-slate-800 flex items-center justify-center font-bold text-[10px]">
+                            <div className="w-8 h-8 rounded-full bg-[#202c33] border border-[#222e35] flex items-center justify-center font-bold text-xs text-[#e9edef]">
                               {contact.displayName.slice(0, 2).toUpperCase()}
                             </div>
-                            <span>{contact.displayName}</span>
+                            <span className="text-[#e9edef] font-medium">{contact.displayName}</span>
                           </div>
-                          <div className={`w-4 h-4 rounded-full border flex items-center justify-center transition-all ${
-                            isSelected ? 'bg-indigo-600 border-indigo-500' : 'border-slate-700'
-                          }`}>
-                            {isSelected && <Check className="w-3 h-3 text-white" />}
+                          <div className={"w-4 h-4 rounded-full border flex items-center justify-center transition-all " + (
+                            isSelected ? 'bg-[#00a884] border-[#00a884]' : 'border-[#8696a0]'
+                          )}>
+                            {isSelected && <Check className="w-3 h-3 text-[#111b21]" />}
                           </div>
                         </button>
                       );
@@ -3074,20 +3029,20 @@ export default function Home() {
                 </div>
               </div>
 
-              <div className="flex gap-2 justify-end pt-4 border-t border-slate-850 shrink-0">
+              <div className="flex gap-2 justify-end pt-3 border-t border-[#222e35] shrink-0">
                 <button
                   type="button"
                   onClick={() => setShowGroupWizard(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-700 rounded-xl text-xs font-semibold"
+                  className="px-4 py-2 bg-[#111b21] hover:bg-[#2a3942] rounded-xl text-xs font-semibold text-[#8696a0] hover:text-[#e9edef] transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
                   disabled={!groupName.trim() || selectedContacts.length === 0}
-                  className={`px-4 py-2 ${themeStyle.primary} rounded-xl text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed`}
+                  className="px-4 py-2 bg-[#00a884] hover:bg-[#008f6f] text-white rounded-xl text-xs font-semibold shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  Assemble Group
+                  Create Group
                 </button>
               </div>
             </form>
@@ -3098,8 +3053,8 @@ export default function Home() {
       {/* 3. CAMERA RECORD SNAPSHOT MODAL */}
       {showCameraModal && (
         <div className="fixed inset-0 z-50 bg-black/85 flex flex-col items-center justify-center p-4">
-          <div className="w-full max-w-md bg-slate-900 border border-slate-805 rounded-[32px] overflow-hidden p-6 shadow-2xl relative">
-            <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-400 mb-4 text-center">Camera Snapshot</h3>
+          <div className="w-full max-w-md bg-[#202c33] border border-[#222e35] rounded-3xl overflow-hidden p-6 shadow-2xl relative text-[#e9edef]">
+            <h3 className="text-xs font-semibold uppercase tracking-wider text-[#00a884] mb-4 text-center">Camera Snapshot</h3>
             
             <div className="aspect-video bg-black rounded-2xl overflow-hidden relative border border-slate-800 mb-6">
               <video 
@@ -3119,7 +3074,7 @@ export default function Home() {
               </button>
               <button
                 onClick={captureSnapshot}
-                className={`px-5 py-2.5 ${themeStyle.primary} rounded-2xl text-xs font-bold uppercase tracking-wider`}
+                className={`px-5 py-2.5 bg-[#00a884] hover:bg-[#008f6f] text-white rounded-xl text-xs font-semibold`}
               >
                 Capture Photo
               </button>
@@ -3131,9 +3086,9 @@ export default function Home() {
       {/* 12. MESSAGE INFO MODAL (timestamps for sent, delivered, read) */}
       {messageInfoMessage && (
         <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center px-4">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-805 rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-100 text-white">
+          <div className="w-full max-w-sm bg-[#202c33] border border-[#222e35] rounded-3xl p-6 shadow-2xl text-[#e9edef]">
             <div className="flex justify-between items-center mb-4 border-b border-slate-850 pb-2.5">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-455">Message Details</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[#00a884]">Message Details</h3>
               <button 
                 onClick={() => setMessageInfoMessage(null)}
                 className="w-6 h-6 rounded-full hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white"
@@ -3161,7 +3116,7 @@ export default function Home() {
               </div>
               <div className="flex justify-between items-center text-xs">
                 <span className="text-slate-550 font-medium">Read Status</span>
-                <span className={`font-semibold ${messageInfoMessage.status === 'READ' ? 'text-cyan-400' : 'text-slate-500'}`}>
+                <span className={`font-semibold ${messageInfoMessage.status === 'READ' ? 'text-[#53bdeb]' : 'text-slate-500'}`}>
                   {messageInfoMessage.status === 'READ' ? 'Read (Blue Tick)' : 'Unread'}
                 </span>
               </div>
@@ -3181,7 +3136,7 @@ export default function Home() {
           }}
           className={`w-36 h-48 border rounded-3xl shadow-2xl z-50 overflow-hidden cursor-move select-none animate-in zoom-in-95 duration-205 flex flex-col relative ${
             isDarkMode 
-              ? 'bg-slate-950/80 border-indigo-500/30 backdrop-blur-md shadow-indigo-500/10' 
+              ? 'bg-[#111b21] border-[#222e35] shadow-2xl' 
               : 'bg-white/85 border-slate-200 backdrop-blur-md shadow-slate-400/20'
           }`}
         >
@@ -3195,7 +3150,7 @@ export default function Home() {
                 className="w-full h-full object-cover transform -scale-x-100" 
               />
               {/* Local stream as small corner bubble */}
-              <div className="absolute bottom-12 right-2 w-10 h-14 rounded-lg overflow-hidden border border-indigo-500/50 shadow-lg z-10 bg-slate-900">
+              <div className="absolute bottom-12 right-2 w-10 h-14 rounded-lg overflow-hidden border border-[#00a884]/40 shadow-lg z-10 bg-[#202c33]">
                 <video 
                   ref={localVideoRef} 
                   autoPlay 
@@ -3208,7 +3163,7 @@ export default function Home() {
           ) : (
             <div className="flex-1 flex flex-col items-center justify-center p-3 relative z-10">
               <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-2 animate-pulse ${
-                isDarkMode ? 'bg-indigo-600/20 border border-indigo-500/20 text-indigo-400' : 'bg-indigo-50 text-indigo-650'
+                isDarkMode ? 'bg-[#00a884]/20 border border-[#00a884]/30 text-[#00a884]' : 'bg-indigo-50 text-indigo-650'
               }`}>
                 <Phone className="w-5 h-5" />
               </div>
@@ -3224,7 +3179,7 @@ export default function Home() {
             <span className="text-[8px] text-white/90 truncate max-w-[50%] font-bold">{callModal.name}</span>
             <button
               onClick={() => setCallModal(prev => prev ? { ...prev, isMinimized: false } : null)}
-              className="p-1 px-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-505 text-[8px] text-white font-bold transition-all shadow-md shrink-0"
+              className="p-1 px-2.5 rounded-lg bg-[#00a884] hover:bg-[#008f6f] text-xs text-white font-semibold transition-all shadow-md shrink-0"
             >
               Expand
             </button>
@@ -3437,7 +3392,7 @@ export default function Home() {
       {/* MODAL: ON-LOAD HARDWARE PERMISSIONS REQUEST */}
       {showPermissionPrompt && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center px-4 animate-in fade-in duration-300">
-          <div className="w-full max-w-sm flex flex-col items-center p-6 bg-gradient-to-b from-slate-900 to-slate-950 border border-slate-800 rounded-[32px] text-center shadow-2xl relative text-white">
+          <div className="w-full max-w-sm flex flex-col items-center p-6 bg-[#202c33] border border-[#222e35] rounded-3xl text-center shadow-2xl relative text-white">
             <button 
               onClick={() => setShowPermissionPrompt(false)}
               className="absolute top-4 right-4 w-7 h-7 rounded-full hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
@@ -3445,13 +3400,13 @@ export default function Home() {
               <X className="w-4 h-4" />
             </button>
 
-            <div className="w-12 h-12 rounded-2xl bg-indigo-600/15 border border-indigo-500/30 flex items-center justify-center mb-4 mt-2">
-              <Video className="w-6 h-6 text-indigo-400 animate-pulse" />
+            <div className="w-12 h-12 rounded-2xl bg-[#00a884]/20 border border-[#00a884]/30 flex items-center justify-center mb-4 mt-2">
+              <Video className="w-6 h-6 text-[#00a884] animate-pulse" />
             </div>
 
             <h3 className="text-sm font-bold text-white mb-2">Enable Calling & Media</h3>
             <p className="text-[11px] text-slate-400 leading-relaxed font-light mb-6">
-              Halo Chat needs camera and microphone access to make video/voice calls and snap photos. Click grant to allow browser permissions, or select later.
+              WhatsApp Web needs camera and microphone access to make video/voice calls and snap photos. Click grant to allow browser permissions, or select later.
             </p>
 
             <div className="flex gap-2.5 w-full">
@@ -3467,7 +3422,7 @@ export default function Home() {
                     alert('Access Blocked! 🔴 Please enable permissions in your browser address bar settings.');
                   }
                 }}
-                className="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white rounded-xl py-2.5 text-xs font-semibold transition-all shadow-lg shadow-indigo-600/10"
+                className="flex-1 bg-[#00a884] hover:bg-[#008f6f] text-white rounded-xl py-2.5 text-xs font-semibold transition-all shadow-md"
               >
                 Grant Access
               </button>
@@ -3579,44 +3534,44 @@ export default function Home() {
 
       {/* MODAL: ADD CONTACT */}
       {showAddContact && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center px-4">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-805 rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
-            <h3 className="text-sm font-bold uppercase tracking-wider text-indigo-400 mb-4">Add Contact</h3>
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className="w-full max-w-sm bg-[#202c33] border border-[#222e35] rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-[#e9edef]">
+            <h3 className="text-sm font-semibold uppercase tracking-wider text-[#00a884] mb-4">Add Contact</h3>
             <form onSubmit={handleAddContactSubmit} className="space-y-4">
               <div>
-                <label className="block text-slate-400 text-[10px] font-semibold uppercase tracking-wider mb-1.5">Phone Number</label>
+                <label className="block text-[#8696a0] text-xs font-medium uppercase tracking-wider mb-1.5">Phone Number</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. +919876543210"
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
-                  className="w-full bg-slate-955 border border-slate-850 focus:border-indigo-500/60 rounded-xl py-2.5 px-3.5 text-xs outline-none transition-all text-white"
+                  className="w-full bg-[#111b21] border border-[#222e35] focus:border-[#00a884] rounded-xl py-2.5 px-3.5 text-xs outline-none transition-all text-[#e9edef] placeholder-[#8696a0]"
                 />
               </div>
               <div>
-                <label className="block text-slate-400 text-[10px] font-semibold uppercase tracking-wider mb-1.5">Nickname (Optional)</label>
+                <label className="block text-[#8696a0] text-xs font-medium uppercase tracking-wider mb-1.5">Name / Nickname</label>
                 <input
                   type="text"
-                  placeholder="e.g. Best Friend"
+                  placeholder="e.g. Mahesh Friend"
                   value={contactNickname}
                   onChange={(e) => setContactNickname(e.target.value)}
-                  className="w-full bg-slate-955 border border-slate-850 focus:border-indigo-500/60 rounded-xl py-2.5 px-3.5 text-xs outline-none transition-all text-white"
+                  className="w-full bg-[#111b21] border border-[#222e35] focus:border-[#00a884] rounded-xl py-2.5 px-3.5 text-xs outline-none transition-all text-[#e9edef] placeholder-[#8696a0]"
                 />
               </div>
               <div className="flex gap-2 justify-end pt-2">
                 <button
                   type="button"
                   onClick={() => setShowAddContact(false)}
-                  className="px-4 py-2 bg-slate-800 hover:bg-slate-705 text-white rounded-xl text-xs font-semibold transition-colors"
+                  className="px-4 py-2 bg-[#111b21] hover:bg-[#2a3942] text-[#8696a0] hover:text-[#e9edef] rounded-xl text-xs font-semibold transition-colors"
                 >
                   Cancel
                 </button>
                 <button
                   type="submit"
-                  className={`px-4 py-2 ${themeStyle.primary} rounded-xl text-xs font-semibold transition-colors`}
+                  className="px-4 py-2 bg-[#00a884] hover:bg-[#008f6f] text-white rounded-xl text-xs font-semibold transition-colors shadow-md"
                 >
-                  Add Contact
+                  Save Contact
                 </button>
               </div>
             </form>
@@ -3626,34 +3581,34 @@ export default function Home() {
 
       {/* MODAL: FORWARD MESSAGE */}
       {forwardingMessage && (
-        <div className="fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center px-4">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-805 rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-100 flex flex-col max-h-[70vh]">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className="w-full max-w-sm bg-[#202c33] border border-[#222e35] rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-100 flex flex-col max-h-[70vh] text-[#e9edef]">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-405">Forward Message</h3>
+              <h3 className="text-xs font-semibold uppercase tracking-wider text-[#00a884]">Forward Message</h3>
               <button 
                 onClick={() => setForwardingMessage(null)}
-                className="w-6 h-6 rounded-full hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white"
+                className="w-7 h-7 rounded-full hover:bg-[#2a3942] flex items-center justify-center text-[#8696a0] hover:text-[#e9edef] transition-colors"
               >
                 <X className="w-4.5 h-4.5" />
               </button>
             </div>
             
-            <div className="mb-4 p-2 rounded-xl bg-black/30 border border-slate-850 text-slate-300 text-xs truncate max-w-full font-light italic">
+            <div className="mb-4 p-2.5 rounded-xl bg-[#111b21] border border-[#222e35] text-[#8696a0] text-xs truncate max-w-full italic">
               "{forwardingMessage.content}"
             </div>
 
-            <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block mb-2 font-semibold">Select Recipient Chat</span>
-            <div className="flex-1 overflow-y-auto space-y-1 pr-1">
+            <span className="text-xs font-semibold text-[#8696a0] uppercase tracking-wider block mb-2">Select Chat</span>
+            <div className="flex-1 overflow-y-auto space-y-1 pr-1 divide-y divide-[#222e35]/40">
               {chats.map((c) => (
                 <button
                   key={c.id}
                   onClick={() => handleSelectForwardTarget(c.id)}
-                  className="w-full p-2.5 rounded-xl hover:bg-slate-800/80 text-left text-xs flex items-center gap-3 text-slate-200 transition-colors"
+                  className="w-full p-2.5 rounded-xl hover:bg-[#2a3942] text-left text-xs flex items-center gap-3 text-[#e9edef] transition-colors"
                 >
-                  <div className="w-7 h-7 rounded-full bg-slate-800 flex items-center justify-center font-bold text-[10px]">
+                  <div className="w-8 h-8 rounded-full bg-[#111b21] border border-[#222e35] flex items-center justify-center font-bold text-xs text-[#00a884]">
                     {c.name.slice(0, 2).toUpperCase()}
                   </div>
-                  <span className="truncate">{c.name}</span>
+                  <span className="truncate font-medium">{c.name}</span>
                 </button>
               ))}
             </div>
@@ -3673,7 +3628,7 @@ export default function Home() {
 
             <div className="absolute top-6 left-4 right-4 flex justify-between items-center z-30 bg-black/20 backdrop-blur-sm p-2 rounded-2xl">
               <div className="flex items-center gap-2">
-                <div className="w-9 h-9 rounded-full bg-indigo-650 flex items-center justify-center font-bold text-white text-xs overflow-hidden shrink-0 border border-indigo-500/30">
+                <div className="w-9 h-9 rounded-full bg-[#202c33] border-2 border-[#00a884] p-0.5 flex items-center justify-center font-bold text-[#e9edef] text-xs overflow-hidden shrink-0">
                   {activeStory.avatar.length > 2 && activeStory.avatar.startsWith('data:') ? (
                     <img src={activeStory.avatar} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (
@@ -3701,8 +3656,8 @@ export default function Home() {
                 </>
               ) : (
                 <>
-                  <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/40 via-purple-955/20 to-slate-950 z-0" />
-                  <div className="absolute top-1/3 left-10 text-indigo-500/10 pointer-events-none transform -rotate-12"><MessageSquare className="w-24 h-24" /></div>
+                  <div className="absolute inset-0 bg-gradient-to-br from-[#0b141a] via-[#111b21] to-[#0b141a] z-0" />
+                  <div className="absolute top-1/3 left-10 text-[#00a884]/10 pointer-events-none transform -rotate-12"><MessageSquare className="w-24 h-24" /></div>
                   <div className="absolute bottom-1/3 right-10 text-pink-500/10 pointer-events-none transform rotate-12"><Heart className="w-24 h-24" /></div>
                 </>
               )}
