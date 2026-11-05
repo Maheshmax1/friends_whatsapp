@@ -179,11 +179,33 @@ export default function Home() {
 
   // PICTURE IN PICTURE CALL BUBBLE (Floating call screen)
   const [callModal, setCallModal] = useState<{ isOpen: boolean; type: 'voice' | 'video'; name: string; isConnected?: boolean; isMinimized?: boolean } | null>(null);
+  const [callDurationSeconds, setCallDurationSeconds] = useState(0);
   const [isCallMuted, setIsCallMuted] = useState(false);
   const [isCallVideoOff, setIsCallVideoOff] = useState(false);
   const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
   const [floatingPos, setFloatingPos] = useState({ x: 20, y: 80 });
   const isDraggingFloatingRef = useRef(false);
+
+  // Live call duration timer
+  useEffect(() => {
+    let timer: NodeJS.Timeout | null = null;
+    if (callModal && callModal.isConnected) {
+      timer = setInterval(() => {
+        setCallDurationSeconds((prev) => prev + 1);
+      }, 1000);
+    } else {
+      setCallDurationSeconds(0);
+    }
+    return () => {
+      if (timer) clearInterval(timer);
+    };
+  }, [callModal?.isConnected]);
+
+  const formatCallDuration = (totalSeconds: number) => {
+    const mins = Math.floor(totalSeconds / 60);
+    const secs = totalSeconds % 60;
+    return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
 
   // STATUS & STORIES
   const [activeStory, setActiveStory] = useState<Story | null>(null);
@@ -3090,46 +3112,76 @@ export default function Home() {
         </div>
       )}
 
-      {/* REAL CALLING FULL DIALOG (Visible when not PiP minimized) */}
+      {/* REAL CALLING FULL DIALOG (WhatsApp v2.0 Frosted Glass) */}
       {callModal && !callModal.isMinimized && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex items-center justify-center px-4 animate-in fade-in duration-300">
-          <div className={`w-full max-w-md h-[560px] flex flex-col border rounded-[36px] overflow-hidden shadow-2xl relative transition-all ${
-            isDarkMode 
-              ? 'bg-slate-950/40 border-slate-900/60 shadow-indigo-500/5 text-white' 
-              : 'bg-white/60 border-white/40 shadow-slate-950/10 text-slate-800'
-          }`}>
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-2xl flex items-center justify-center px-4 animate-in fade-in duration-300">
+          <div className="w-full max-w-lg h-[620px] max-h-[92vh] flex flex-col rounded-[38px] overflow-hidden shadow-2xl relative border border-white/15 bg-gradient-to-b from-slate-950/90 via-slate-900/90 to-slate-950/95 text-white">
             
             {/* Ambient Background Glow Nodes */}
-            <div className="absolute -top-12 -left-12 w-48 h-48 rounded-full bg-indigo-500/10 blur-3xl pointer-events-none animate-pulse" style={{ animationDuration: '6s' }}></div>
-            <div className="absolute -bottom-12 -right-12 w-48 h-48 rounded-full bg-violet-500/10 blur-3xl pointer-events-none animate-pulse" style={{ animationDuration: '9s' }}></div>
+            <div className="absolute -top-16 -left-16 w-56 h-56 rounded-full bg-emerald-500/15 blur-3xl pointer-events-none animate-pulse" style={{ animationDuration: '5s' }}></div>
+            <div className="absolute -bottom-16 -right-16 w-56 h-56 rounded-full bg-teal-500/15 blur-3xl pointer-events-none animate-pulse" style={{ animationDuration: '7s' }}></div>
 
-            {/* Header indicator */}
-            <div className="absolute top-4 left-4 z-30 flex items-center gap-1.5 p-1 px-3 rounded-full bg-black/45 backdrop-blur-md border border-white/10 text-[9px] font-bold tracking-wider uppercase text-indigo-400">
-              <Shield className="w-3 h-3 text-emerald-400 animate-pulse" />
-              <span>{callModal.isConnected ? 'Secure Line Connected' : 'Connecting Line...'}</span>
+            {/* Header: WhatsApp encrypted indicator & live timer */}
+            <div className="absolute top-5 inset-x-5 z-40 flex items-center justify-between pointer-events-auto">
+              <div className="flex items-center gap-2 py-1.5 px-3.5 rounded-full bg-black/50 backdrop-blur-xl border border-white/10 text-[11px] font-medium tracking-wide text-slate-200 shadow-lg">
+                <Lock className="w-3.5 h-3.5 text-emerald-400" />
+                <span>End-to-end encrypted</span>
+              </div>
+
+              <div className="flex items-center gap-2">
+                {callModal.isConnected && (
+                  <div className="flex items-center gap-1.5 py-1.5 px-3.5 rounded-full bg-emerald-500/20 backdrop-blur-xl border border-emerald-500/30 text-xs font-mono font-semibold text-emerald-300 shadow-lg">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                    <span>{formatCallDuration(callDurationSeconds)}</span>
+                  </div>
+                )}
+                <button
+                  onClick={() => setCallModal(prev => prev ? { ...prev, isMinimized: true } : null)}
+                  className="w-8 h-8 rounded-full bg-black/50 hover:bg-black/70 backdrop-blur-xl border border-white/10 flex items-center justify-center text-slate-300 transition-colors"
+                  title="Minimize (PiP)"
+                >
+                  <Minimize2 className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* Video Viewport Area */}
-            <div className="flex-1 bg-slate-950/90 relative flex items-center justify-center overflow-hidden">
+            <div className="flex-1 relative flex items-center justify-center overflow-hidden">
               {callModal.type === 'video' ? (
                 <>
-                  {/* Main video: Partner stream */}
-                  <div className="w-full h-full bg-slate-950 relative">
+                  {/* Main video: Remote Partner stream */}
+                  <div className="w-full h-full bg-slate-950 relative flex items-center justify-center">
                     <video 
                       ref={partnerVideoRef} 
                       autoPlay 
                       playsInline 
                       className="w-full h-full object-cover transform -scale-x-100" 
-                      style={{ filter: 'brightness(95%) contrast(100%)' }}
+                      style={{ filter: 'brightness(98%) contrast(102%)' }}
                     />
+                    
+                    {/* Connecting state watermark if stream pending */}
+                    {!callModal.isConnected && (
+                      <div className="absolute inset-0 bg-slate-950/80 backdrop-blur-md flex flex-col items-center justify-center p-6 text-center z-10">
+                        <div className="relative mb-5">
+                          <div className="absolute inset-0 rounded-full border-2 border-emerald-500/30 animate-ping" style={{ animationDuration: '2s' }}></div>
+                          <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 flex items-center justify-center shadow-xl">
+                            <Video className="w-10 h-10 text-white animate-pulse" />
+                          </div>
+                        </div>
+                        <h3 className="text-lg font-bold text-white mb-1">{callModal.name}</h3>
+                        <p className="text-emerald-400 text-xs font-medium tracking-wide animate-pulse">
+                          Connecting secure video...
+                        </p>
+                      </div>
+                    )}
                   </div>
 
-                  {/* Local video: Small PiP floating corner */}
-                  <div className="absolute bottom-20 right-4 w-28 h-36 rounded-2xl overflow-hidden border border-indigo-500/35 shadow-2xl z-20 bg-slate-900/90 backdrop-blur-md transition-all duration-300">
+                  {/* Local video: Sleek floating PiP preview */}
+                  <div className="absolute bottom-24 right-5 w-32 h-44 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl z-30 bg-slate-900/90 backdrop-blur-md transition-all duration-300">
                     {isCallVideoOff ? (
-                      <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center gap-1 text-center p-2">
-                        <VideoOff className="w-5 h-5 text-rose-500" />
-                        <span className="text-[7px] text-slate-500 font-bold uppercase tracking-wider">Camera Off</span>
+                      <div className="w-full h-full bg-slate-950 flex flex-col items-center justify-center gap-1.5 text-center p-2">
+                        <VideoOff className="w-6 h-6 text-rose-500" />
+                        <span className="text-[9px] text-slate-400 font-semibold uppercase tracking-wider">Camera Off</span>
                       </div>
                     ) : (
                       <video 
@@ -3137,134 +3189,102 @@ export default function Home() {
                         autoPlay 
                         playsInline 
                         muted 
-                        className="w-full h-full object-cover animate-in fade-in zoom-in-95 duration-350" 
+                        className="w-full h-full object-cover" 
                       />
                     )}
-                    <span className="absolute bottom-1.5 left-2 px-1.5 py-0.5 rounded bg-black/60 text-[7px] text-white/90 font-bold uppercase tracking-wider">You</span>
+                    <span className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-sm text-[9px] text-white font-semibold uppercase tracking-wider border border-white/10">You</span>
                   </div>
                 </>
               ) : (
-                /* Voice Call Viewport: Show pulsing user avatars */
-                <div className="flex flex-col items-center justify-center p-6 text-center relative z-10">
+                /* Voice Call Viewport: Clean WhatsApp avatar with pulsing sound waves */
+                <div className="flex flex-col items-center justify-center p-8 text-center relative z-10 w-full">
                   <div className="relative mb-6">
-                    <div className="absolute inset-0 rounded-full border border-indigo-500/35 animate-ping" style={{ animationDuration: '2s' }}></div>
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-650 border border-indigo-500/20 flex items-center justify-center shadow-2xl shadow-indigo-500/10">
-                      <span className="text-2xl font-bold text-white">{callModal.name.slice(0, 2).toUpperCase()}</span>
+                    <div className="absolute -inset-4 rounded-full border-2 border-emerald-500/20 animate-ping" style={{ animationDuration: '2.5s' }}></div>
+                    <div className="absolute -inset-1 rounded-full border border-teal-500/30 animate-pulse"></div>
+                    <div className="w-28 h-28 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-700 border-2 border-emerald-400/30 flex items-center justify-center shadow-2xl shadow-emerald-500/20">
+                      <span className="text-3xl font-bold text-white tracking-wider">{callModal.name.slice(0, 2).toUpperCase()}</span>
                     </div>
                   </div>
-                  <h3 className="text-base font-extrabold text-white mb-1">{callModal.name}</h3>
-                  <span className="text-[9px] text-slate-400 font-bold uppercase tracking-widest animate-pulse">
-                    {callModal.isConnected ? 'Voice connection active' : 'Calling...'}
+                  <h3 className="text-2xl font-bold text-white mb-1">{callModal.name}</h3>
+                  <span className="text-xs text-emerald-400 font-medium tracking-wide">
+                    {callModal.isConnected ? `Voice Connected (${formatCallDuration(callDurationSeconds)})` : 'Ringing...'}
                   </span>
-                </div>
-              )}
-
-              {/* Connecting Overlay if not connected yet */}
-              {!callModal.isConnected && (
-                <div className="absolute inset-0 bg-slate-950/90 backdrop-blur-md flex flex-col items-center justify-center z-10 p-6 text-center animate-in fade-in duration-200">
-                  <div className="relative mb-6">
-                    <div className="absolute inset-0 rounded-full border-2 border-indigo-500/20 animate-ping" style={{ animationDuration: '2s' }}></div>
-                    <div className="w-20 h-20 rounded-full bg-slate-900 border border-indigo-500/30 flex items-center justify-center">
-                      {callModal.type === 'video' ? <Video className="w-8 h-8 text-indigo-400 animate-pulse" /> : <Phone className="w-8 h-8 text-indigo-400" />}
-                    </div>
-                  </div>
-                  <h3 className="text-base font-extrabold text-white mb-1">{callModal.name}</h3>
-                  <p className="text-indigo-400/80 text-[10px] font-bold uppercase tracking-widest animate-pulse">
-                    Connecting encrypted feed...
-                  </p>
                 </div>
               )}
             </div>
 
-            {/* Bottom Translucent Control Bar */}
-            <div className={`p-5 flex justify-between items-center z-35 shrink-0 px-8 border-t transition-all ${
-              isDarkMode 
-                ? 'bg-slate-950/80 backdrop-blur-lg border-slate-900/60' 
-                : 'bg-white/80 backdrop-blur-lg border-slate-200'
-            }`}>
-              {/* Minimize Call Button */}
-              <button
-                onClick={() => setCallModal(prev => prev ? { ...prev, isMinimized: true } : null)}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors shadow-sm ${
-                  isDarkMode ? 'bg-slate-900 hover:bg-slate-800 text-slate-300' : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                }`}
-                title="Minimize Call (PiP)"
-              >
-                <Minimize2 className="w-4 h-4" />
-              </button>
-
-              {/* Toggle Video Feed (Camera icon) */}
-              {callModal.type === 'video' && (
+            {/* Bottom Floating Control Bar Capsule */}
+            <div className="p-6 flex justify-center items-center z-40 shrink-0">
+              <div className="flex items-center gap-4 bg-slate-900/85 backdrop-blur-2xl border border-white/15 px-6 py-3 rounded-full shadow-2xl">
+                {/* Toggle Audio Mic */}
                 <button
-                  onClick={toggleCallVideo}
-                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${
-                    isCallVideoOff
-                      ? 'bg-rose-600 hover:bg-rose-500 text-white'
-                      : isDarkMode
-                      ? 'bg-slate-900 hover:bg-slate-800 text-slate-300'
-                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                  onClick={toggleCallAudio}
+                  className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+                    isCallMuted
+                      ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/30'
+                      : 'bg-white/10 hover:bg-white/20 text-white border border-white/10'
                   }`}
-                  title={isCallVideoOff ? 'Turn Camera On' : 'Turn Camera Off'}
+                  title={isCallMuted ? 'Unmute' : 'Mute'}
                 >
-                  {isCallVideoOff ? <VideoOff className="w-4 h-4" /> : <Video className="w-4 h-4" />}
+                  {isCallMuted ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
                 </button>
-              )}
 
-              {/* Toggle Audio Mic (Mic icon) */}
-              <button
-                onClick={toggleCallAudio}
-                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${
-                  isCallMuted
-                    ? 'bg-rose-600 hover:bg-rose-500 text-white'
-                    : isDarkMode
-                    ? 'bg-slate-900 hover:bg-slate-800 text-slate-300'
-                    : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                }`}
-                title={isCallMuted ? 'Unmute Microphone' : 'Mute Microphone'}
-              >
-                {isCallMuted ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
-              </button>
+                {/* Toggle Video Camera */}
+                {callModal.type === 'video' && (
+                  <button
+                    onClick={toggleCallVideo}
+                    className={`w-12 h-12 rounded-full flex items-center justify-center transition-all ${
+                      isCallVideoOff
+                        ? 'bg-rose-600 text-white shadow-lg shadow-rose-600/30'
+                        : 'bg-white/10 hover:bg-white/20 text-white border border-white/10'
+                    }`}
+                    title={isCallVideoOff ? 'Turn Video On' : 'Turn Video Off'}
+                  >
+                    {isCallVideoOff ? <VideoOff className="w-5 h-5" /> : <Video className="w-5 h-5" />}
+                  </button>
+                )}
 
-              {/* End Call Button */}
-              <button
-                onClick={() => {
-                  if (activeChat?.otherMember) {
-                    emitEndCall(activeChat.otherMember.id);
-                  }
-                  setCallModal(null);
-                }}
-                className="w-12 h-12 rounded-full bg-rose-600 hover:bg-rose-500 flex items-center justify-center text-white transition-all shadow-lg shadow-rose-600/30 hover:scale-105 active:scale-95"
-                title="Hang Up"
-              >
-                <PhoneOff className="w-5 h-5 shrink-0 transform rotate-135" />
-              </button>
+                {/* End Call Button */}
+                <button
+                  onClick={() => {
+                    if (activeChat?.otherMember) {
+                      emitEndCall(activeChat.otherMember.id);
+                    }
+                    setCallModal(null);
+                  }}
+                  className="w-14 h-14 rounded-full bg-rose-600 hover:bg-rose-500 flex items-center justify-center text-white transition-all shadow-xl shadow-rose-600/40 hover:scale-105 active:scale-95"
+                  title="Hang Up"
+                >
+                  <PhoneOff className="w-6 h-6" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
 
-      {/* MODAL: INCOMING CALL RECEIVER */}
+      {/* MODAL: INCOMING CALL RECEIVER (WhatsApp v2.0 Design) */}
       {incomingCall && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center px-4 animate-in fade-in duration-300 text-white">
-          <div className="w-full max-w-sm flex flex-col items-center p-8 bg-gradient-to-b from-slate-900 to-slate-955 border border-slate-855 rounded-[32px] text-center shadow-2xl relative">
-            <div className="absolute top-4 left-4 flex items-center gap-1.5 p-1 px-2.5 rounded-full bg-indigo-600/10 border border-indigo-500/20 text-[9px] font-medium tracking-wide text-indigo-400 animate-pulse">
-              <Phone className="w-3 h-3 animate-bounce" />
-              <span>Incoming {incomingCall.type === 'video' ? 'Video' : 'Voice'} Call</span>
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-2xl flex items-center justify-center px-4 animate-in fade-in duration-300 text-white">
+          <div className="w-full max-w-sm flex flex-col items-center p-8 bg-gradient-to-b from-slate-900/95 to-slate-950/95 border border-white/15 rounded-[36px] text-center shadow-2xl relative">
+            <div className="flex items-center gap-1.5 py-1 px-3.5 rounded-full bg-emerald-500/15 border border-emerald-500/25 text-[11px] font-semibold tracking-wide text-emerald-400">
+              <Phone className="w-3.5 h-3.5 animate-bounce" />
+              <span>Incoming WhatsApp {incomingCall.type === 'video' ? 'Video' : 'Voice'} Call</span>
             </div>
 
-            <div className="relative mb-8 mt-6">
-              <div className="absolute inset-0 rounded-full border-2 border-indigo-500/30 animate-ping" style={{ animationDuration: '1.5s' }}></div>
-              <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-650 border border-indigo-500/30 flex items-center justify-center relative shadow-lg">
-                <span className="text-xl font-bold">{incomingCall.callerName.slice(0, 2).toUpperCase()}</span>
+            <div className="relative mb-6 mt-8">
+              <div className="absolute -inset-3 rounded-full border-2 border-emerald-500/30 animate-ping" style={{ animationDuration: '1.8s' }}></div>
+              <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-600 border-2 border-emerald-400/30 flex items-center justify-center relative shadow-xl shadow-emerald-500/20">
+                <span className="text-2xl font-bold text-white tracking-wider">{incomingCall.callerName.slice(0, 2).toUpperCase()}</span>
               </div>
             </div>
 
-            <h3 className="text-base font-bold text-white mb-1">{incomingCall.callerName}</h3>
-            <p className="text-slate-400 text-xs mb-8 animate-pulse font-light">
+            <h3 className="text-xl font-bold text-white mb-1">{incomingCall.callerName}</h3>
+            <p className="text-slate-400 text-xs mb-8 animate-pulse font-medium">
               Ringing...
             </p>
 
-            <div className="flex gap-3 w-full">
+            <div className="flex gap-4 w-full">
               <button
                 onClick={() => {
                   setCallModal({
@@ -3275,17 +3295,19 @@ export default function Home() {
                   });
                   emitAcceptCall();
                 }}
-                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl py-3 text-xs font-semibold transition-all shadow-md shadow-emerald-500/10"
+                className="flex-1 bg-emerald-600 hover:bg-emerald-500 text-white rounded-2xl py-3.5 text-xs font-bold transition-all shadow-lg shadow-emerald-600/30 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
               >
-                Accept
+                <Phone className="w-4 h-4" />
+                <span>Accept</span>
               </button>
               <button
                 onClick={() => {
                   emitDeclineCall();
                 }}
-                className="flex-1 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl py-3 text-xs font-semibold transition-all shadow-md shadow-rose-500/10"
+                className="flex-1 bg-rose-600 hover:bg-rose-500 text-white rounded-2xl py-3.5 text-xs font-bold transition-all shadow-lg shadow-rose-600/30 flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98]"
               >
-                Decline
+                <PhoneOff className="w-4 h-4" />
+                <span>Decline</span>
               </button>
             </div>
           </div>
