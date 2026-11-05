@@ -1,0 +1,19 @@
+services:
+  - type: web
+    name: friends-whatsapp-backend
+    runtime: node
+    plan: free
+    rootDir: apps/backend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: PORT
+        value: 5000
+      - key: JWT_SECRET
+        generateValue: true
+      - key: DATABASE_URL
+        value: postgresql://postgres.aogzegukyiepsdsgoxug:kCurcKtHcTsNQ73z@aws-0-eu-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true
+      - key: DIRECT_URL
+        value: postgresql://postgres.aogzegukyiepsdsgoxug:kCurcKtHcTsNQ73z@aws-0-eu-west-1.pooler.supabase.com:5432/postgres
