@@ -203,29 +203,36 @@ export default function Home() {
   const remoteAudioRef = useRef<HTMLAudioElement | null>(null);
   const lastNotificationMessageIdRef = useRef<string | null>(null);
   const [showPermissionPrompt, setShowPermissionPrompt] = useState(false);
+  const earlySignalQueueRef = useRef<any[]>([]);
 
+  // Only request/teardown hardware media based on open state and call type
   useEffect(() => {
     let activeStream: MediaStream | null = null;
+    const isCallOpen = !!callModal?.isOpen;
+    const callType = callModal?.type;
+
+    if (!isCallOpen) {
+      if (callStream) {
+        callStream.getTracks().forEach((track) => track.stop());
+        setCallStream(null);
+      }
+      return;
+    }
+
     const startCallMedia = async () => {
-      if (callModal) {
-        try {
-          const constraints = {
-            video: callModal.type === 'video',
-            audio: true
-          };
-          activeStream = await navigator.mediaDevices.getUserMedia(constraints);
-          setCallStream(activeStream);
-          setTimeout(() => {
-            if (localVideoRef.current && activeStream) {
-              localVideoRef.current.srcObject = activeStream;
-            }
-            if (partnerVideoRef.current && activeStream) {
-              partnerVideoRef.current.srcObject = activeStream;
-            }
-          }, 300);
-        } catch (err) {
-          console.error('Call media stream request failed:', err);
+      try {
+        const constraints = {
+          video: callType === 'video',
+          audio: true,
+        };
+        activeStream = await navigator.mediaDevices.getUserMedia(constraints);
+        setCallStream(activeStream);
+        if (localVideoRef.current) {
+          localVideoRef.current.srcObject = activeStream;
         }
+      } catch (err) {
+        console.error('Call media stream request failed:', err);
+        alert('Could not access camera or microphone. Please check browser permissions.');
       }
     };
 
@@ -233,16 +240,23 @@ export default function Home() {
 
     return () => {
       if (activeStream) {
-        activeStream.getTracks().forEach(track => track.stop());
+        activeStream.getTracks().forEach((track) => track.stop());
       }
       setCallStream(null);
     };
-  }, [callModal]);
+  }, [callModal?.isOpen, callModal?.type]);
+
+  // Keep local video element synced whenever callStream is set
+  useEffect(() => {
+    if (localVideoRef.current && callStream) {
+      localVideoRef.current.srcObject = callStream;
+    }
+  }, [callStream, callModal?.isMinimized]);
 
   // Listen for socket calling events via custom window events
   useEffect(() => {
     const onCallAccepted = () => {
-      setCallModal(prev => prev ? { ...prev, isConnected: true } : null);
+      setCallModal((prev) => (prev ? { ...prev, isConnected: true } : null));
     };
 
     const onCallDeclined = () => {
@@ -273,6 +287,7 @@ export default function Home() {
         peerConnectionRef.current = null;
       }
       iceCandidatesQueueRef.current = [];
+      earlySignalQueueRef.current = [];
       return;
     }
 
@@ -280,19 +295,11 @@ export default function Home() {
       iceServers: [
         { urls: 'stun:stun.l.google.com:19302' },
         { urls: 'stun:stun1.l.google.com:19302' },
-        {
-          urls: [
-            'turn:openrelay.metered.ca:80',
-            'turn:openrelay.metered.ca:443',
-            'turn:openrelay.metered.ca:443?transport=tcp'
-          ],
-          username: 'openrelayproject',
-          credential: 'openrelayproject'
-        }
-      ]
+        { urls: 'stun:stun2.l.google.com:19302' },
+      ],
     });
 
-    callStream.getTracks().forEach(track => pc.addTrack(track, callStream));
+    callStream.getTracks().forEach((track) => pc.addTrack(track, callStream));
 
     pc.ontrack = (event) => {
       console.log('Received remote track', event.streams[0]);
@@ -315,6 +322,44 @@ export default function Home() {
 
     peerConnectionRef.current = pc;
 
+    // Process any signals (offers/candidates) that arrived while camera was warming up
+    const processEarlySignals = async () => {
+      for (const data of earlySignalQueueRef.current) {
+        try {
+          if (data.offer && pc.signalingState === 'stable') {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+            const targetId = incomingCall?.callerId || activeChat?.otherMember?.id;
+            if (targetId) {
+              emitCallSignal(targetId, { answer });
+            }
+          } else if (data.answer && pc.signalingState === 'have-local-offer') {
+            await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+          } else if (data.candidate) {
+            if (pc.remoteDescription && pc.remoteDescription.type) {
+              await pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(() => {});
+            } else {
+              iceCandidatesQueueRef.current.push(data.candidate);
+            }
+          }
+        } catch (err) {
+          console.warn('Error processing queued early signal:', err);
+        }
+      }
+      earlySignalQueueRef.current = [];
+
+      // Flush ICE candidates
+      if (iceCandidatesQueueRef.current.length > 0 && pc.remoteDescription && pc.remoteDescription.type) {
+        for (const cand of iceCandidatesQueueRef.current) {
+          await pc.addIceCandidate(new RTCIceCandidate(cand)).catch(() => {});
+        }
+        iceCandidatesQueueRef.current = [];
+      }
+    };
+
+    processEarlySignals();
+
     // Caller initiates the offer
     if (!incomingCall) {
       pc.createOffer().then(async (offer) => {
@@ -323,7 +368,7 @@ export default function Home() {
         if (targetId) {
           emitCallSignal(targetId, { offer });
         }
-      });
+      }).catch(err => console.error('Failed to create offer:', err));
     }
 
     return () => {
@@ -332,6 +377,7 @@ export default function Home() {
         peerConnectionRef.current = null;
       }
       iceCandidatesQueueRef.current = [];
+      earlySignalQueueRef.current = [];
       setIsCallMuted(false);
       setIsCallVideoOff(false);
     };
@@ -342,7 +388,12 @@ export default function Home() {
     const handleCallSignal = async (e: Event) => {
       const data = (e as CustomEvent).detail;
       const pc = peerConnectionRef.current;
-      if (!pc) return;
+
+      // If peer connection is not ready yet, queue the signal so it is not lost
+      if (!pc) {
+        earlySignalQueueRef.current.push(data);
+        return;
+      }
 
       try {
         if (data.offer) {
@@ -381,7 +432,6 @@ export default function Home() {
           if (pc.remoteDescription && pc.remoteDescription.type) {
             await pc.addIceCandidate(new RTCIceCandidate(data.candidate)).catch(e => console.warn('Add ICE candidate failed:', e));
           } else {
-            console.log('Queueing ICE candidate because remoteDescription is not set yet');
             iceCandidatesQueueRef.current.push(data.candidate);
           }
         }
