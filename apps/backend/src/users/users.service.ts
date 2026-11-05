@@ -84,17 +84,30 @@ export class UsersService {
       },
     });
 
-    return contacts.map((c) => ({
-      id: c.contact.id,
-      username: c.contact.username,
-      phoneNumber: c.contact.phoneNumber,
-      displayName: c.nickname || c.contact.displayName || c.contact.username,
-      avatarUrl: c.contact.avatarUrl,
-      bio: c.contact.bio,
-      isOnline: c.contact.isOnline,
-      lastSeen: c.contact.lastSeen,
-      nickname: c.nickname,
-    }));
+    const seenContactIds = new Set<string>();
+    const uniqueContacts: any[] = [];
+
+    for (const c of contacts) {
+      if (seenContactIds.has(c.contact.id) || (c.contact.phoneNumber && seenContactIds.has(c.contact.phoneNumber))) {
+        continue;
+      }
+      seenContactIds.add(c.contact.id);
+      if (c.contact.phoneNumber) seenContactIds.add(c.contact.phoneNumber);
+
+      uniqueContacts.push({
+        id: c.contact.id,
+        username: c.contact.username,
+        phoneNumber: c.contact.phoneNumber,
+        displayName: c.nickname || c.contact.displayName || c.contact.username,
+        avatarUrl: c.contact.avatarUrl,
+        bio: c.contact.bio,
+        isOnline: c.contact.isOnline,
+        lastSeen: c.contact.lastSeen,
+        nickname: c.nickname,
+      });
+    }
+
+    return uniqueContacts;
   }
 
   async addContact(userId: string, data: { phoneNumber?: string; contactId?: string; nickname?: string }) {

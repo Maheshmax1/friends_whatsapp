@@ -126,14 +126,24 @@ export class ChatsService {
       },
     });
 
-    return chats.map((chat) => {
+    const seenOtherUserIds = new Set<string>();
+    const deduplicatedList: any[] = [];
+
+    for (const chat of chats) {
       const otherMember = chat.isGroup
         ? null
         : chat.members.find((m) => m.userId !== userId)?.user || null;
 
+      if (!chat.isGroup && otherMember) {
+        if (seenOtherUserIds.has(otherMember.id)) {
+          continue; // skip duplicate chat for the same user
+        }
+        seenOtherUserIds.add(otherMember.id);
+      }
+
       const myMember = chat.members.find((m) => m.userId === userId);
 
-      return {
+      deduplicatedList.push({
         id: chat.id,
         isGroup: chat.isGroup,
         name: chat.isGroup ? chat.name : (otherMember?.displayName || otherMember?.username || 'Chat'),
@@ -145,8 +155,10 @@ export class ChatsService {
         isPinned: myMember?.isPinned || false,
         isArchived: myMember?.isArchived || false,
         unreadCount: 0, 
-      };
-    });
+      });
+    }
+
+    return deduplicatedList;
   }
 
   async getMessages(chatId: string, userId: string) {

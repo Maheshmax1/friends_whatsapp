@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { useChat, playNotificationSound } from '../context/ChatContext';
+import { useChat, playNotificationSound, unlockAudio, Story } from '../context/ChatContext';
 import { 
   Send, Phone, Search, UserPlus, LogOut, MessageSquare, 
   Settings, Users, Shield, Compass, Sparkles, Smile, Image as ImageIcon,
@@ -13,15 +13,6 @@ import {
 } from 'lucide-react';
 
 type ThemeName = 'royal' | 'emerald' | 'ocean' | 'rose' | 'classic-wa' | 'glass-wa';
-
-interface Story {
-  id: string;
-  name: string;
-  avatar: string;
-  mediaUrl: string;
-  text: string;
-  time: string;
-}
 
 const compressImage = (base64Str: string, maxWidth = 300, maxHeight = 300): Promise<string> => {
   return new Promise((resolve) => {
@@ -136,7 +127,7 @@ export default function Home() {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
-  const [activeTab, setActiveTab] = useState<'chats' | 'contacts' | 'archived'>('chats');
+  const [activeTab, setActiveTab] = useState<'chats' | 'contacts' | 'archived' | 'status'>('chats');
   const [showAddContact, setShowAddContact] = useState(false);
 
   // FILTER CHATS IN SIDEBAR
@@ -521,7 +512,7 @@ export default function Home() {
     return () => document.removeEventListener('click', requestOnInteraction);
   }, []);
 
-  // Desktop/Mobile native push notification + audio chime trigger
+  // Desktop/Mobile native push notification + audio chime trigger when tab is backgrounded
   useEffect(() => {
     if (messages.length > 0) {
       const lastMessage = messages[messages.length - 1];
@@ -531,28 +522,28 @@ export default function Home() {
         }
         lastNotificationMessageIdRef.current = lastMessage.id;
 
-        const isTabHidden = document.visibilityState === 'hidden';
-        const isDifferentChat = activeChatId !== lastMessage.chatId;
-
-        if (isTabHidden || isDifferentChat) {
-          // Play premium audio notification chime
+        const isTabHidden = typeof document !== 'undefined' && document.visibilityState === 'hidden';
+        if (isTabHidden) {
           playNotificationSound();
 
-          // Push alert
           if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-            new Notification(lastMessage.sender.displayName || lastMessage.sender.username || 'Halo Chat', {
-              body: lastMessage.content.startsWith('data:image') 
-                ? '📷 Sent a photo' 
-                : lastMessage.content.startsWith('data:audio') 
-                ? '🎙️ Sent a voice note' 
-                : lastMessage.content,
-              icon: '/favicon.ico'
-            });
+            const senderName = lastMessage.sender.displayName || lastMessage.sender.username || 'Friends WhatsApp';
+            const bodyPreview = lastMessage.content.startsWith('data:image') 
+              ? '📷 Sent a photo' 
+              : lastMessage.content.startsWith('data:audio') 
+              ? '🎙️ Sent a voice note' 
+              : lastMessage.content;
+            try {
+              new Notification(senderName, {
+                body: bodyPreview,
+                icon: lastMessage.sender.avatarUrl || '/favicon.ico'
+              });
+            } catch (e) {}
           }
         }
       }
     }
-  }, [messages, user?.id, activeChatId]);
+  }, [messages, user?.id]);
 
   // Gentle prompt to configure hardware permissions on load
   useEffect(() => {
@@ -1059,7 +1050,21 @@ export default function Home() {
       result = result.filter((c) => c.name.toLowerCase().includes(q));
     }
 
-    return [...result].sort((a, b) => {
+    // Strict deduplication to ensure no duplicate names or chats appear
+    const seenOtherUserIds = new Set<string>();
+    const seenChatIds = new Set<string>();
+    const deduplicatedResult = result.filter((c) => {
+      if (seenChatIds.has(c.id)) return false;
+      seenChatIds.add(c.id);
+
+      if (!c.isGroup && c.otherMember?.id) {
+        if (seenOtherUserIds.has(c.otherMember.id)) return false;
+        seenOtherUserIds.add(c.otherMember.id);
+      }
+      return true;
+    });
+
+    return [...deduplicatedResult].sort((a, b) => {
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
       return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
@@ -1453,12 +1458,8 @@ export default function Home() {
 
             {/* Status / Stories icon */}
             <button 
-              onClick={() => {
-                setStoryCreatorText('');
-                setStoryCreatorImage('');
-                setShowStoryCreator(true);
-              }}
-              className="relative p-2.5 rounded-xl hover:bg-[#2a3942] transition-colors text-[#8696a0] hover:text-[#e9edef]"
+              onClick={() => setActiveTab(activeTab === 'status' ? 'chats' : 'status')}
+              className={`relative p-2.5 rounded-xl transition-colors ${activeTab === 'status' ? 'bg-[#2a3942] text-[#00a884]' : 'text-[#8696a0] hover:text-[#e9edef] hover:bg-[#2a3942]'}`}
               title="Status"
             >
               <Compass className="w-5 h-5" />
@@ -1662,10 +1663,156 @@ export default function Home() {
             </div>
           )}
 
+          {/* WhatsApp Web Desktop Notification Prompt Banner */}
+          {typeof window !== 'undefined' && 'Notification' in window && Notification.permission !== 'granted' && (
+            <div 
+              onClick={() => {
+                Notification.requestPermission();
+              }}
+              className="p-3 px-4 bg-[#182229] hover:bg-[#1f2c34] border-b border-[#222e35] flex items-center gap-3 cursor-pointer transition-colors select-none"
+            >
+              <div className="w-9 h-9 rounded-full bg-[#005c4b]/40 text-[#00a884] flex items-center justify-center shrink-0">
+                <Bell className="w-4 h-4 text-[#00a884]" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h6 className="text-xs font-medium text-[#e9edef] leading-tight">Get notified of new messages</h6>
+                <p className="text-[11px] text-[#00a884] hover:underline leading-tight mt-0.5">Turn on desktop notifications &gt;</p>
+              </div>
+            </div>
+          )}
+
           {/* Active Lists */}
           {searchQuery.trim().length <= 1 && (
             <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-[#222e35]/60">
-              {activeTab === 'chats' || activeTab === 'archived' ? (
+              {activeTab === 'status' ? (
+                <div className="flex-1 overflow-y-auto min-h-0 bg-[#111b21]">
+                  {/* Status Header */}
+                  <div className="p-3 px-4 flex items-center justify-between border-b border-[#222e35]">
+                    <h4 className="text-sm font-semibold text-[#e9edef]">Status</h4>
+                    <button
+                      onClick={() => {
+                        setStoryCreatorText('');
+                        setStoryCreatorImage('');
+                        setShowStoryCreator(true);
+                      }}
+                      className="flex items-center gap-1.5 text-xs text-[#00a884] hover:text-[#25d366] font-medium"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>New Status</span>
+                    </button>
+                  </div>
+
+                  {/* My Status */}
+                  {(() => {
+                    const myStatuses = statuses.filter((s) => s.userId === user?.id);
+                    const hasMyStatus = myStatuses.length > 0;
+                    const latestMyStatus = myStatuses[0];
+
+                    return (
+                      <div 
+                        onClick={() => {
+                          if (hasMyStatus) {
+                            setActiveStory(latestMyStatus);
+                          } else {
+                            setStoryCreatorText('');
+                            setStoryCreatorImage('');
+                            setShowStoryCreator(true);
+                          }
+                        }}
+                        className="flex items-center gap-3.5 p-3 px-4 hover:bg-[#202c33] cursor-pointer transition-colors border-b border-[#222e35]/60"
+                      >
+                        <div className="relative shrink-0">
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center font-medium text-sm text-[#e9edef] overflow-hidden ${
+                            hasMyStatus ? 'border-2 border-[#00a884] p-0.5' : 'bg-[#202c33] border border-[#222e35]'
+                          }`}>
+                            {user?.avatarUrl ? (
+                              <img src={user.avatarUrl} alt="Avatar" className="w-full h-full object-cover rounded-full" />
+                            ) : (
+                              <span>{(user?.displayName || user?.username || 'Me').slice(0, 2).toUpperCase()}</span>
+                            )}
+                          </div>
+                          <button 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setStoryCreatorText('');
+                              setStoryCreatorImage('');
+                              setShowStoryCreator(true);
+                            }}
+                            className="absolute -bottom-0.5 -right-0.5 w-5 h-5 bg-[#00a884] text-[#111b21] rounded-full flex items-center justify-center shadow-md hover:scale-110 transition-transform"
+                            title="Add status"
+                          >
+                            <Plus className="w-3.5 h-3.5 font-bold" />
+                          </button>
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <h5 className="text-[15px] font-normal text-[#e9edef] leading-tight">My Status</h5>
+                          <p className="text-xs text-[#8696a0] truncate leading-tight mt-0.5">
+                            {hasMyStatus ? `Posted ${latestMyStatus.time} • Tap to view` : 'Tap to add status update'}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* Recent Updates Header */}
+                  <div className="p-2.5 px-4 bg-[#111b21] border-b border-[#222e35]">
+                    <span className="text-[11px] uppercase tracking-wider font-semibold text-[#8696a0]">
+                      Recent updates
+                    </span>
+                  </div>
+
+                  {/* Contact Updates List */}
+                  {(() => {
+                    const otherStatuses = statuses.filter((s) => s.userId !== user?.id);
+                    if (otherStatuses.length === 0) {
+                      return (
+                        <div className="flex flex-col items-center justify-center py-10 text-[#8696a0] px-4">
+                          <Compass className="w-8 h-8 mb-2 opacity-40 text-[#00a884]" />
+                          <p className="text-xs text-center">No recent status updates from contacts.</p>
+                          <button
+                            onClick={() => {
+                              setStoryCreatorText('');
+                              setStoryCreatorImage('');
+                              setShowStoryCreator(true);
+                            }}
+                            className="mt-3 px-3.5 py-1.5 bg-[#00a884] text-[#111b21] rounded-full text-xs font-semibold hover:bg-[#008f6f] transition-colors"
+                          >
+                            Post your status update
+                          </button>
+                        </div>
+                      );
+                    }
+
+                    return otherStatuses.map((status) => (
+                      <div
+                        key={status.id}
+                        onClick={() => setActiveStory(status)}
+                        className="flex items-center gap-3.5 p-3 px-4 hover:bg-[#202c33] cursor-pointer transition-colors border-b border-[#222e35]/40"
+                      >
+                        <div className="w-12 h-12 rounded-full border-2 border-[#00a884] p-0.5 flex items-center justify-center font-medium text-sm text-[#e9edef] overflow-hidden shrink-0">
+                          {status.avatar && status.avatar.startsWith('data:') ? (
+                            <img src={status.avatar} alt={status.name} className="w-full h-full object-cover rounded-full" />
+                          ) : status.mediaUrl && status.mediaUrl.startsWith('data:image') ? (
+                            <img src={status.mediaUrl} alt={status.name} className="w-full h-full object-cover rounded-full" />
+                          ) : (
+                            <span className="w-full h-full bg-[#202c33] rounded-full flex items-center justify-center">
+                              {status.name.slice(0, 2).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="flex-1 min-w-0">
+                          <h5 className="text-[15px] font-normal text-[#e9edef] leading-tight truncate">{status.name}</h5>
+                          <p className="text-xs text-[#8696a0] truncate leading-tight mt-0.5">
+                            {status.time || 'Today'} {status.text ? `• ${status.text}` : ''}
+                          </p>
+                        </div>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              ) : activeTab === 'chats' || activeTab === 'archived' ? (
                 filteredChatsList.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full text-[#8696a0] px-4 py-8">
                     <MessageSquare className="w-8 h-8 mb-2 opacity-50 text-[#00a884]" />
@@ -1743,13 +1890,19 @@ export default function Home() {
                   })
                 )
               ) : (
-                contacts.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center h-full text-[#8696a0] px-4 py-8">
-                    <Users className="w-8 h-8 mb-2 opacity-50 text-[#00a884]" />
-                    <p className="text-xs text-center font-normal leading-relaxed">No contacts yet.</p>
-                  </div>
-                ) : (
-                  contacts.map((contact) => (
+                (() => {
+                  const uniqueContacts = Array.from(
+                    new Map(contacts.map((c) => [c.id || c.phoneNumber, c])).values()
+                  );
+                  if (uniqueContacts.length === 0) {
+                    return (
+                      <div className="flex flex-col items-center justify-center h-full text-[#8696a0] px-4 py-8">
+                        <Users className="w-8 h-8 mb-2 opacity-50 text-[#00a884]" />
+                        <p className="text-xs text-center font-normal leading-relaxed">No contacts yet.</p>
+                      </div>
+                    );
+                  }
+                  return uniqueContacts.map((contact) => (
                     <button
                       key={contact.id}
                       onClick={() => {
@@ -1770,8 +1923,8 @@ export default function Home() {
                         <p className="text-xs text-[#8696a0] truncate leading-none">{contact.phoneNumber}</p>
                       </div>
                     </button>
-                  ))
-                )
+                  ));
+                })()
               )}
             </div>
           )}
@@ -3329,15 +3482,15 @@ export default function Home() {
         </div>
       )}
 
-      {/* MODAL: CREATE STORY */}
+      {/* MODAL: CREATE STATUS / STORY */}
       {showStoryCreator && (
-        <div className="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm flex items-center justify-center px-4">
-          <div className="w-full max-w-sm bg-slate-900 border border-slate-805 rounded-[32px] p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-white">
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center px-4">
+          <div className="w-full max-w-sm bg-[#202c33] border border-[#222e35] rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 text-[#e9edef]">
             <div className="flex justify-between items-center mb-5">
-              <h3 className="text-xs font-bold uppercase tracking-widest text-indigo-400">New Status Update</h3>
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-[#00a884]">New Status Update</h3>
               <button 
                 onClick={() => setShowStoryCreator(false)}
-                className="w-7 h-7 rounded-full hover:bg-slate-800 flex items-center justify-center text-slate-400 hover:text-white transition-colors"
+                className="w-7 h-7 rounded-full hover:bg-[#2a3942] flex items-center justify-center text-[#8696a0] hover:text-[#e9edef] transition-colors"
               >
                 <X className="w-4.5 h-4.5" />
               </button>
@@ -3346,7 +3499,7 @@ export default function Home() {
             <form 
               onSubmit={(e) => {
                 e.preventDefault();
-                if (storyCreatorText.trim()) {
+                if (storyCreatorText.trim() || storyCreatorImage) {
                   postStatus(storyCreatorText.trim(), storyCreatorImage);
                   setShowStoryCreator(false);
                   setStoryCreatorText('');
@@ -3357,7 +3510,7 @@ export default function Home() {
             >
               {/* Image selector */}
               <div>
-                <label className="block text-slate-400 text-[10px] font-semibold uppercase tracking-wider mb-2">Status Background Image</label>
+                <label className="block text-[#8696a0] text-[11px] font-medium uppercase tracking-wider mb-2">Photo / Background</label>
                 <div className="relative">
                   <input
                     type="file"
@@ -3377,22 +3530,22 @@ export default function Home() {
                   />
                   <label 
                     htmlFor="story-image-upload"
-                    className="w-full bg-slate-955 border border-slate-850 hover:border-indigo-500/50 rounded-xl py-2.5 px-3.5 text-xs outline-none text-slate-400 hover:text-white transition-colors cursor-pointer flex items-center justify-between"
+                    className="w-full bg-[#111b21] border border-[#222e35] hover:border-[#00a884]/60 rounded-xl py-2.5 px-3.5 text-xs outline-none text-[#8696a0] hover:text-[#e9edef] transition-colors cursor-pointer flex items-center justify-between"
                   >
                     <span className="truncate max-w-[200px]">
-                      {storyCreatorImage ? 'Image Selected (Cover)' : 'Choose Image File...'}
+                      {storyCreatorImage ? 'Photo selected' : 'Choose photo or image...'}
                     </span>
-                    <ImageIcon className="w-4 h-4 text-slate-500" />
+                    <ImageIcon className="w-4 h-4 text-[#00a884]" />
                   </label>
                 </div>
                 
                 {storyCreatorImage && (
-                  <div className="mt-3 w-full h-32 rounded-xl overflow-hidden border border-slate-800 relative shadow-inner">
+                  <div className="mt-3 w-full h-36 rounded-xl overflow-hidden border border-[#222e35] relative shadow-inner">
                     <img src={storyCreatorImage} alt="Story preview" className="w-full h-full object-cover" />
                     <button
                       type="button"
                       onClick={() => setStoryCreatorImage('')}
-                      className="absolute top-1.5 right-1.5 bg-black/75 hover:bg-black p-1 rounded-full text-slate-400 hover:text-white transition-colors"
+                      className="absolute top-1.5 right-1.5 bg-black/75 hover:bg-black p-1.5 rounded-full text-[#8696a0] hover:text-white transition-colors"
                     >
                       <X className="w-3.5 h-3.5" />
                     </button>
@@ -3402,21 +3555,20 @@ export default function Home() {
 
               {/* Status text */}
               <div>
-                <label className="block text-slate-400 text-[10px] font-semibold uppercase tracking-wider mb-2">Status Description Text</label>
+                <label className="block text-[#8696a0] text-[11px] font-medium uppercase tracking-wider mb-2">Caption or Status Text</label>
                 <input
                   type="text"
-                  required
-                  placeholder="e.g. Code, coffee, repeat..."
+                  placeholder="Type a status update or caption..."
                   value={storyCreatorText}
                   onChange={(e) => setStoryCreatorText(e.target.value)}
-                  className="w-full bg-slate-955 border border-slate-850 focus:border-indigo-500/60 rounded-xl py-2.5 px-3.5 text-xs outline-none transition-all text-white"
+                  className="w-full bg-[#111b21] border border-[#222e35] focus:border-[#00a884] rounded-xl py-2.5 px-3.5 text-xs outline-none transition-all text-[#e9edef] placeholder-[#8696a0]"
                 />
               </div>
 
               <button
                 type="submit"
-                disabled={!storyCreatorText.trim()}
-                className={`w-full py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all mt-2 ${themeStyle.primary}`}
+                disabled={!storyCreatorText.trim() && !storyCreatorImage}
+                className="w-full py-2.5 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all mt-2 bg-[#00a884] hover:bg-[#008f6f] text-white disabled:opacity-40 disabled:cursor-not-allowed shadow-md"
               >
                 Post Status Update
               </button>

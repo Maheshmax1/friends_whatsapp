@@ -130,34 +130,89 @@ interface ChatContextType {
 const ChatContext = createContext<ChatContextType | undefined>(undefined);
 
 let ringtoneInterval: any = null;
+let sharedAudioCtx: AudioContext | null = null;
+
+export const unlockAudio = () => {
+  if (typeof window === 'undefined') return;
+  try {
+    if (!sharedAudioCtx) {
+      const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+      if (AudioCtxClass) sharedAudioCtx = new AudioCtxClass();
+    }
+    if (sharedAudioCtx && sharedAudioCtx.state === 'suspended') {
+      sharedAudioCtx.resume().catch(() => {});
+    }
+  } catch (e) {}
+};
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('click', unlockAudio, { passive: true });
+  window.addEventListener('keydown', unlockAudio, { passive: true });
+  window.addEventListener('touchstart', unlockAudio, { passive: true });
+}
 
 export const playNotificationSound = () => {
   try {
-    const audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+    unlockAudio();
+    const audioCtx = sharedAudioCtx || new (window.AudioContext || (window as any).webkitAudioContext)();
+    if (audioCtx.state === 'suspended') {
+      audioCtx.resume().catch(() => {});
+    }
     const osc1 = audioCtx.createOscillator();
     const gain1 = audioCtx.createGain();
     osc1.connect(gain1);
     gain1.connect(audioCtx.destination);
     osc1.type = 'sine';
-    osc1.frequency.setValueAtTime(587.33, audioCtx.currentTime);
-    gain1.gain.setValueAtTime(0.1, audioCtx.currentTime);
+    osc1.frequency.setValueAtTime(587.33, audioCtx.currentTime); // D5
+    gain1.gain.setValueAtTime(0.12, audioCtx.currentTime);
     gain1.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
     osc1.start(audioCtx.currentTime);
     osc1.stop(audioCtx.currentTime + 0.12);
 
     setTimeout(() => {
-      const osc2 = audioCtx.createOscillator();
-      const gain2 = audioCtx.createGain();
-      osc2.connect(gain2);
-      gain2.connect(audioCtx.destination);
-      osc2.type = 'sine';
-      osc2.frequency.setValueAtTime(880, audioCtx.currentTime);
-      gain2.gain.setValueAtTime(0.1, audioCtx.currentTime);
-      gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
-      osc2.start(audioCtx.currentTime);
-      osc2.stop(audioCtx.currentTime + 0.2);
+      try {
+        const osc2 = audioCtx.createOscillator();
+        const gain2 = audioCtx.createGain();
+        osc2.connect(gain2);
+        gain2.connect(audioCtx.destination);
+        osc2.type = 'sine';
+        osc2.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+        gain2.gain.setValueAtTime(0.12, audioCtx.currentTime);
+        gain2.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.22);
+        osc2.start(audioCtx.currentTime);
+        osc2.stop(audioCtx.currentTime + 0.22);
+      } catch (e) {}
     }, 70);
-  } catch (e) {}
+  } catch (e) {
+    console.warn('Audio chime play error:', e);
+  }
+};
+
+export const showDesktopNotification = (
+  title: string,
+  body: string,
+  avatarUrl?: string,
+  onClick?: () => void
+) => {
+  if (typeof window === 'undefined' || !('Notification' in window)) return;
+  if (Notification.permission === 'granted') {
+    try {
+      const notif = new Notification(title, {
+        body,
+        icon: avatarUrl || '/favicon.ico',
+        badge: '/favicon.ico',
+        tag: 'friends-whatsapp-' + Date.now(),
+      });
+      if (onClick) {
+        notif.onclick = () => {
+          window.focus();
+          onClick();
+        };
+      }
+    } catch (e) {
+      console.warn('Notification construction error:', e);
+    }
+  }
 };
 
 const playIncomingRingtone = () => {
@@ -228,6 +283,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setUser(JSON.parse(storedUser));
       setAccessToken(storedToken);
     }
+    try {
+      const storedStatuses = localStorage.getItem('local_statuses');
+      if (storedStatuses) {
+        setStatuses(JSON.parse(storedStatuses));
+      }
+    } catch (e) {}
     setIsLoading(false);
   }, []);
 
@@ -255,31 +316,77 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     socket.on('new_message', (message: Message) => {
+      const isFromMe = message.senderId === user?.id;
+
       if (activeChatIdRef.current === message.chatId) {
         setMessages((prev) => {
           if (prev.some((m) => m.id === message.id)) return prev;
           return [...prev, message];
         });
 
-        if (message.senderId !== user?.id) {
+        if (!isFromMe) {
           socket.emit('read_receipt', { chatId: message.chatId, messageId: message.id });
         }
       }
 
-      setChats((prev) =>
-        prev
+      // 1. Play sound chime and trigger desktop push alert for incoming messages from others
+      if (!isFromMe) {
+        playNotificationSound();
+        const senderName = message.sender?.displayName || message.sender?.username || 'Friends WhatsApp';
+        const preview = message.content.startsWith('data:image')
+          ? '📷 Photo'
+          : message.content.startsWith('data:audio')
+          ? '🎙️ Voice note'
+          : message.content;
+        showDesktopNotification(senderName, preview, message.sender?.avatarUrl || undefined, () => {
+          setActiveChatId(message.chatId);
+        });
+
+        // 2. Auto-add sender to recipient's contacts without duplicates
+        if (message.sender) {
+          setContacts((prev) => {
+            const exists = prev.some(
+              (c) => c.id === message.sender.id || ((message.sender as any).phoneNumber && c.phoneNumber === (message.sender as any).phoneNumber)
+            );
+            if (exists) return prev;
+            return [
+              ...prev,
+              {
+                id: message.sender.id,
+                username: message.sender.username,
+                displayName: message.sender.displayName || message.sender.username,
+                avatarUrl: message.sender.avatarUrl,
+                phoneNumber: (message.sender as any).phoneNumber || '',
+                bio: '',
+                isOnline: true,
+                lastSeen: new Date().toISOString(),
+              },
+            ];
+          });
+        }
+      }
+
+      // 3. Update chat list (or refresh from server if new conversation)
+      setChats((prev) => {
+        const found = prev.some((c) => c.id === message.chatId);
+        if (!found) {
+          fetchChats();
+          return prev;
+        }
+        return prev
           .map((chat) => {
             if (chat.id === message.chatId) {
               return {
                 ...chat,
                 lastMessage: message,
                 unreadCount: activeChatIdRef.current === message.chatId ? 0 : chat.unreadCount + 1,
+                updatedAt: message.createdAt || new Date().toISOString(),
               };
             }
             return chat;
           })
-          .sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime())
-      );
+          .sort((a, b) => new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime());
+      });
     });
 
     socket.on('message_edited', (edited: Message) => {
@@ -369,12 +476,23 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     socket.on('load_statuses', (loaded: Story[]) => {
-      setStatuses(loaded);
+      setStatuses((prev) => {
+        const map = new Map<string, Story>();
+        (loaded || []).forEach((s) => map.set(s.id, s));
+        prev.forEach((s) => {
+          if (!map.has(s.id)) map.set(s.id, s);
+        });
+        return Array.from(map.values());
+      });
     });
     socket.on('status_posted', (status: Story) => {
       setStatuses((prev) => {
         if (prev.some((s) => s.id === status.id)) return prev;
-        return [status, ...prev];
+        const updated = [status, ...prev];
+        try {
+          localStorage.setItem('local_statuses', JSON.stringify(updated.slice(0, 30)));
+        } catch (e) {}
+        return updated;
       });
     });
 
@@ -534,7 +652,19 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       const data = await res.json();
-      if (res.ok) setChats(data);
+      if (res.ok && Array.isArray(data)) {
+        // Strict deduplication by otherMember.id for 1-to-1 chats to eliminate duplicate entries
+        const seenOtherUsers = new Set<string>();
+        const uniqueChats: Chat[] = [];
+        for (const c of data) {
+          if (!c.isGroup && c.otherMember?.id) {
+            if (seenOtherUsers.has(c.otherMember.id)) continue;
+            seenOtherUsers.add(c.otherMember.id);
+          }
+          uniqueChats.push(c);
+        }
+        setChats(uniqueChats);
+      }
     } catch (err) {
       console.error('Error fetching chats:', err);
     }
@@ -567,9 +697,30 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const postStatus = (text: string, mediaUrl?: string) => {
-    if (socketRef.current && user) {
+    if (!user) return;
+    const newStatus: Story = {
+      id: 'status_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8),
+      userId: user.id,
+      name: user.displayName || user.username,
+      avatar: user.avatarUrl || (user.displayName || user.username).slice(0, 2).toUpperCase(),
+      text: text || '',
+      mediaUrl: mediaUrl || '',
+      time: 'Just now'
+    };
+
+    // Optimistically update local state & localStorage immediately
+    setStatuses((prev) => {
+      const filtered = prev.filter((s) => s.id !== newStatus.id);
+      const updated = [newStatus, ...filtered];
+      try {
+        localStorage.setItem('local_statuses', JSON.stringify(updated.slice(0, 30)));
+      } catch (e) {}
+      return updated;
+    });
+
+    if (socketRef.current) {
       socketRef.current.emit('post_status', {
-        text,
+        text: text || '',
         mediaUrl: mediaUrl || '',
         name: user.displayName || user.username,
         avatar: user.avatarUrl || '',
@@ -639,7 +790,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         headers: { Authorization: `Bearer ${accessToken}` },
       });
       const data = await res.json();
-      if (res.ok) setContacts(data);
+      if (res.ok && Array.isArray(data)) {
+        const seen = new Set<string>();
+        const uniqueContacts: any[] = [];
+        for (const c of data) {
+          const key = c.id || c.phoneNumber;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          uniqueContacts.push(c);
+        }
+        setContacts(uniqueContacts);
+      }
     } catch (err) {
       console.error('Error fetching contacts:', err);
     }

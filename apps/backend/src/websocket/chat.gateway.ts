@@ -16,6 +16,7 @@ import { PrismaService } from '../prisma/prisma.service';
     origin: true,
     credentials: true,
   },
+  maxHttpBufferSize: 1e8, // 100MB for image/voice/status payloads
 })
 export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @WebSocketServer()
@@ -162,6 +163,38 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       if (isAnyOtherMemberOnline) {
         initialStatus = 'DELIVERED';
       }
+
+      // Automatically add mutual contacts when a message is sent so neither user has missing contacts or duplicate names
+      for (const m of otherMembers) {
+        try {
+          await this.prisma.contact.upsert({
+            where: {
+              userId_contactId: {
+                userId: m.userId,
+                contactId: userId,
+              },
+            },
+            update: {},
+            create: {
+              userId: m.userId,
+              contactId: userId,
+            },
+          });
+          await this.prisma.contact.upsert({
+            where: {
+              userId_contactId: {
+                userId: userId,
+                contactId: m.userId,
+              },
+            },
+            update: {},
+            create: {
+              userId: userId,
+              contactId: m.userId,
+            },
+          });
+        } catch (e) {}
+      }
     }
 
     const message = await this.prisma.message.create({
@@ -201,7 +234,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
       data: { updatedAt: new Date() },
     });
 
+    // Broadcast to chat room AND directly to user rooms so all recipient devices receive real-time alerts
     this.server.to(`chat:${data.chatId}`).emit('new_message', message);
+    if (chat) {
+      for (const m of chat.members) {
+        this.server.to(`user:${m.userId}`).emit('new_message', message);
+      }
+    }
 
     return message;
   }
@@ -296,22 +335,23 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('post_status')
   handlePostStatus(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { text: string; name: string; avatar: string; userId: string; mediaUrl?: string },
+    @MessageBody() data: { text?: string; name: string; avatar: string; userId: string; mediaUrl?: string },
   ) {
     const newStatus = {
-      id: Math.random().toString(),
+      id: 'status_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8),
       userId: data.userId,
       name: data.name,
       avatar: data.avatar || data.name.slice(0, 2).toUpperCase(),
-      text: data.text,
+      text: data.text || '',
       mediaUrl: data.mediaUrl || '',
       time: 'Just now'
     };
     this.statuses.unshift(newStatus);
-    if (this.statuses.length > 25) {
-      this.statuses = this.statuses.slice(0, 25);
+    if (this.statuses.length > 50) {
+      this.statuses = this.statuses.slice(0, 50);
     }
     this.server.emit('status_posted', newStatus);
+    return newStatus;
   }
 
   @SubscribeMessage('read_all_messages')
