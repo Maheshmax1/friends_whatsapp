@@ -9,7 +9,7 @@ import {
   Video, MoreVertical, Trash2, Heart, Copy, Bookmark, Paintbrush, Play,
   Pin, Archive, Star, Reply, CornerUpRight, Edit2, ShieldAlert, Moon, Sun, 
   Database, ArrowLeft, Menu, Camera, ToggleLeft, ToggleRight, Mic, Lock, Smartphone, Ban, AlertTriangle,
-  ExternalLink, Bell, Volume2, Info, Eye, Paperclip, Minimize2, PhoneOff, MicOff, VideoOff
+  ExternalLink, Bell, Volume2, Info, Eye, Paperclip, Minimize2, PhoneOff, MicOff, VideoOff, RotateCw, RefreshCw
 } from 'lucide-react';
 
 type ThemeName = 'royal' | 'emerald' | 'ocean' | 'rose' | 'classic-wa' | 'glass-wa';
@@ -89,14 +89,31 @@ export default function Home() {
     editMessage,
     updateProfileSettings,
     createGroupChat,
-    toggleReaction
+    toggleReaction,
+    refreshAllData,
+    fetchChats
   } = useChat();
 
-  // APP LOCK (1. PIN/Biometric lock feature on load)
-  const [appLocked, setAppLocked] = useState(true);
-  const [pinInput, setPinInput] = useState('');
-  const [pinError, setPinError] = useState(false);
-  const [isScanningFingerprint, setIsScanningFingerprint] = useState(false);
+  // REFRESH & PULL-TO-UPDATE STATES
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshMessage, setRefreshMessage] = useState<string | null>(null);
+  const pullStartYRef = useRef<number | null>(null);
+
+  const triggerRefresh = async () => {
+    if (isRefreshing) return;
+    setIsRefreshing(true);
+    setRefreshMessage('Updating WhatsApp...');
+    try {
+      await refreshAllData();
+      setRefreshMessage('Updated just now');
+      setTimeout(() => setRefreshMessage(null), 2000);
+    } catch (e) {
+      setRefreshMessage('Update failed');
+      setTimeout(() => setRefreshMessage(null), 1500);
+    } finally {
+      setIsRefreshing(false);
+    }
+  };
 
   // AUTH STATES
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -806,27 +823,6 @@ export default function Home() {
     }
   };
 
-  // APP PIN CODE VERIFICATION
-  const handlePinSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (pinInput === '1111') {
-      setAppLocked(false);
-      setPinError(false);
-    } else {
-      setPinError(true);
-      setPinInput('');
-    }
-  };
-
-  // SIMULATED FINGERPRINT SCAN
-  const handleFingerprintScan = () => {
-    setIsScanningFingerprint(true);
-    setTimeout(() => {
-      setIsScanningFingerprint(false);
-      setAppLocked(false);
-    }, 1500);
-  };
-
   // TOUCH GESTURE EVENTS: Swipe-to-Reply & Swipe-to-Action Chat List (Mobile Gestures)
   const handleTouchStart = (e: React.TouchEvent, type: 'bubble' | 'chatItem', id: string) => {
     const touch = e.touches[0];
@@ -1040,7 +1036,7 @@ export default function Home() {
   }, [callModal, dragOffset, floatingPos]);
 
   const unreadChatsCount = React.useMemo(() => {
-    return chats.filter((c) => c.lastMessage && c.id !== activeChatId).length;
+    return chats.filter((c) => (c.unreadCount || 0) > 0 && c.id !== activeChatId).length;
   }, [chats, activeChatId]);
 
   const filteredChatsList = React.useMemo(() => {
@@ -1052,7 +1048,7 @@ export default function Home() {
     }
 
     if (chatFilter === 'unread') {
-      result = result.filter((c) => c.lastMessage && c.id !== activeChatId);
+      result = result.filter((c) => (c.unreadCount || 0) > 0 && c.id !== activeChatId);
     } else if (chatFilter === 'groups') {
       result = result.filter((c) => c.isGroup);
     }
@@ -1230,199 +1226,161 @@ export default function Home() {
     handleInputChange(e);
   };
 
-  // APP PIN CODE LOCK SCREEN LAYOUT (Rendered on load if lock active)
-  if (appLocked) {
-    return (
-      <div className="h-dvh w-screen flex items-center justify-center bg-[#0b141a] wa-doodle-bg relative overflow-hidden px-4">
-        {/* Glow decoration */}
-        <div className="absolute top-1/3 left-1/3 w-[30rem] h-[30rem] bg-[#00a884]/10 rounded-full blur-[130px] pointer-events-none animate-pulse"></div>
-
-        <div className="w-full max-w-sm bg-[#111b21] border border-[#222e35] shadow-2xl rounded-[32px] p-8 relative z-10 text-center flex flex-col items-center text-[#e9edef]">
-          <div className="w-14 h-14 bg-[#00a884] rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 mb-6">
-            <Lock className="w-7 h-7 text-[#111b21]" />
-          </div>
-          
-          <h2 className="text-xl font-bold text-[#e9edef] mb-1">WhatsApp Locked</h2>
-          <p className="text-xs text-[#8696a0] font-normal mb-8">Enter access PIN or use fingerprint scanner</p>
-
-          <form onSubmit={handlePinSubmit} className="w-full space-y-4">
-            <input
-              type="password"
-              maxLength={4}
-              required
-              placeholder="••••"
-              value={pinInput}
-              onChange={(e) => {
-                setPinInput(e.target.value);
-                setPinError(false);
-              }}
-              className="w-full bg-[#202c33] border border-[#222e35] focus:border-[#00a884] rounded-xl py-3 text-center text-xl tracking-[1em] outline-none text-[#e9edef] font-bold"
-            />
-            {pinError && (
-              <span className="text-[11px] text-rose-400 block font-normal">Incorrect PIN. Try again.</span>
-            )}
-            <button
-              type="submit"
-              className="w-full py-3 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all bg-[#00a884] hover:bg-[#008f6f] text-white shadow-md"
-            >
-              Unlock WhatsApp
-            </button>
-          </form>
-
-          <div className="w-full flex items-center justify-center my-6 gap-2">
-            <div className="h-[1px] bg-[#222e35] flex-1"></div>
-            <span className="text-[10px] text-[#8696a0] uppercase tracking-widest">or</span>
-            <div className="h-[1px] bg-[#222e35] flex-1"></div>
-          </div>
-
-          {/* Fingerprint click simulation (4. App Lock) */}
-          <button 
-            type="button"
-            onClick={handleFingerprintScan}
-            disabled={isScanningFingerprint}
-            className={`w-16 h-16 rounded-full border border-[#222e35] hover:border-[#00a884]/60 flex items-center justify-center transition-colors group relative ${
-              isScanningFingerprint ? 'bg-[#00a884]/20 border-[#00a884]' : 'bg-[#202c33]'
-            }`}
-          >
-            {isScanningFingerprint ? (
-              <Loader2 className="w-7 h-7 text-[#00a884] animate-spin" />
-            ) : (
-              <Smartphone className="w-7 h-7 text-[#8696a0] group-hover:text-[#00a884] transition-colors" />
-            )}
-          </button>
-          <span className="text-[11px] text-[#8696a0] mt-2 block font-normal">Click sensor to scan (PIN is 1111)</span>
-        </div>
-      </div>
-    );
-  }
-
-  // AUTH SCREEN
+  // AUTHENTICATION SCREEN (AUTHENTIC WHATSAPP WEB STYLE)
   if (!user) {
     return (
-      <div className="h-dvh w-screen flex items-center justify-center bg-[#0b141a] wa-doodle-bg relative overflow-hidden px-4">
-        <div className="w-full max-w-md bg-[#111b21] border border-[#222e35] shadow-2xl rounded-[32px] p-8 relative z-10 text-[#e9edef]">
-          <div className="flex flex-col items-center mb-8">
-            <div className="w-16 h-16 bg-[#00a884] rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/20 mb-4 animate-bounce" style={{ animationDuration: '3s' }}>
-              <MessageSquare className="w-8 h-8 text-[#111b21]" />
+      <div className="min-h-dvh w-screen flex flex-col items-center justify-center bg-[#111b21] relative overflow-y-auto px-4 py-8">
+        {/* Authentic WhatsApp Web Green Top Banner */}
+        <div className="h-52 bg-[#00a884] w-full absolute top-0 left-0 right-0 z-0 flex items-start p-8 md:px-24">
+          <div className="flex items-center gap-3 text-white">
+            <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center">
+              <MessageSquare className="w-5 h-5 text-white" />
             </div>
-            <h1 className="text-2xl font-bold tracking-tight text-[#e9edef]">
-              WhatsApp Web
-            </h1>
-            <p className="text-[#8696a0] text-xs mt-1.5 font-normal tracking-wide">End-to-end encrypted messaging</p>
+            <span className="text-sm font-bold uppercase tracking-wider">WhatsApp Web</span>
           </div>
+        </div>
 
-          {authError && (
-            <div className="mb-6 p-4 rounded-2xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-3">
-              <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
-              <span>{authError}</span>
-            </div>
-          )}
+        {/* Central Auth Container */}
+        <div className="relative z-10 w-full max-w-3xl bg-[#202c33] border border-[#2a3942] rounded-2xl shadow-2xl p-6 md:p-10 text-[#e9edef] my-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12 items-center">
+            
+            {/* Left Column: Form & Steps */}
+            <div>
+              <h2 className="text-2xl font-light text-[#e9edef] mb-6">Use WhatsApp on your device</h2>
+              
+              <ol className="space-y-3 text-xs text-[#8696a0] mb-6 list-decimal list-inside font-normal leading-relaxed">
+                <li>Enter your phone number to sign in or register</li>
+                <li>Set your password for secure end-to-end messaging</li>
+                <li>Tap <strong className="text-[#e9edef] font-semibold">Continue</strong> to start chatting instantly</li>
+              </ol>
 
-          {step === 'phone' ? (
-            <form onSubmit={handleCheckPhone} className="space-y-5">
-              <div>
-                <label className="block text-[#8696a0] text-[11px] font-semibold uppercase tracking-wider mb-2">Phone Number</label>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-[#8696a0] text-sm font-semibold">
-                    +91
+              {authError && (
+                <div className="mb-4 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-300 text-xs flex items-center gap-2.5">
+                  <AlertCircle className="w-4 h-4 text-rose-400 shrink-0" />
+                  <span>{authError}</span>
+                </div>
+              )}
+
+              {step === 'phone' ? (
+                <form onSubmit={handleCheckPhone} className="space-y-4">
+                  <div>
+                    <label className="block text-[#8696a0] text-[11px] font-semibold uppercase tracking-wider mb-1.5">Phone Number</label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[#8696a0] text-xs font-semibold">
+                        +91
+                      </div>
+                      <input
+                        type="tel"
+                        required
+                        placeholder="Enter phone number (e.g. 9876543210)"
+                        value={phoneNumber}
+                        onChange={(e) => setPhoneNumber(e.target.value)}
+                        className="w-full bg-[#111b21] border border-[#2a3942] focus:border-[#00a884] rounded-xl py-3 pl-12 pr-4 text-[#e9edef] text-xs outline-none transition-all placeholder-[#8696a0]"
+                      />
+                    </div>
                   </div>
-                  <input
-                    type="tel"
-                    required
-                    placeholder="Enter phone number (e.g. 9876543210)"
-                    value={phoneNumber}
-                    onChange={(e) => setPhoneNumber(e.target.value)}
-                    className="w-full bg-[#202c33] border border-[#222e35] focus:border-[#00a884] rounded-xl py-3.5 pl-14 pr-4 text-[#e9edef] text-xs outline-none transition-all placeholder-[#8696a0]"
-                  />
-                </div>
-              </div>
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full bg-[#00a884] hover:bg-[#008f6f] text-white rounded-xl py-3.5 text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-2 group disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <span>Next</span>
-                    <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
-                  </>
-                )}
-              </button>
-            </form>
-          ) : step === 'login-password' ? (
-            <form onSubmit={handleLoginWithPassword} className="space-y-5">
-              <div>
-                <div className="flex justify-between items-baseline mb-2">
-                  <label className="block text-[#8696a0] text-[11px] font-semibold uppercase tracking-wider">Enter Password</label>
-                  <button type="button" onClick={() => setStep('phone')} className="text-[#00a884] text-xs hover:underline">
-                    Change Number
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full bg-[#00a884] hover:bg-[#008f6f] text-[#111b21] rounded-xl py-3 text-xs font-semibold uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <>
+                        <span>Continue</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
                   </button>
-                </div>
-                <input
-                  type="password"
-                  required
-                  placeholder="Enter password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-[#202c33] border border-[#222e35] focus:border-[#00a884] rounded-xl py-3.5 px-4 text-[#e9edef] text-xs outline-none transition-all font-medium animate-in fade-in placeholder-[#8696a0]"
-                />
-              </div>
+                </form>
+              ) : step === 'login-password' ? (
+                <form onSubmit={handleLoginWithPassword} className="space-y-4">
+                  <div>
+                    <div className="flex justify-between items-baseline mb-1.5">
+                      <label className="block text-[#8696a0] text-[11px] font-semibold uppercase tracking-wider">Account Password</label>
+                      <button type="button" onClick={() => setStep('phone')} className="text-[#00a884] text-xs hover:underline">
+                        Change
+                      </button>
+                    </div>
+                    <input
+                      type="password"
+                      required
+                      placeholder="Enter your password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full bg-[#111b21] border border-[#2a3942] focus:border-[#00a884] rounded-xl py-3 px-4 text-[#e9edef] text-xs outline-none transition-all placeholder-[#8696a0]"
+                    />
+                  </div>
 
-              <div className="p-3 bg-[#182229] border border-[#222e35] rounded-2xl text-[11px] text-[#8696a0] text-center leading-relaxed font-normal">
-                This number is registered. Enter your account password to log in.
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full bg-[#00a884] hover:bg-[#008f6f] text-white rounded-xl py-3.5 text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <span>Login</span>
-                )}
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleRegisterWithPassword} className="space-y-5">
-              <div>
-                <div className="flex justify-between items-baseline mb-2">
-                  <label className="block text-[#8696a0] text-[11px] font-semibold uppercase tracking-wider">Set Password</label>
-                  <button type="button" onClick={() => setStep('phone')} className="text-[#00a884] text-xs hover:underline">
-                    Change Number
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full bg-[#00a884] hover:bg-[#008f6f] text-[#111b21] rounded-xl py-3 text-xs font-semibold uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Login to WhatsApp</span>}
                   </button>
+                </form>
+              ) : (
+                <form onSubmit={handleRegisterWithPassword} className="space-y-4">
+                  <div>
+                    <div className="flex justify-between items-baseline mb-1.5">
+                      <label className="block text-[#8696a0] text-[11px] font-semibold uppercase tracking-wider">Set Account Password</label>
+                      <button type="button" onClick={() => setStep('phone')} className="text-[#00a884] text-xs hover:underline">
+                        Change
+                      </button>
+                    </div>
+                    <input
+                      type="password"
+                      required
+                      placeholder="Choose a password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      className="w-full bg-[#111b21] border border-[#2a3942] focus:border-[#00a884] rounded-xl py-3 px-4 text-[#e9edef] text-xs outline-none transition-all placeholder-[#8696a0]"
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full bg-[#00a884] hover:bg-[#008f6f] text-[#111b21] rounded-xl py-3 text-xs font-semibold uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <span>Create Account & Enter</span>}
+                  </button>
+                </form>
+              )}
+            </div>
+
+            {/* Right Column: Authentic WhatsApp QR Code Graphic */}
+            <div className="hidden md:flex flex-col items-center justify-center border-l border-[#2a3942] pl-8">
+              <div className="w-52 h-52 bg-white p-3 rounded-2xl shadow-xl flex flex-col items-center justify-center relative group">
+                {/* Real SVG QR Pattern */}
+                <div className="w-full h-full bg-[#111b21] rounded-xl p-2 flex flex-col items-center justify-center relative overflow-hidden">
+                  <div className="grid grid-cols-6 gap-1 w-full h-full opacity-70 p-2">
+                    {Array.from({ length: 36 }).map((_, i) => (
+                      <div 
+                        key={i} 
+                        className={`rounded-xs ${
+                          (i % 2 === 0 || i % 5 === 0) ? 'bg-[#00a884]' : 'bg-[#2a3942]'
+                        }`} 
+                      />
+                    ))}
+                  </div>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <div className="w-12 h-12 rounded-full bg-[#00a884] flex items-center justify-center shadow-lg border-2 border-white">
+                      <MessageSquare className="w-6 h-6 text-[#111b21]" />
+                    </div>
+                  </div>
                 </div>
-                <input
-                  type="password"
-                  required
-                  placeholder="Choose password for next login"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="w-full bg-[#202c33] border border-[#222e35] focus:border-[#00a884] rounded-xl py-3.5 px-4 text-[#e9edef] text-xs outline-none transition-all font-medium animate-in fade-in placeholder-[#8696a0]"
-                />
               </div>
+              <span className="text-xs text-[#8696a0] mt-4 flex items-center gap-1.5 font-normal">
+                <Lock className="w-3.5 h-3.5 text-[#00a884]" />
+                End-to-end encrypted
+              </span>
+            </div>
 
-              <div className="p-3 bg-[#182229] border border-[#222e35] rounded-2xl text-[11px] text-[#00a884] text-center leading-relaxed font-normal">
-                This number is not registered. Choose a password now to create your account and use it for future logins.
-              </div>
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full bg-[#00a884] hover:bg-[#008f6f] text-white rounded-xl py-3.5 text-xs font-semibold transition-all shadow-md flex items-center justify-center gap-2 disabled:opacity-50"
-              >
-                {isSubmitting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <span>Create Account & Login</span>
-                )}
-              </button>
-            </form>
-          )}
+          </div>
         </div>
       </div>
     );
@@ -1554,9 +1512,26 @@ export default function Home() {
           
           {/* WhatsApp Sidebar Header */}
           <div className="p-3.5 px-4 flex items-center justify-between border-b border-[#222e35] bg-[#111b21]">
-            <h2 className="text-xl font-bold tracking-tight text-[#e9edef]">WhatsApp</h2>
+            <div 
+              onClick={triggerRefresh}
+              className="flex items-center gap-2 cursor-pointer select-none group"
+              title="Click to refresh and get latest messages"
+            >
+              <h2 className="text-xl font-bold tracking-tight text-[#e9edef] group-hover:text-[#00a884] transition-colors">WhatsApp</h2>
+              {isRefreshing && <Loader2 className="w-4 h-4 text-[#00a884] animate-spin" />}
+            </div>
             
             <div className="flex items-center gap-2">
+              <button 
+                onClick={triggerRefresh}
+                title="Refresh messages and updates"
+                className={`w-8 h-8 rounded-full hover:bg-[#202c33] flex items-center justify-center text-[#8696a0] hover:text-[#00a884] transition-colors ${
+                  isRefreshing ? 'animate-spin text-[#00a884]' : ''
+                }`}
+              >
+                <RotateCw className="w-4 h-4" />
+              </button>
+
               <button 
                 onClick={() => setShowAddContact(true)} 
                 title="New chat"
@@ -1703,9 +1678,42 @@ export default function Home() {
             </div>
           )}
 
+          {/* Top Refresh Banner */}
+          {refreshMessage && (
+            <div className="py-2 px-4 bg-[#202c33] border-b border-[#222e35] flex items-center justify-center gap-2 text-xs text-[#00a884] font-medium animate-in slide-in-from-top duration-200">
+              {isRefreshing ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin text-[#00a884]" />
+              ) : (
+                <Check className="w-3.5 h-3.5 text-[#00a884]" />
+              )}
+              <span>{refreshMessage}</span>
+            </div>
+          )}
+
           {/* Active Lists */}
           {searchQuery.trim().length <= 1 && (
-            <div className="flex-1 overflow-y-auto min-h-0 divide-y divide-[#222e35]/60">
+            <div 
+              onTouchStart={(e) => {
+                if (e.currentTarget.scrollTop <= 5) {
+                  pullStartYRef.current = e.touches[0].clientY;
+                } else {
+                  pullStartYRef.current = null;
+                }
+              }}
+              onTouchMove={(e) => {
+                if (pullStartYRef.current !== null && e.currentTarget.scrollTop <= 5) {
+                  const delta = e.touches[0].clientY - pullStartYRef.current;
+                  if (delta > 60 && !isRefreshing) {
+                    pullStartYRef.current = null;
+                    triggerRefresh();
+                  }
+                }
+              }}
+              onTouchEnd={() => {
+                pullStartYRef.current = null;
+              }}
+              className="flex-1 overflow-y-auto min-h-0 divide-y divide-[#222e35]/60"
+            >
               {activeTab === 'status' ? (
                 <div className="flex-1 overflow-y-auto min-h-0 bg-[#111b21]">
                   {/* Status Header */}
@@ -1916,9 +1924,9 @@ export default function Home() {
                               <div className="flex items-center gap-1.5 shrink-0 ml-2">
                                 {chat.isPinned && <Pin className="w-3 h-3 text-[#8696a0]" />}
                                 {chat.isArchived && <Archive className="w-3 h-3 text-[#00a884]" />}
-                                {chat.lastMessage && !isChatActive && (
+                                {(chat.unreadCount || 0) > 0 && !isChatActive && (
                                   <span className="bg-[#25d366] text-[#111b21] font-bold text-[10px] min-w-4 h-4 px-1 rounded-full flex items-center justify-center">
-                                    1
+                                    {chat.unreadCount}
                                   </span>
                                 )}
                               </div>
@@ -2131,7 +2139,38 @@ export default function Home() {
                 </div>
 
                 {/* Chat Message History */}
-                <div className="flex-1 overflow-y-auto p-4 space-y-4 relative z-10 flex flex-col min-h-0 bg-transparent select-none">
+                <div 
+                  onTouchStart={(e) => {
+                    if (e.currentTarget.scrollTop <= 5) {
+                      pullStartYRef.current = e.touches[0].clientY;
+                    } else {
+                      pullStartYRef.current = null;
+                    }
+                  }}
+                  onTouchMove={(e) => {
+                    if (pullStartYRef.current !== null && e.currentTarget.scrollTop <= 5) {
+                      const delta = e.touches[0].clientY - pullStartYRef.current;
+                      if (delta > 60 && !isRefreshing) {
+                        pullStartYRef.current = null;
+                        triggerRefresh();
+                      }
+                    }
+                  }}
+                  onTouchEnd={() => {
+                    pullStartYRef.current = null;
+                  }}
+                  className="flex-1 overflow-y-auto p-4 space-y-4 relative z-10 flex flex-col min-h-0 bg-transparent select-none"
+                >
+                  {refreshMessage && (
+                    <div className="py-1 px-3 mx-auto bg-[#202c33]/90 border border-[#222e35] rounded-full flex items-center gap-2 text-xs text-[#00a884] font-medium shadow-md">
+                      {isRefreshing ? (
+                        <Loader2 className="w-3.5 h-3.5 animate-spin text-[#00a884]" />
+                      ) : (
+                        <Check className="w-3.5 h-3.5 text-[#00a884]" />
+                      )}
+                      <span>{refreshMessage}</span>
+                    </div>
+                  )}
                   <div className="flex-1"></div>
                   {messages.map((message) => {
                     const isCurrentUser = message.senderId === user.id;

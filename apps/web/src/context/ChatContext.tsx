@@ -113,6 +113,8 @@ interface ChatContextType {
   sendTyping: (isTyping: boolean) => void;
   postStatus: (text: string, mediaUrl?: string) => void;
   fetchContacts: () => Promise<void>;
+  fetchChats: () => Promise<void>;
+  refreshAllData: () => Promise<void>;
   addContact: (phoneNumber: string, nickname?: string) => Promise<{ success: boolean; error?: string }>;
   searchUsers: (query: string) => Promise<User[]>;
   startChatWithUser: (recipientId: string) => Promise<string | null>;
@@ -265,15 +267,44 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     activeChatIdRef.current = activeChatId;
     if (activeChatId) {
+      setChats((prev) =>
+        prev.map((c) => (c.id === activeChatId ? { ...c, unreadCount: 0 } : c))
+      );
       setMessages([]);
       fetchMessages(activeChatId);
       // Join socket chat room
-      if (socketRef.current) {
+      if (socketRef.current?.connected) {
         socketRef.current.emit('join_chat', { chatId: activeChatId });
         socketRef.current.emit('read_all_messages', { chatId: activeChatId });
       }
     }
   }, [activeChatId]);
+
+  const selectChat = (chatId: string) => {
+    setActiveChatId(chatId);
+    if (chatId) {
+      setChats((prev) =>
+        prev.map((c) => (c.id === chatId ? { ...c, unreadCount: 0 } : c))
+      );
+      if (socketRef.current?.connected) {
+        socketRef.current.emit('join_chat', { chatId });
+        socketRef.current.emit('read_all_messages', { chatId });
+      }
+    }
+  };
+
+  const refreshAllData = async () => {
+    try {
+      await Promise.allSettled([
+        fetchChats(),
+        fetchContacts(),
+        activeChatIdRef.current ? fetchMessages(activeChatIdRef.current) : Promise.resolve(),
+      ]);
+      if (socketRef.current?.connected) {
+        socketRef.current.emit('get_statuses');
+      }
+    } catch (e) {}
+  };
 
   // Load user from localStorage
   useEffect(() => {
@@ -1021,7 +1052,9 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginPass,
         registerPass,
         logout,
-        selectChat: setActiveChatId,
+        selectChat,
+        fetchChats,
+        refreshAllData,
         sendMessage,
         sendTyping,
         postStatus,
