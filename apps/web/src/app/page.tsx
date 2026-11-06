@@ -685,13 +685,13 @@ export default function Home() {
 
   // Handle global user search
   useEffect(() => {
-    if (searchQuery.trim().length > 1) {
+    if (searchQuery.trim().length >= 1) {
       setIsSearching(true);
       const delayDebounce = setTimeout(async () => {
-        const results = await searchUsers(searchQuery);
+        const results = await searchUsers(searchQuery.trim());
         setSearchResults(results);
         setIsSearching(false);
-      }, 300);
+      }, 200);
       return () => clearTimeout(delayDebounce);
     } else {
       setSearchResults([]);
@@ -771,10 +771,39 @@ export default function Home() {
       setContactPhone('');
       setContactNickname('');
       setShowAddContact(false);
+      if (res.contactId) {
+        const cId = await startChatWithUser(res.contactId);
+        if (cId) {
+          selectChat(cId);
+          setMobileView('chat');
+        }
+      }
     } else {
       alert(res.error || 'User not found or database error');
     }
   };
+
+  // AUTO-JOIN VIA INVITE LINK OR SELECT CHAT ON LOAD
+  useEffect(() => {
+    if (typeof window === 'undefined' || !user) return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const joinChatId = urlParams.get('join');
+    const openChatId = urlParams.get('chat');
+
+    if (joinChatId) {
+      joinGroupViaInvite(joinChatId).then((cId) => {
+        if (cId) {
+          selectChat(cId);
+          setMobileView('chat');
+        }
+        window.history.replaceState({}, '', '/');
+      });
+    } else if (openChatId) {
+      selectChat(openChatId);
+      setMobileView('chat');
+      window.history.replaceState({}, '', '/');
+    }
+  }, [user]);
 
   const handleCall = (type: 'voice' | 'video') => {
     if (!activeChat || !activeChat.otherMember) return;
@@ -1774,7 +1803,7 @@ export default function Home() {
           </div>
 
           {/* Search Results Drawer */}
-          {searchQuery.trim().length > 1 && (
+          {searchQuery.trim().length >= 1 && (
             <div className="flex-1 overflow-y-auto px-2 border-b border-[#222e35] bg-[#111b21] animate-in slide-in-from-top duration-150">
               <span className="text-[9px] font-bold text-[#00a884] uppercase tracking-widest px-2 block mb-2 mt-2">
                 Global Users Found
@@ -1789,10 +1818,14 @@ export default function Home() {
                 searchResults.map((resultUser) => (
                   <button
                     key={resultUser.id}
-                    onClick={() => {
-                      startChatWithUser(resultUser.id);
+                    onClick={async () => {
+                      const cId = await startChatWithUser(resultUser.id);
                       setSearchQuery('');
-                      setMobileView('chat');
+                      setLocalChatSearch('');
+                      if (cId) {
+                        selectChat(cId);
+                        setMobileView('chat');
+                      }
                     }}
                     className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#202c33] text-left transition-colors mb-1"
                   >
@@ -1840,7 +1873,7 @@ export default function Home() {
           )}
 
           {/* Active Lists */}
-          {searchQuery.trim().length <= 1 && (
+          {searchQuery.trim().length < 1 && (
             <div 
               onTouchStart={(e) => {
                 if (e.currentTarget.scrollTop <= 5) {
@@ -4568,7 +4601,7 @@ export default function Home() {
                 <input
                   type="text"
                   required
-                  placeholder="e.g. +919876543210"
+                  placeholder="Phone number (e.g. 7010042985 or +91...) or username"
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
                   className="w-full bg-[#111b21] border border-[#222e35] focus:border-[#00a884] rounded-xl py-2.5 px-3.5 text-xs outline-none transition-all text-[#e9edef] placeholder-[#8696a0]"

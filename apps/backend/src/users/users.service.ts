@@ -6,19 +6,29 @@ export class UsersService {
   constructor(private prisma: PrismaService) {}
 
   async searchUsers(query: string, currentUserId: string) {
-    if (!query) return [];
+    if (!query || !query.trim()) return [];
+    const q = query.trim();
+    const digitsOnly = q.replace(/\D/g, '');
+    const last10Digits = digitsOnly.length >= 10 ? digitsOnly.slice(-10) : digitsOnly;
+
+    const orConditions: any[] = [
+      { username: { contains: q, mode: 'insensitive' } },
+      { displayName: { contains: q, mode: 'insensitive' } },
+      { phoneNumber: { contains: q } },
+    ];
+
+    if (digitsOnly.length >= 3) {
+      orConditions.push({ phoneNumber: { contains: digitsOnly } });
+    }
+    if (last10Digits.length >= 4) {
+      orConditions.push({ phoneNumber: { contains: last10Digits } });
+    }
 
     return this.prisma.user.findMany({
       where: {
         AND: [
           { id: { not: currentUserId } },
-          {
-            OR: [
-              { username: { contains: query, mode: 'insensitive' } },
-              { phoneNumber: { contains: query } },
-              { displayName: { contains: query, mode: 'insensitive' } },
-            ],
-          },
+          { OR: orConditions },
         ],
       },
       select: {
@@ -31,7 +41,7 @@ export class UsersService {
         isOnline: true,
         lastSeen: true,
       },
-      take: 10,
+      take: 15,
     });
   }
 
@@ -88,6 +98,7 @@ export class UsersService {
     const uniqueContacts: any[] = [];
 
     for (const c of contacts) {
+      if (!c.contact) continue;
       if (seenContactIds.has(c.contact.id) || (c.contact.phoneNumber && seenContactIds.has(c.contact.phoneNumber))) {
         continue;
       }
@@ -114,12 +125,39 @@ export class UsersService {
     let contactId = data.contactId;
 
     if (!contactId && data.phoneNumber) {
-      const cleanPhone = data.phoneNumber.trim().replace(/[^\d+]/g, '');
-      const user = await this.prisma.user.findUnique({
-        where: { phoneNumber: cleanPhone },
+      const rawInput = data.phoneNumber.trim();
+      const digitsOnly = rawInput.replace(/\D/g, '');
+      const last10Digits = digitsOnly.length >= 10 ? digitsOnly.slice(-10) : digitsOnly;
+
+      const userConditions: any[] = [
+        { phoneNumber: rawInput },
+        { phoneNumber: digitsOnly },
+        { username: { equals: rawInput, mode: 'insensitive' } },
+        { displayName: { equals: rawInput, mode: 'insensitive' } },
+      ];
+
+      if (digitsOnly.length >= 4) {
+        userConditions.push(
+          { phoneNumber: `+91${last10Digits}` },
+          { phoneNumber: `+${digitsOnly}` },
+          { phoneNumber: last10Digits },
+          { phoneNumber: { contains: last10Digits } },
+          { username: { contains: rawInput, mode: 'insensitive' } },
+          { displayName: { contains: rawInput, mode: 'insensitive' } },
+        );
+      }
+
+      const user = await this.prisma.user.findFirst({
+        where: {
+          AND: [
+            { id: { not: userId } },
+            { OR: userConditions },
+          ],
+        },
       });
+
       if (!user) {
-        throw new BadRequestException('User with this phone number not found');
+        throw new BadRequestException(`No user found with "${rawInput}". Please check the phone number or username.`);
       }
       contactId = user.id;
     }
@@ -143,20 +181,22 @@ export class UsersService {
 
     if (existing) {
       if (data.nickname) {
-        return this.prisma.contact.update({
+        await this.prisma.contact.update({
           where: { id: existing.id },
           data: { nickname: data.nickname },
         });
       }
-      return existing;
+      return { success: true, contactId, alreadyExists: true };
     }
 
-    return this.prisma.contact.create({
+    await this.prisma.contact.create({
       data: {
         userId,
         contactId,
-        nickname: data.nickname,
+        nickname: data.nickname || null,
       },
     });
+
+    return { success: true, contactId };
   }
 }

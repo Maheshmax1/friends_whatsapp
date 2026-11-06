@@ -116,7 +116,7 @@ interface ChatContextType {
   fetchContacts: () => Promise<void>;
   fetchChats: () => Promise<void>;
   refreshAllData: () => Promise<void>;
-  addContact: (phoneNumber: string, nickname?: string) => Promise<{ success: boolean; error?: string }>;
+  addContact: (phoneNumber: string, nickname?: string) => Promise<{ success: boolean; contactId?: string; error?: string }>;
   searchUsers: (query: string) => Promise<User[]>;
   startChatWithUser: (recipientId: string) => Promise<string | null>;
   togglePin: (chatId: string) => Promise<void>;
@@ -857,7 +857,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || 'Failed to add contact');
       await fetchContacts();
-      return { success: true };
+      return { success: true, contactId: data.contactId };
     } catch (err: any) {
       return { success: false, error: err.message };
     }

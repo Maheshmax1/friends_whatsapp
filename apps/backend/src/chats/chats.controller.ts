@@ -114,6 +114,11 @@ export class ChatsController {
     return this.chatsService.joinGroupViaInvite(chatId, userId);
   }
 
+  @Get('preview/:chatId')
+  async previewGroup(@Param('chatId') chatId: string) {
+    return this.chatsService.previewGroup(chatId);
+  }
+
   @Delete(':chatId')
   async deleteChat(
     @Param('chatId') chatId: string,

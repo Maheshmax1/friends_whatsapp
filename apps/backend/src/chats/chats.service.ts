@@ -534,4 +534,25 @@ export class ChatsService {
     }
     return { success: true };
   }
+
+  async previewGroup(chatId: string) {
+    const chat = await this.prisma.chat.findUnique({
+      where: { id: chatId },
+      include: {
+        members: {
+          select: { id: true, userId: true },
+        },
+      },
+    });
+    if (!chat || !chat.isGroup) {
+      throw new NotFoundException('Group not found');
+    }
+    return {
+      id: chat.id,
+      name: chat.name,
+      description: chat.description,
+      avatarUrl: chat.avatarUrl,
+      memberCount: chat.members.length,
+    };
+  }
 }
