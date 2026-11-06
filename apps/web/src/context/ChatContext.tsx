@@ -71,6 +71,7 @@ interface Chat {
   isPinned: boolean;
   isArchived: boolean;
   unreadCount: number;
+  members?: any[];
 }
 
 export interface Story {
@@ -126,6 +127,8 @@ interface ChatContextType {
   editMessage: (messageId: string, content: string) => void;
   updateProfileSettings: (data: { displayName?: string; bio?: string; avatarUrl?: string; showLastSeen?: boolean; showReadReceipts?: boolean; allowNotifications?: boolean }) => Promise<void>;
   createGroupChat: (name: string, memberIds: string[], description?: string) => Promise<string | null>;
+  addMembersToGroup: (chatId: string, memberIds: string[]) => Promise<boolean>;
+  deleteChat: (chatId: string) => Promise<boolean>;
   toggleReaction: (messageId: string, emoji: string) => void;
 }
 
@@ -1018,6 +1021,51 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const addMembersToGroup = async (chatId: string, memberIds: string[]): Promise<boolean> => {
+    if (!accessToken) return false;
+    try {
+      const res = await fetch(`${API_URL}/chats/${chatId}/members`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ memberIds }),
+      });
+      if (res.ok) {
+        await fetchChats();
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Error adding members to group:', err);
+      return false;
+    }
+  };
+
+  const deleteChat = async (chatId: string): Promise<boolean> => {
+    if (!accessToken) return false;
+    try {
+      const res = await fetch(`${API_URL}/chats/${chatId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      if (res.ok) {
+        setChats((prev) => prev.filter((c) => c.id !== chatId));
+        if (activeChatId === chatId) {
+          setActiveChatId(null);
+        }
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Error deleting chat:', err);
+      return false;
+    }
+  };
+
   const toggleReaction = (messageId: string, emoji: string) => {
     if (!socketRef.current || !activeChatId) return;
     socketRef.current.emit('toggle_reaction', { chatId: activeChatId, messageId, emoji });
@@ -1070,6 +1118,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         editMessage,
         updateProfileSettings,
         createGroupChat,
+        addMembersToGroup,
+        deleteChat,
         toggleReaction,
       }}
     >

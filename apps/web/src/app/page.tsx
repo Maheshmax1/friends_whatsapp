@@ -89,6 +89,8 @@ export default function Home() {
     editMessage,
     updateProfileSettings,
     createGroupChat,
+    addMembersToGroup,
+    deleteChat,
     toggleReaction,
     refreshAllData,
     fetchChats
@@ -165,11 +167,27 @@ export default function Home() {
   const [contactPhone, setContactPhone] = useState('');
   const [contactNickname, setContactNickname] = useState('');
 
-  // GROUP CHAT CREATION WIZARD STATES
+  // GROUP CHAT CREATION WIZARD STATES (WhatsApp 2-Step Flow)
   const [showGroupWizard, setShowGroupWizard] = useState(false);
+  const [groupWizardStep, setGroupWizardStep] = useState<1 | 2>(1);
   const [groupName, setGroupName] = useState('');
   const [groupDescription, setGroupDescription] = useState('');
   const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
+  const [groupMemberSearch, setGroupMemberSearch] = useState('');
+
+  // ADD MEMBERS TO EXISTING GROUP MODAL
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [addMemberSelectedContacts, setAddMemberSelectedContacts] = useState<string[]>([]);
+  const [isAddingMembers, setIsAddingMembers] = useState(false);
+
+  // MOBILE LONG PRESS CHAT SELECTION & ACTION BAR
+  const [selectedChatForActions, setSelectedChatForActions] = useState<string | null>(null);
+  const chatLongPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isLongPressTriggeredRef = useRef(false);
+
+  // MOBILE HORIZONTAL SWIPE GESTURES
+  const swipeTouchStartXRef = useRef<number | null>(null);
+  const swipeTouchStartYRef = useRef<number | null>(null);
 
   // AUDIO RECORDING STATES (Voice Notes)
   const [isRecording, setIsRecording] = useState(false);
@@ -1002,7 +1020,7 @@ export default function Home() {
     }
   }, [voiceWaveforms, isRecording, activeTheme]);
 
-  // GROUP CREATION WIZARD CONTROLS (11. Group Chat Management)
+  // GROUP CREATION WIZARD CONTROLS (WhatsApp 2-Step Flow)
   const handleToggleWizardContact = (contactId: string) => {
     setSelectedContacts((prev) =>
       prev.includes(contactId) ? prev.filter((id) => id !== contactId) : [...prev, contactId]
@@ -1017,8 +1035,33 @@ export default function Home() {
       setGroupName('');
       setGroupDescription('');
       setSelectedContacts([]);
+      setGroupWizardStep(1);
       setShowGroupWizard(false);
-      alert('Group Chat created successfully!');
+      alert('Group Chat created successfully! You are the Group Admin.');
+    }
+  };
+
+  // ADD MEMBERS TO EXISTING ACTIVE GROUP
+  const handleToggleAddMemberContact = (contactId: string) => {
+    setAddMemberSelectedContacts((prev) =>
+      prev.includes(contactId) ? prev.filter((id) => id !== contactId) : [...prev, contactId]
+    );
+  };
+
+  const handleAddMembersSubmit = async () => {
+    if (!activeChatId || addMemberSelectedContacts.length === 0) return;
+    setIsAddingMembers(true);
+    try {
+      const ok = await addMembersToGroup(activeChatId, addMemberSelectedContacts);
+      if (ok) {
+        setShowAddMemberModal(false);
+        setAddMemberSelectedContacts([]);
+        alert('Members added to group successfully!');
+      } else {
+        alert('Failed to add members. Please try again.');
+      }
+    } finally {
+      setIsAddingMembers(false);
     }
   };
 
@@ -1530,45 +1573,95 @@ export default function Home() {
           mobileView === 'chat' ? 'hidden md:flex' : 'flex'
         }`}>
           
-          {/* WhatsApp Sidebar Header */}
-          <div className="p-3.5 px-4 flex items-center justify-between border-b border-[#222e35] bg-[#111b21]">
-            <div 
-              onClick={triggerRefresh}
-              className="flex items-center gap-2 cursor-pointer select-none group"
-              title="Click to refresh and get latest messages"
-            >
-              <h2 className="text-xl font-bold tracking-tight text-[#e9edef] group-hover:text-[#00a884] transition-colors">WhatsApp</h2>
-              {isRefreshing && <Loader2 className="w-4 h-4 text-[#00a884] animate-spin" />}
+          {/* WhatsApp Sidebar Header (Normal OR Mobile Long-Press Action Bar) */}
+          {selectedChatForActions ? (
+            <div className="p-3 px-4 flex items-center justify-between border-b border-[#222e35] bg-[#202c33] animate-in fade-in duration-150">
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setSelectedChatForActions(null)}
+                  className="w-8 h-8 rounded-full hover:bg-[#2a3942] flex items-center justify-center text-[#e9edef] transition-colors"
+                  title="Back / Cancel selection"
+                >
+                  <ArrowLeft className="w-5 h-5 text-[#8696a0] hover:text-white" />
+                </button>
+                <span className="text-sm font-semibold text-[#e9edef]">1 selected</span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    togglePin(selectedChatForActions);
+                    setSelectedChatForActions(null);
+                  }}
+                  title="Pin / Unpin chat"
+                  className="w-8 h-8 rounded-full hover:bg-[#2a3942] flex items-center justify-center text-[#8696a0] hover:text-[#e9edef] transition-colors"
+                >
+                  <Pin className="w-4.5 h-4.5" />
+                </button>
+                <button
+                  onClick={() => {
+                    toggleArchive(selectedChatForActions);
+                    setSelectedChatForActions(null);
+                  }}
+                  title="Archive chat"
+                  className="w-8 h-8 rounded-full hover:bg-[#2a3942] flex items-center justify-center text-[#8696a0] hover:text-[#e9edef] transition-colors"
+                >
+                  <Archive className="w-4.5 h-4.5" />
+                </button>
+                <button
+                  onClick={async () => {
+                    if (window.confirm('Delete this chat? All messages will be cleared.')) {
+                      await deleteChat(selectedChatForActions);
+                      setSelectedChatForActions(null);
+                    }
+                  }}
+                  title="Delete chat"
+                  className="w-8 h-8 rounded-full hover:bg-red-500/20 flex items-center justify-center text-red-400 hover:text-red-300 transition-colors"
+                >
+                  <Trash2 className="w-4.5 h-4.5" />
+                </button>
+              </div>
             </div>
-            
-            <div className="flex items-center gap-2">
-              <button 
+          ) : (
+            <div className="p-3.5 px-4 flex items-center justify-between border-b border-[#222e35] bg-[#111b21]">
+              <div 
                 onClick={triggerRefresh}
-                title="Refresh messages and updates"
-                className={`w-8 h-8 rounded-full hover:bg-[#202c33] flex items-center justify-center text-[#8696a0] hover:text-[#00a884] transition-colors ${
-                  isRefreshing ? 'animate-spin text-[#00a884]' : ''
-                }`}
+                className="flex items-center gap-2 cursor-pointer select-none group"
+                title="Click to refresh and get latest messages"
               >
-                <RotateCw className="w-4 h-4" />
-              </button>
+                <h2 className="text-xl font-bold tracking-tight text-[#e9edef] group-hover:text-[#00a884] transition-colors">WhatsApp</h2>
+                {isRefreshing && <Loader2 className="w-4 h-4 text-[#00a884] animate-spin" />}
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <button 
+                  onClick={triggerRefresh}
+                  title="Refresh messages and updates"
+                  className={`w-8 h-8 rounded-full hover:bg-[#202c33] flex items-center justify-center text-[#8696a0] hover:text-[#00a884] transition-colors ${
+                    isRefreshing ? 'animate-spin text-[#00a884]' : ''
+                  }`}
+                >
+                  <RotateCw className="w-4 h-4" />
+                </button>
 
-              <button 
-                onClick={() => setShowAddContact(true)} 
-                title="New chat"
-                className="w-8 h-8 rounded-full bg-[#00a884] hover:bg-[#008f72] text-[#111b21] flex items-center justify-center font-bold transition-transform hover:scale-105 shadow-sm"
-              >
-                <Plus className="w-4 h-4 stroke-[2.5]" />
-              </button>
+                <button 
+                  onClick={() => setShowAddContact(true)} 
+                  title="New chat"
+                  className="w-8 h-8 rounded-full bg-[#00a884] hover:bg-[#008f72] text-[#111b21] flex items-center justify-center font-bold transition-transform hover:scale-105 shadow-sm"
+                >
+                  <Plus className="w-4 h-4 stroke-[2.5]" />
+                </button>
 
-              <button 
-                onClick={() => setShowSettingsDrawer(true)} 
-                title="Menu"
-                className="w-8 h-8 rounded-full hover:bg-[#202c33] flex items-center justify-center text-[#8696a0] hover:text-[#e9edef] transition-colors"
-              >
-                <MoreVertical className="w-4 h-4" />
-              </button>
+                <button 
+                  onClick={() => setShowSettingsDrawer(true)} 
+                  title="Menu"
+                  className="w-8 h-8 rounded-full hover:bg-[#202c33] flex items-center justify-center text-[#8696a0] hover:text-[#e9edef] transition-colors"
+                >
+                  <MoreVertical className="w-4 h-4" />
+                </button>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Search Bar & WhatsApp Filter Tabs */}
           <div className="p-3 pb-2.5 bg-[#111b21] border-b border-[#222e35] space-y-2.5">
@@ -1879,6 +1972,7 @@ export default function Home() {
                 ) : (
                   filteredChatsList.map((chat) => {
                     const isChatActive = chat.id === activeChatId;
+                    const isSelected = selectedChatForActions === chat.id;
                     const isOnline = chat.otherMember?.isOnline || onlineUsers[chat.otherMember?.id || ''];
                     const isTyping = typingUsers[chat.otherMember?.id || ''];
                     const otherMemberId = chat.otherMember?.id;
@@ -1889,12 +1983,52 @@ export default function Home() {
                     return (
                       <div 
                         key={chat.id}
+                        onTouchStart={() => {
+                          isLongPressTriggeredRef.current = false;
+                          chatLongPressTimerRef.current = setTimeout(() => {
+                            isLongPressTriggeredRef.current = true;
+                            setSelectedChatForActions(chat.id);
+                            if (typeof navigator !== 'undefined' && navigator.vibrate) {
+                              navigator.vibrate(40);
+                            }
+                          }, 450);
+                        }}
+                        onTouchMove={() => {
+                          if (chatLongPressTimerRef.current) {
+                            clearTimeout(chatLongPressTimerRef.current);
+                          }
+                        }}
+                        onTouchEnd={() => {
+                          if (chatLongPressTimerRef.current) {
+                            clearTimeout(chatLongPressTimerRef.current);
+                          }
+                        }}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          setSelectedChatForActions(chat.id);
+                        }}
                         onClick={() => {
+                          if (isLongPressTriggeredRef.current) {
+                            isLongPressTriggeredRef.current = false;
+                            return;
+                          }
+                          if (selectedChatForActions) {
+                            if (selectedChatForActions === chat.id) {
+                              setSelectedChatForActions(null);
+                            } else {
+                              setSelectedChatForActions(chat.id);
+                            }
+                            return;
+                          }
                           selectChat(chat.id);
                           setMobileView('chat');
                         }}
                         className={`w-full flex items-center justify-between p-3 px-4 text-left transition-colors cursor-pointer select-none border-b border-[#222e35]/40 ${
-                          isChatActive ? 'bg-[#2a3942]' : 'bg-[#111b21] hover:bg-[#202c33]'
+                          isSelected
+                            ? 'bg-[#2a3942] ring-1 ring-inset ring-[#00a884]'
+                            : isChatActive 
+                            ? 'bg-[#2a3942]' 
+                            : 'bg-[#111b21] hover:bg-[#202c33]'
                         }`}
                       >
                         <div className="flex items-center gap-3.5 min-w-0 flex-1">
@@ -1921,10 +2055,15 @@ export default function Home() {
                                 <span>{chat.name.slice(0, 2).toUpperCase()}</span>
                               )}
                             </div>
+                            {isSelected && (
+                              <div className="absolute inset-0 bg-[#00a884]/80 rounded-full flex items-center justify-center animate-in zoom-in-75 duration-150">
+                                <Check className="w-5 h-5 text-[#111b21] stroke-[3]" />
+                              </div>
+                            )}
                             {chat.isGroup && (
                               <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#00a884] border border-[#111b21] rounded-full flex items-center justify-center text-[7px] text-[#111b21] font-bold">G</div>
                             )}
-                            {isOnline && !chat.isGroup && (
+                            {isOnline && !chat.isGroup && !isSelected && (
                               <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#25d366] border-2 border-[#111b21] rounded-full animate-pulse"></div>
                             )}
                           </div>
@@ -2141,6 +2280,18 @@ export default function Home() {
                   </div>
 
                   <div className="flex items-center gap-3 text-[#aebac1]">
+                    {activeChat.isGroup && (
+                      <button 
+                        onClick={() => {
+                          setAddMemberSelectedContacts([]);
+                          setShowAddMemberModal(true);
+                        }}
+                        title="Add members to group"
+                        className="p-2 rounded-full hover:bg-[#2a3942] hover:text-[#00a884] text-[#8696a0] transition-colors"
+                      >
+                        <UserPlus className="w-5 h-5" />
+                      </button>
+                    )}
                     <button 
                       onClick={() => handleCall('video')}
                       title="Video call"
@@ -2168,6 +2319,8 @@ export default function Home() {
                 {/* Chat Message History */}
                 <div 
                   onTouchStart={(e) => {
+                    swipeTouchStartXRef.current = e.touches[0].clientX;
+                    swipeTouchStartYRef.current = e.touches[0].clientY;
                     if (e.currentTarget.scrollTop <= 5) {
                       pullStartYRef.current = e.touches[0].clientY;
                     } else {
@@ -2183,8 +2336,24 @@ export default function Home() {
                       }
                     }
                   }}
-                  onTouchEnd={() => {
+                  onTouchEnd={(e) => {
                     pullStartYRef.current = null;
+                    if (swipeTouchStartXRef.current !== null && swipeTouchStartYRef.current !== null) {
+                      const deltaX = e.changedTouches[0].clientX - swipeTouchStartXRef.current;
+                      const deltaY = e.changedTouches[0].clientY - swipeTouchStartYRef.current;
+                      // Horizontal swipe threshold: 70px horizontal vs vertical dominance
+                      if (Math.abs(deltaX) > Math.abs(deltaY) * 1.5 && Math.abs(deltaX) > 70) {
+                        if (deltaX > 70) {
+                          // Swiped RIGHT -> Go back to left Chat List
+                          setMobileView('list');
+                        } else if (deltaX < -70) {
+                          // Swiped LEFT -> Open Right Panel (Group Info / Shared Media)
+                          setShowSharedMedia(true);
+                        }
+                      }
+                    }
+                    swipeTouchStartXRef.current = null;
+                    swipeTouchStartYRef.current = null;
                   }}
                   className="flex-1 overflow-y-auto p-4 space-y-4 relative z-10 flex flex-col min-h-0 bg-transparent select-none"
                 >
@@ -2797,71 +2966,129 @@ export default function Home() {
                       })()}
                     </div>
 
-                    {/* 5. Shared Mutual Groups */}
-                    <div className="pt-3">
-                      <span className="text-xs font-semibold text-[#8696a0] uppercase tracking-wider block mb-2">Groups in common</span>
-                      {(() => {
-                        const commonGroups = chats.filter((c) => c.isGroup);
-                        if (commonGroups.length === 0) {
+                    {/* 5. Group Participants & Add Member (For Groups) */}
+                    {activeChat.isGroup && (
+                      <div className="pt-3 space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="text-xs font-semibold text-[#8696a0] uppercase tracking-wider">
+                            {(activeChat.members || []).length} participants
+                          </span>
+                        </div>
+
+                        {/* Add Participants Action */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setAddMemberSelectedContacts([]);
+                            setShowAddMemberModal(true);
+                          }}
+                          className="w-full flex items-center gap-3 p-2.5 rounded-xl bg-[#202c33] hover:bg-[#2a3942] border border-[#222e35] text-[#00a884] font-medium text-xs transition-colors"
+                        >
+                          <div className="w-8 h-8 rounded-full bg-[#00a884]/20 flex items-center justify-center">
+                            <UserPlus className="w-4 h-4 text-[#00a884]" />
+                          </div>
+                          <span>Add participants</span>
+                        </button>
+
+                        {/* Participant list */}
+                        <div className="space-y-1 max-h-48 overflow-y-auto pr-1 divide-y divide-[#222e35]/30">
+                          {(activeChat.members || []).map((m: any) => {
+                            const isMe = m.userId === user?.id;
+                            const memberName = isMe ? 'You' : m.user?.displayName || m.user?.username || 'Member';
+                            return (
+                              <div key={m.id || m.userId} className="flex items-center justify-between p-2 rounded-lg hover:bg-[#202c33]">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="w-8 h-8 rounded-full bg-[#2a3942] flex items-center justify-center text-xs font-bold text-[#e9edef]">
+                                    {memberName.slice(0, 2).toUpperCase()}
+                                  </div>
+                                  <div>
+                                    <span className="text-xs text-[#e9edef] font-medium block leading-tight">{memberName}</span>
+                                    <span className="text-[10px] text-[#8696a0]">{m.user?.phoneNumber || ''}</span>
+                                  </div>
+                                </div>
+                                {m.isAdmin && (
+                                  <span className="text-[9px] text-[#00a884] bg-[#00a884]/10 border border-[#00a884]/30 px-1.5 py-0.5 rounded font-medium">
+                                    Group Admin
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* 6. Shared Mutual Groups (1-on-1 chats only) */}
+                    {!activeChat.isGroup && (
+                      <div className="pt-3">
+                        <span className="text-xs font-semibold text-[#8696a0] uppercase tracking-wider block mb-2">Groups in common</span>
+                        {(() => {
+                          const commonGroups = chats.filter((c) => c.isGroup);
+                          if (commonGroups.length === 0) {
+                            return (
+                              <div className="text-center py-3 bg-[#202c33]/50 rounded-xl border border-[#222e35] text-[#8696a0] text-xs">
+                                No groups in common
+                              </div>
+                            );
+                          }
                           return (
-                            <div className="text-center py-3 bg-[#202c33]/50 rounded-xl border border-[#222e35] text-[#8696a0] text-xs">
-                              No groups in common
+                            <div className="space-y-1.5">
+                              {commonGroups.slice(0, 3).map((g) => (
+                                <div 
+                                  key={g.id}
+                                  onClick={() => {
+                                    selectChat(g.id);
+                                    setShowSharedMedia(false);
+                                  }}
+                                  className="p-2.5 rounded-xl bg-[#202c33] hover:bg-[#2a3942] border border-[#222e35] flex items-center gap-3 cursor-pointer transition-colors"
+                                >
+                                  <div className="w-8 h-8 rounded-full bg-[#00a884]/20 border border-[#00a884]/30 flex items-center justify-center font-bold text-xs text-[#00a884] shrink-0">
+                                    {g.name.slice(0, 2).toUpperCase()}
+                                  </div>
+                                  <div className="text-left min-w-0">
+                                    <h5 className="text-xs font-medium text-[#e9edef] truncate leading-none">{g.name}</h5>
+                                    <span className="text-[10px] text-[#8696a0] mt-1 block">Group</span>
+                                  </div>
+                                </div>
+                              ))}
                             </div>
                           );
-                        }
-                        return (
-                          <div className="space-y-1.5">
-                            {commonGroups.slice(0, 3).map((g) => (
-                              <div 
-                                key={g.id}
-                                onClick={() => {
-                                  selectChat(g.id);
-                                  setShowSharedMedia(false);
-                                }}
-                                className="p-2.5 rounded-xl bg-[#202c33] hover:bg-[#2a3942] border border-[#222e35] flex items-center gap-3 cursor-pointer transition-colors"
-                              >
-                                <div className="w-8 h-8 rounded-full bg-[#00a884]/20 border border-[#00a884]/30 flex items-center justify-center font-bold text-xs text-[#00a884] shrink-0">
-                                  {g.name.slice(0, 2).toUpperCase()}
-                                </div>
-                                <div className="text-left min-w-0">
-                                  <h5 className="text-xs font-medium text-[#e9edef] truncate leading-none">{g.name}</h5>
-                                  <span className="text-[10px] text-[#8696a0] mt-1 block">Group</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        );
-                      })()}
-                    </div>
+                        })()}
+                      </div>
+                    )}
 
-                    {/* 6. Danger Zone Action Buttons */}
+                    {/* 7. Action Buttons */}
                     <div className="pt-3 space-y-2">
                       <button 
-                        onClick={() => {
-                          const confirm = window.confirm(`Are you sure you want to ${isBlocked ? 'unblock' : 'block'} ${activeChat.name}?`);
-                          if (confirm) {
-                            setIsBlocked(!isBlocked);
-                            alert(`User has been ${isBlocked ? 'unblocked' : 'blocked'}.`);
+                        onClick={async () => {
+                          const actionText = activeChat.isGroup ? 'Exit & Delete Group' : 'Delete Chat';
+                          if (window.confirm(`Are you sure you want to ${actionText}?`)) {
+                            await deleteChat(activeChat.id);
+                            setShowSharedMedia(false);
+                            setMobileView('list');
                           }
                         }}
                         className="w-full py-2.5 px-4 rounded-xl border border-rose-500/30 hover:bg-rose-500/10 text-rose-400 text-xs font-medium flex items-center justify-center gap-2 transition-colors"
                       >
-                        <Ban className="w-4 h-4" />
-                        <span>{isBlocked ? 'Unblock Contact' : 'Block Contact'}</span>
+                        <Trash2 className="w-4 h-4" />
+                        <span>{activeChat.isGroup ? 'Exit & Delete Group' : 'Delete Chat'}</span>
                       </button>
 
-                      <button 
-                        onClick={() => {
-                          const confirm = window.confirm(`Report ${activeChat.name} for spam or inappropriate activity?`);
-                          if (confirm) {
-                            alert("Thank you. The report has been sent to system administrators.");
-                          }
-                        }}
-                        className="w-full py-2.5 px-4 rounded-xl border border-[#222e35] hover:bg-[#202c33] text-[#8696a0] hover:text-[#e9edef] text-xs font-medium flex items-center justify-center gap-2 transition-colors"
-                      >
-                        <AlertTriangle className="w-4 h-4" />
-                        <span>Report Contact</span>
-                      </button>
+                      {!activeChat.isGroup && (
+                        <button 
+                          onClick={() => {
+                            const confirm = window.confirm(`Are you sure you want to ${isBlocked ? 'unblock' : 'block'} ${activeChat.name}?`);
+                            if (confirm) {
+                              setIsBlocked(!isBlocked);
+                              alert(`User has been ${isBlocked ? 'unblocked' : 'blocked'}.`);
+                            }
+                          }}
+                          className="w-full py-2.5 px-4 rounded-xl border border-[#222e35] hover:bg-[#202c33] text-[#8696a0] hover:text-[#e9edef] text-xs font-medium flex items-center justify-center gap-2 transition-colors"
+                        >
+                          <Ban className="w-4 h-4" />
+                          <span>{isBlocked ? 'Unblock Contact' : 'Block Contact'}</span>
+                        </button>
+                      )}
                     </div>
 
                   </div>
@@ -3274,101 +3501,328 @@ export default function Home() {
       {/* MODALS & PORTALS */}
       {/* ======================================================== */}
 
-      {/* 11. GROUP CREATION WIZARD MODAL */}
+      {/* 11. GROUP CREATION WIZARD MODAL (Authentic WhatsApp 2-Step Flow) */}
       {showGroupWizard && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center px-4">
           <div className="w-full max-w-md bg-[#202c33] border border-[#222e35] rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[85vh] text-[#e9edef]">
-            <div className="flex justify-between items-center mb-4 border-b border-[#222e35] pb-2.5">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-[#00a884]">Create Group</h3>
+            
+            {/* STEP 1: Add group members */}
+            {groupWizardStep === 1 && (
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="flex justify-between items-center mb-3 border-b border-[#222e35] pb-2.5 shrink-0">
+                  <div>
+                    <h3 className="text-sm font-semibold text-[#e9edef]">Add group members</h3>
+                    <p className="text-[11px] text-[#8696a0]">
+                      {selectedContacts.length > 0 ? `${selectedContacts.length} selected` : 'Select contacts to add'}
+                    </p>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setShowGroupWizard(false);
+                      setGroupWizardStep(1);
+                      setSelectedContacts([]);
+                    }}
+                    className="w-7 h-7 rounded-full hover:bg-[#2a3942] flex items-center justify-center text-[#8696a0] hover:text-[#e9edef] transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* Selected members avatar chips */}
+                {selectedContacts.length > 0 && (
+                  <div className="flex items-center gap-2 overflow-x-auto py-2 shrink-0 border-b border-[#222e35]/60 mb-2">
+                    {selectedContacts.map((cId) => {
+                      const c = contacts.find((item) => item.id === cId);
+                      return (
+                        <div key={cId} className="flex items-center gap-1 bg-[#111b21] border border-[#222e35] rounded-full pl-1.5 pr-2 py-0.5 shrink-0">
+                          <div className="w-5 h-5 rounded-full bg-[#202c33] flex items-center justify-center text-[9px] font-bold text-[#e9edef]">
+                            {(c?.displayName || 'U').slice(0, 1)}
+                          </div>
+                          <span className="text-[11px] text-[#e9edef] max-w-20 truncate">{c?.displayName || 'Contact'}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleWizardContact(cId)}
+                            className="text-[#8696a0] hover:text-white ml-0.5"
+                          >
+                            <X className="w-3 h-3" />
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Search Contacts */}
+                <div className="relative mb-2 shrink-0">
+                  <Search className="w-3.5 h-3.5 text-[#8696a0] absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    placeholder="Search name or number"
+                    value={groupMemberSearch}
+                    onChange={(e) => setGroupMemberSearch(e.target.value)}
+                    className="w-full bg-[#111b21] border border-[#222e35] focus:border-[#00a884] rounded-xl py-1.5 pl-8 pr-3 text-xs outline-none text-[#e9edef] placeholder-[#8696a0]"
+                  />
+                </div>
+
+                {/* Contacts List */}
+                <div className="flex-1 overflow-y-auto space-y-1 pr-1 divide-y divide-[#222e35]/40 min-h-0">
+                  {contacts.length === 0 ? (
+                    <p className="text-xs text-[#8696a0] text-center py-6">Add some contacts first to create groups</p>
+                  ) : (
+                    contacts
+                      .filter((c) => 
+                        !groupMemberSearch.trim() || 
+                        c.displayName.toLowerCase().includes(groupMemberSearch.toLowerCase()) || 
+                        c.phoneNumber.includes(groupMemberSearch)
+                      )
+                      .map((contact) => {
+                        const isSelected = selectedContacts.includes(contact.id);
+                        return (
+                          <button
+                            key={contact.id}
+                            type="button"
+                            onClick={() => handleToggleWizardContact(contact.id)}
+                            className={"w-full p-2 rounded-xl text-left text-xs flex items-center justify-between transition-colors " + (
+                              isSelected 
+                                ? 'bg-[#00a884]/20 border border-[#00a884]/40 text-[#e9edef]' 
+                                : 'bg-[#111b21] hover:bg-[#2a3942] border border-[#222e35]'
+                            )}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-full bg-[#202c33] border border-[#222e35] flex items-center justify-center font-bold text-xs text-[#e9edef]">
+                                {contact.displayName.slice(0, 2).toUpperCase()}
+                              </div>
+                              <div>
+                                <span className="text-[#e9edef] font-medium block leading-tight">{contact.displayName}</span>
+                                <span className="text-[10px] text-[#8696a0]">{contact.phoneNumber}</span>
+                              </div>
+                            </div>
+                            <div className={"w-4 h-4 rounded-full border flex items-center justify-center transition-all " + (
+                              isSelected ? 'bg-[#00a884] border-[#00a884]' : 'border-[#8696a0]'
+                            )}>
+                              {isSelected && <Check className="w-3 h-3 text-[#111b21]" />}
+                            </div>
+                          </button>
+                        );
+                      })
+                  )}
+                </div>
+
+                {/* Footer with Next Arrow */}
+                <div className="flex items-center justify-between pt-3 border-t border-[#222e35] shrink-0">
+                  <span className="text-xs text-[#8696a0]">
+                    {selectedContacts.length === 0 ? 'Pick at least 1 person' : `${selectedContacts.length} selected`}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={selectedContacts.length === 0}
+                    onClick={() => setGroupWizardStep(2)}
+                    className="w-10 h-10 rounded-full bg-[#00a884] hover:bg-[#008f6f] text-[#111b21] flex items-center justify-center font-bold shadow-lg disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                    title="Next: Set group subject"
+                  >
+                    <ArrowRight className="w-5 h-5 stroke-[2.5]" />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STEP 2: Group Subject & Admin Confirmation */}
+            {groupWizardStep === 2 && (
+              <form onSubmit={handleGroupWizardSubmit} className="space-y-4 flex-1 flex flex-col overflow-hidden">
+                <div className="flex items-center gap-3 mb-2 border-b border-[#222e35] pb-2.5 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setGroupWizardStep(1)}
+                    className="w-7 h-7 rounded-full hover:bg-[#2a3942] flex items-center justify-center text-[#8696a0] hover:text-[#e9edef] transition-colors"
+                    title="Back to member selection"
+                  >
+                    <ArrowLeft className="w-4 h-4" />
+                  </button>
+                  <div className="flex-1">
+                    <h3 className="text-sm font-semibold text-[#e9edef]">New group</h3>
+                    <p className="text-[11px] text-[#8696a0]">Add group subject</p>
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setShowGroupWizard(false);
+                      setGroupWizardStep(1);
+                      setSelectedContacts([]);
+                    }}
+                    className="w-7 h-7 rounded-full hover:bg-[#2a3942] flex items-center justify-center text-[#8696a0] hover:text-[#e9edef] transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="space-y-3.5 flex-1 overflow-y-auto">
+                  <div className="flex items-center gap-3">
+                    <div className="w-14 h-14 rounded-full bg-[#111b21] border border-[#222e35] flex items-center justify-center text-[#00a884] shrink-0">
+                      <Camera className="w-6 h-6" />
+                    </div>
+                    <div className="flex-1">
+                      <label className="block text-[#8696a0] text-xs font-medium uppercase tracking-wider mb-1">
+                        Group Subject ({25 - groupName.length} left)
+                      </label>
+                      <input
+                        type="text"
+                        required
+                        maxLength={25}
+                        placeholder="Type group subject here..."
+                        value={groupName}
+                        onChange={(e) => setGroupName(e.target.value)}
+                        className="w-full bg-[#111b21] border border-[#222e35] focus:border-[#00a884] rounded-xl py-2 px-3 text-xs outline-none text-[#e9edef] placeholder-[#8696a0]"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[#8696a0] text-xs font-medium uppercase tracking-wider mb-1">Group Description</label>
+                    <textarea
+                      rows={3}
+                      placeholder="Add an optional group description..."
+                      value={groupDescription}
+                      onChange={(e) => setGroupDescription(e.target.value)}
+                      className="w-full bg-[#111b21] border border-[#222e35] focus:border-[#00a884] rounded-xl py-2 px-3 text-xs outline-none text-[#e9edef] placeholder-[#8696a0] resize-none"
+                    />
+                  </div>
+
+                  {/* Group Admin & Members Info Box */}
+                  <div className="p-3 bg-[#111b21] rounded-2xl border border-[#222e35] space-y-1.5">
+                    <div className="flex items-center gap-2 text-xs font-medium text-[#00a884]">
+                      <Shield className="w-4 h-4" />
+                      <span>You will be created as Group Admin</span>
+                    </div>
+                    <p className="text-[11px] text-[#8696a0] leading-relaxed">
+                      As admin, you can manage participants, edit group information, and add new persons anytime.
+                    </p>
+                    <span className="text-[11px] text-[#e9edef] block mt-1">
+                      Participants: {selectedContacts.length + 1} (You + {selectedContacts.length} contacts)
+                    </span>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-3 border-t border-[#222e35] shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setGroupWizardStep(1)}
+                    className="px-3 py-1.5 bg-[#111b21] hover:bg-[#2a3942] rounded-xl text-xs font-semibold text-[#8696a0] hover:text-[#e9edef] transition-colors"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={!groupName.trim() || selectedContacts.length === 0}
+                    className="px-5 py-2 bg-[#00a884] hover:bg-[#008f6f] text-white rounded-xl text-xs font-semibold shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 transition-colors"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>Create Group</span>
+                  </button>
+                </div>
+              </form>
+            )}
+
+          </div>
+        </div>
+      )}
+
+      {/* 12. ADD MEMBERS TO EXISTING ACTIVE GROUP MODAL */}
+      {showAddMemberModal && activeChat && activeChat.isGroup && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center px-4">
+          <div className="w-full max-w-md bg-[#202c33] border border-[#222e35] rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[85vh] text-[#e9edef]">
+            <div className="flex justify-between items-center mb-3 border-b border-[#222e35] pb-2.5 shrink-0">
+              <div>
+                <h3 className="text-sm font-semibold text-[#e9edef]">Add participants to &quot;{activeChat.name}&quot;</h3>
+                <p className="text-[11px] text-[#8696a0]">
+                  {addMemberSelectedContacts.length > 0 ? `${addMemberSelectedContacts.length} selected` : 'Select contacts to add'}
+                </p>
+              </div>
               <button 
                 type="button"
-                onClick={() => setShowGroupWizard(false)}
+                onClick={() => {
+                  setShowAddMemberModal(false);
+                  setAddMemberSelectedContacts([]);
+                }}
                 className="w-7 h-7 rounded-full hover:bg-[#2a3942] flex items-center justify-center text-[#8696a0] hover:text-[#e9edef] transition-colors"
               >
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <form onSubmit={handleGroupWizardSubmit} className="space-y-4 flex-1 flex flex-col overflow-hidden">
-              <div className="space-y-3 shrink-0">
-                <div>
-                  <label className="block text-[#8696a0] text-xs font-medium uppercase tracking-wider mb-1">Group Name</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="E.g. Friends WhatsApp Group"
-                    value={groupName}
-                    onChange={(e) => setGroupName(e.target.value)}
-                    className="w-full bg-[#111b21] border border-[#222e35] focus:border-[#00a884] rounded-xl py-2 px-3 text-xs outline-none text-[#e9edef] placeholder-[#8696a0]"
-                  />
-                </div>
-                <div>
-                  <label className="block text-[#8696a0] text-xs font-medium uppercase tracking-wider mb-1">Group Description</label>
-                  <input
-                    type="text"
-                    placeholder="What is this group about?"
-                    value={groupDescription}
-                    onChange={(e) => setGroupDescription(e.target.value)}
-                    className="w-full bg-[#111b21] border border-[#222e35] focus:border-[#00a884] rounded-xl py-2 px-3 text-xs outline-none text-[#e9edef] placeholder-[#8696a0]"
-                  />
-                </div>
-              </div>
+            {/* Contacts not yet in this group */}
+            {(() => {
+              const existingMemberUserIds = new Set(
+                (activeChat.members || []).map((m: any) => m.userId)
+              );
+              const eligibleContacts = contacts.filter((c) => !existingMemberUserIds.has(c.id));
 
-              {/* Contacts Selection */}
-              <div className="flex-1 flex flex-col min-h-0">
-                <span className="block text-[#8696a0] text-xs font-medium uppercase tracking-wider mb-2 shrink-0">Select Group Members</span>
-                <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 divide-y divide-[#222e35]/40">
-                  {contacts.length === 0 ? (
-                    <p className="text-xs text-[#8696a0] text-center py-4">Add some contacts first to create groups</p>
-                  ) : (
-                    contacts.map((contact) => {
-                      const isSelected = selectedContacts.includes(contact.id);
-                      return (
-                        <button
-                          key={contact.id}
-                          type="button"
-                          onClick={() => handleToggleWizardContact(contact.id)}
-                          className={"w-full p-2.5 rounded-xl text-left text-xs flex items-center justify-between transition-colors " + (
-                            isSelected 
-                              ? 'bg-[#00a884]/20 border border-[#00a884]/40 text-[#e9edef]' 
-                              : 'bg-[#111b21] hover:bg-[#2a3942] border border-[#222e35]'
-                          )}
-                        >
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-[#202c33] border border-[#222e35] flex items-center justify-center font-bold text-xs text-[#e9edef]">
-                              {contact.displayName.slice(0, 2).toUpperCase()}
+              return (
+                <div className="flex-1 flex flex-col min-h-0">
+                  <div className="flex-1 overflow-y-auto space-y-1.5 pr-1 divide-y divide-[#222e35]/40 min-h-0">
+                    {eligibleContacts.length === 0 ? (
+                      <div className="text-center py-8 text-[#8696a0] text-xs">
+                        All your existing contacts are already in this group!
+                      </div>
+                    ) : (
+                      eligibleContacts.map((contact) => {
+                        const isSelected = addMemberSelectedContacts.includes(contact.id);
+                        return (
+                          <button
+                            key={contact.id}
+                            type="button"
+                            onClick={() => handleToggleAddMemberContact(contact.id)}
+                            className={"w-full p-2 rounded-xl text-left text-xs flex items-center justify-between transition-colors " + (
+                              isSelected 
+                                ? 'bg-[#00a884]/20 border border-[#00a884]/40 text-[#e9edef]' 
+                                : 'bg-[#111b21] hover:bg-[#2a3942] border border-[#222e35]'
+                            )}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-full bg-[#202c33] border border-[#222e35] flex items-center justify-center font-bold text-xs text-[#e9edef]">
+                                {contact.displayName.slice(0, 2).toUpperCase()}
+                              </div>
+                              <div>
+                                <span className="text-[#e9edef] font-medium block leading-tight">{contact.displayName}</span>
+                                <span className="text-[10px] text-[#8696a0]">{contact.phoneNumber}</span>
+                              </div>
                             </div>
-                            <span className="text-[#e9edef] font-medium">{contact.displayName}</span>
-                          </div>
-                          <div className={"w-4 h-4 rounded-full border flex items-center justify-center transition-all " + (
-                            isSelected ? 'bg-[#00a884] border-[#00a884]' : 'border-[#8696a0]'
-                          )}>
-                            {isSelected && <Check className="w-3 h-3 text-[#111b21]" />}
-                          </div>
-                        </button>
-                      );
-                    })
-                  )}
-                </div>
-              </div>
+                            <div className={"w-4 h-4 rounded-full border flex items-center justify-center transition-all " + (
+                              isSelected ? 'bg-[#00a884] border-[#00a884]' : 'border-[#8696a0]'
+                            )}>
+                              {isSelected && <Check className="w-3 h-3 text-[#111b21]" />}
+                            </div>
+                          </button>
+                        );
+                      })
+                    )}
+                  </div>
 
-              <div className="flex gap-2 justify-end pt-3 border-t border-[#222e35] shrink-0">
-                <button
-                  type="button"
-                  onClick={() => setShowGroupWizard(false)}
-                  className="px-4 py-2 bg-[#111b21] hover:bg-[#2a3942] rounded-xl text-xs font-semibold text-[#8696a0] hover:text-[#e9edef] transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={!groupName.trim() || selectedContacts.length === 0}
-                  className="px-4 py-2 bg-[#00a884] hover:bg-[#008f6f] text-white rounded-xl text-xs font-semibold shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  Create Group
-                </button>
-              </div>
-            </form>
+                  <div className="flex items-center justify-between pt-3 border-t border-[#222e35] shrink-0 mt-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowAddMemberModal(false);
+                        setAddMemberSelectedContacts([]);
+                      }}
+                      className="px-3 py-1.5 bg-[#111b21] hover:bg-[#2a3942] rounded-xl text-xs font-semibold text-[#8696a0] hover:text-[#e9edef] transition-colors"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      disabled={addMemberSelectedContacts.length === 0 || isAddingMembers}
+                      onClick={handleAddMembersSubmit}
+                      className="px-4 py-2 bg-[#00a884] hover:bg-[#008f6f] text-white rounded-xl text-xs font-semibold shadow-md disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5 transition-colors"
+                    >
+                      {isAddingMembers ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
+                      <span>Add to Group</span>
+                    </button>
+                  </div>
+                </div>
+              );
+            })()}
+
           </div>
         </div>
       )}

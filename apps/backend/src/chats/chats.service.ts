@@ -324,4 +324,70 @@ export class ChatsService {
     }
     return { success: true };
   }
+
+  async addMembersToGroup(chatId: string, userId: string, memberIds: string[]) {
+    const chat = await this.prisma.chat.findUnique({
+      where: { id: chatId },
+      include: { members: true },
+    });
+    if (!chat || !chat.isGroup) {
+      throw new NotFoundException('Group chat not found');
+    }
+    const requester = chat.members.find((m) => m.userId === userId);
+    if (!requester) {
+      throw new NotFoundException('Access denied');
+    }
+
+    const existingMemberUserIds = new Set(chat.members.map((m) => m.userId));
+    const newMembers = memberIds.filter((id) => !existingMemberUserIds.has(id));
+
+    if (newMembers.length > 0) {
+      await this.prisma.chatMember.createMany({
+        data: newMembers.map((id) => ({
+          chatId,
+          userId: id,
+          isAdmin: false,
+        })),
+        skipDuplicates: true,
+      });
+    }
+
+    return this.prisma.chat.findUnique({
+      where: { id: chatId },
+      include: {
+        members: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                username: true,
+                displayName: true,
+                avatarUrl: true,
+                isOnline: true,
+                lastSeen: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  async deleteChat(chatId: string, userId: string) {
+    const chat = await this.prisma.chat.findUnique({
+      where: { id: chatId },
+      include: { members: true },
+    });
+    if (!chat) throw new NotFoundException('Chat not found');
+
+    await this.prisma.chatMember.deleteMany({
+      where: { chatId, userId },
+    });
+
+    const remaining = await this.prisma.chatMember.count({ where: { chatId } });
+    if (remaining === 0) {
+      await this.prisma.chat.delete({ where: { id: chatId } }).catch(() => {});
+    }
+    return { success: true };
+  }
 }
