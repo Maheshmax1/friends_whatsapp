@@ -223,6 +223,25 @@ export default function Home() {
   const [showStoryCreator, setShowStoryCreator] = useState(false);
   const [storyCreatorText, setStoryCreatorText] = useState('');
   const [storyCreatorImage, setStoryCreatorImage] = useState('');
+  const [viewedStoryIds, setViewedStoryIds] = useState<Set<string>>(() => {
+    try {
+      const saved = typeof window !== 'undefined' ? localStorage.getItem('viewed_story_ids') : null;
+      return saved ? new Set(JSON.parse(saved)) : new Set();
+    } catch (e) {
+      return new Set();
+    }
+  });
+
+  const markStoryAsViewed = (storyId: string) => {
+    setViewedStoryIds((prev) => {
+      const next = new Set(prev);
+      next.add(storyId);
+      try {
+        localStorage.setItem('viewed_story_ids', JSON.stringify(Array.from(next)));
+      } catch (e) {}
+      return next;
+    });
+  };
 
   // USER PROFILE ACTION STATES (Mute, Block)
   const [isMuted, setIsMuted] = useState(false);
@@ -613,6 +632,7 @@ export default function Home() {
   // Story Progress Timer
   useEffect(() => {
     if (!activeStory) return;
+    markStoryAsViewed(activeStory.id);
     setStoryProgress(0);
     const interval = setInterval(() => {
       setStoryProgress((prev) => {
@@ -1814,32 +1834,40 @@ export default function Home() {
                       );
                     }
 
-                    return otherStatuses.map((status) => (
-                      <div
-                        key={status.id}
-                        onClick={() => setActiveStory(status)}
-                        className="flex items-center gap-3.5 p-3 px-4 hover:bg-[#202c33] cursor-pointer transition-colors border-b border-[#222e35]/40"
-                      >
-                        <div className="w-12 h-12 rounded-full border-2 border-[#00a884] p-0.5 flex items-center justify-center font-medium text-sm text-[#e9edef] overflow-hidden shrink-0">
-                          {status.avatar && status.avatar.startsWith('data:') ? (
-                            <img src={status.avatar} alt={status.name} className="w-full h-full object-cover rounded-full" />
-                          ) : status.mediaUrl && status.mediaUrl.startsWith('data:image') ? (
-                            <img src={status.mediaUrl} alt={status.name} className="w-full h-full object-cover rounded-full" />
-                          ) : (
-                            <span className="w-full h-full bg-[#202c33] rounded-full flex items-center justify-center">
-                              {status.name.slice(0, 2).toUpperCase()}
-                            </span>
-                          )}
-                        </div>
+                    return otherStatuses.map((status) => {
+                      const isViewed = viewedStoryIds.has(status.id);
+                      return (
+                        <div
+                          key={status.id}
+                          onClick={() => {
+                            setActiveStory(status);
+                            markStoryAsViewed(status.id);
+                          }}
+                          className="flex items-center gap-3.5 p-3 px-4 hover:bg-[#202c33] cursor-pointer transition-colors border-b border-[#222e35]/40"
+                        >
+                          <div className={`w-12 h-12 rounded-full border-2 ${
+                            isViewed ? 'border-[#8696a0]/50 ring-1 ring-[#8696a0]/20' : 'border-[#00a884] ring-2 ring-[#00a884]/30'
+                          } p-0.5 flex items-center justify-center font-medium text-sm text-[#e9edef] overflow-hidden shrink-0 transition-all`}>
+                            {status.avatar && status.avatar.startsWith('data:') ? (
+                              <img src={status.avatar} alt={status.name} className="w-full h-full object-cover rounded-full" />
+                            ) : status.mediaUrl && status.mediaUrl.startsWith('data:image') ? (
+                              <img src={status.mediaUrl} alt={status.name} className="w-full h-full object-cover rounded-full" />
+                            ) : (
+                              <span className="w-full h-full bg-[#202c33] rounded-full flex items-center justify-center">
+                                {status.name.slice(0, 2).toUpperCase()}
+                              </span>
+                            )}
+                          </div>
 
-                        <div className="flex-1 min-w-0">
-                          <h5 className="text-[15px] font-normal text-[#e9edef] leading-tight truncate">{status.name}</h5>
-                          <p className="text-xs text-[#8696a0] truncate leading-tight mt-0.5">
-                            {status.time || 'Today'} {status.text ? `• ${status.text}` : ''}
-                          </p>
+                          <div className="flex-1 min-w-0">
+                            <h5 className="text-[15px] font-normal text-[#e9edef] leading-tight truncate">{status.name}</h5>
+                            <p className="text-xs text-[#8696a0] truncate leading-tight mt-0.5">
+                              {status.time || 'Today'} {status.text ? `• ${status.text}` : ''}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ));
+                      );
+                    });
                   })()}
                 </div>
               ) : activeTab === 'chats' || activeTab === 'archived' ? (
@@ -1856,6 +1884,7 @@ export default function Home() {
                     const otherMemberId = chat.otherMember?.id;
                     const userStory = statuses.find((s) => s.userId === otherMemberId);
                     const hasActiveStory = Boolean(userStory);
+                    const isStoryViewed = userStory ? viewedStoryIds.has(userStory.id) : false;
 
                     return (
                       <div 
@@ -1878,10 +1907,12 @@ export default function Home() {
                             }}
                             className={`w-12 h-12 rounded-full relative shrink-0 transition-all ${
                               hasActiveStory 
-                                ? 'p-0.5 border-2 border-[#00a884] ring-2 ring-[#00a884]/30 cursor-pointer hover:scale-105' 
+                                ? isStoryViewed
+                                  ? 'p-0.5 border-2 border-[#8696a0]/50 ring-1 ring-[#8696a0]/20 cursor-pointer hover:scale-105'
+                                  : 'p-0.5 border-2 border-[#00a884] ring-2 ring-[#00a884]/30 cursor-pointer hover:scale-105' 
                                 : 'border border-[#222e35]'
                             }`}
-                            title={hasActiveStory ? `View ${chat.name}'s status` : chat.name}
+                            title={hasActiveStory ? `View ${chat.name}'s status (${isStoryViewed ? 'Viewed' : 'New'})` : chat.name}
                           >
                             <div className="w-full h-full rounded-full bg-[#202c33] flex items-center justify-center font-medium text-sm text-[#e9edef] overflow-hidden">
                               {chat.otherMember?.avatarUrl ? (
@@ -1953,6 +1984,7 @@ export default function Home() {
                   return uniqueContacts.map((contact) => {
                     const contactStory = statuses.find((s) => s.userId === contact.id);
                     const hasContactStory = Boolean(contactStory);
+                    const isContactStoryViewed = contactStory ? viewedStoryIds.has(contactStory.id) : false;
                     return (
                       <button
                         key={contact.id}
@@ -1972,10 +2004,12 @@ export default function Home() {
                           }}
                           className={`w-11 h-11 rounded-full relative shrink-0 transition-all ${
                             hasContactStory 
-                              ? 'p-0.5 border-2 border-[#00a884] ring-2 ring-[#00a884]/30 cursor-pointer hover:scale-105' 
+                              ? isContactStoryViewed
+                                ? 'p-0.5 border-2 border-[#8696a0]/50 ring-1 ring-[#8696a0]/20 cursor-pointer hover:scale-105'
+                                : 'p-0.5 border-2 border-[#00a884] ring-2 ring-[#00a884]/30 cursor-pointer hover:scale-105' 
                               : 'border border-[#222e35]'
                           }`}
-                          title={hasContactStory ? `View ${contact.displayName}'s status` : contact.displayName}
+                          title={hasContactStory ? `View ${contact.displayName}'s status (${isContactStoryViewed ? 'Viewed' : 'New'})` : contact.displayName}
                         >
                           <div className="w-full h-full rounded-full bg-[#202c33] flex items-center justify-center font-medium text-xs text-[#e9edef] overflow-hidden">
                             {contact.avatarUrl ? (
@@ -2123,13 +2157,6 @@ export default function Home() {
                     </button>
                     <button 
                       onClick={() => setShowSharedMedia(!showSharedMedia)}
-                      title="Search in chat"
-                      className="p-2 rounded-full hover:bg-[#2a3942] hover:text-[#e9edef] transition-colors"
-                    >
-                      <Search className="w-4.5 h-4.5" />
-                    </button>
-                    <button 
-                      onClick={() => setShowSharedMedia(!showSharedMedia)}
                       title="Menu"
                       className="p-2 rounded-full hover:bg-[#2a3942] hover:text-[#e9edef] transition-colors"
                     >
@@ -2177,20 +2204,27 @@ export default function Home() {
                     const isStarred = message.isStarred;
                     const isReplying = message.replyTo !== null;
                     const messageReactions = message.reactions || [];
+                    const isMedia = message.content?.startsWith('data:image') || message.content?.startsWith('data:audio');
+                    const isShortText = !isMedia && 
+                                        !message.isDeleted && 
+                                        !isReplying && 
+                                        typeof message.content === 'string' && 
+                                        !message.content.includes('\n') && 
+                                        message.content.trim().length <= 36;
 
                     return (
                       <div 
                         key={message.id} 
                         onTouchStart={(e) => handleTouchStart(e, 'bubble', message.id)}
                         onTouchEnd={(e) => handleTouchEnd(e, 'bubble', message)}
-                        className={`flex ${isCurrentUser ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-100`}
+                        className={`flex w-full my-0.5 ${isCurrentUser ? 'justify-end' : 'justify-start'} animate-in fade-in duration-100`}
                         onMouseEnter={() => setHoveredMessageId(message.id)}
                         onMouseLeave={() => {
                           setHoveredMessageId(null);
                           setActiveMenuMessageId(null);
                         }}
                       >
-                        <div className="relative group max-w-[85%] md:max-w-[65%] flex items-center gap-2">
+                        <div className="relative group max-w-[85%] sm:max-w-[75%] md:max-w-[65%] flex items-center gap-1.5">
                           
                           {/* Action overlay shortcuts */}
                           {isCurrentUser && hoveredMessageId === message.id && (
@@ -2218,8 +2252,8 @@ export default function Home() {
                             </div>
                           )}
 
-{/* Message Bubble Container (WhatsApp Dark Mode) */}
-                          <div className={`rounded-lg px-3.5 py-2 shadow-sm relative transition-all duration-150 max-w-[85%] md:max-w-[70%] ${
+                          {/* Message Bubble Container (WhatsApp Dark Mode) */}
+                          <div className={`rounded-xl px-3 py-1.5 shadow-sm relative transition-all duration-150 max-w-full ${
                             isCurrentUser 
                               ? 'bg-[#005c4b] text-[#e9edef] rounded-tr-none' 
                               : 'bg-[#202c33] text-[#e9edef] rounded-tl-none'
@@ -2248,52 +2282,82 @@ export default function Home() {
                               </div>
                             )}
 
-                             {/* Main message text */}
+                             {/* Main message text & dynamic responsive layout */}
                              {message.isDeleted ? (
                                <p className="text-xs leading-relaxed italic text-slate-455 flex items-center gap-1.5">
                                  <ShieldAlert className="w-3.5 h-3.5 shrink-0 text-slate-500" />
                                  <span>This message was deleted</span>
                                </p>
                              ) : message.content.startsWith('data:image') ? (
-                               <div className="max-w-[240px] overflow-hidden rounded-xl shadow-md border border-slate-800/40 my-1 cursor-pointer hover:opacity-95 transition-opacity" onClick={() => window.open(message.content, '_blank')}>
-                                 <img src={message.content} alt="Snapshot" className="w-full h-full object-cover" />
+                               <div className="max-w-[260px] overflow-hidden rounded-lg my-1 cursor-pointer" onClick={() => window.open(message.content, '_blank')}>
+                                 <img src={message.content} alt="Snapshot" className="w-full h-auto object-cover rounded-md" />
+                                 <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-[#8696a0]">
+                                   <span>{new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                   {isCurrentUser && (
+                                     <CheckCheck className={`w-3.5 h-3.5 ${message.status === 'READ' ? 'text-[#53bdeb]' : 'text-[#8696a0]'}`} />
+                                   )}
+                                 </div>
                                </div>
                              ) : message.content.startsWith('data:audio') ? (
-                               <div className="py-2 px-1 select-none">
-                                 <audio src={message.content} controls className="max-w-full h-9 outline-none text-xs custom-audio" style={{ filter: isDarkMode ? 'invert(90%) hue-rotate(180deg)' : 'none' }} />
+                               <div className="py-1 select-none">
+                                 <audio src={message.content} controls className="max-w-full h-8 outline-none text-xs custom-audio" style={{ filter: isDarkMode ? 'invert(90%) hue-rotate(180deg)' : 'none' }} />
+                                 <div className="flex items-center justify-end gap-1 mt-1 text-[10px] text-[#8696a0]">
+                                   <span>{new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                                 </div>
+                               </div>
+                             ) : isShortText ? (
+                               /* Short Message: Content & Timestamp straight on the same line */
+                               <div className="flex items-baseline gap-2.5">
+                                 <span className="text-[13.5px] leading-snug break-words select-text">
+                                   {message.content}
+                                 </span>
+                                 <div className="flex items-center gap-1 text-[10px] text-[#8696a0] shrink-0 select-none ml-auto">
+                                   {message.isEdited && !message.isDeleted && (
+                                     <span className="text-[8px] uppercase tracking-wider opacity-70">edited</span>
+                                   )}
+                                   <span>
+                                     {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                   </span>
+                                   {isCurrentUser && (
+                                     <span>
+                                       {message.status === 'READ' ? (
+                                         <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />
+                                       ) : message.status === 'DELIVERED' ? (
+                                         <CheckCheck className="w-3.5 h-3.5 text-[#8696a0]" />
+                                       ) : (
+                                         <Check className="w-3.5 h-3.5 text-[#8696a0]" />
+                                       )}
+                                     </span>
+                                   )}
+                                 </div>
                                </div>
                              ) : (
-                               <p className="text-xs leading-relaxed break-words whitespace-pre-wrap font-light">
-                                 {message.content}
-                               </p>
+                               /* Multi-line or Longer Message: Text wrapped with floating bottom timestamp */
+                               <div className="relative">
+                                 <p className="text-[13.5px] leading-relaxed break-words whitespace-pre-wrap select-text pr-14">
+                                   {message.content}
+                                 </p>
+                                 <div className="flex items-center justify-end gap-1 text-[10px] text-[#8696a0] select-none -mt-1 ml-auto">
+                                   {message.isEdited && !message.isDeleted && (
+                                     <span className="text-[8px] uppercase tracking-wider opacity-70">edited</span>
+                                   )}
+                                   <span>
+                                     {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                   </span>
+                                   {isCurrentUser && (
+                                     <span>
+                                       {message.status === 'READ' ? (
+                                         <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />
+                                       ) : message.status === 'DELIVERED' ? (
+                                         <CheckCheck className="w-3.5 h-3.5 text-[#8696a0]" />
+                                       ) : (
+                                         <Check className="w-3.5 h-3.5 text-[#8696a0]" />
+                                       )}
+                                     </span>
+                                   )}
+                                 </div>
+                               </div>
                              )}
-                            
-                            {/* Timestamp, status checks & badges */}
-                            <div className="flex items-center justify-end gap-1.5 mt-1.5">
-                              {message.isEdited && !message.isDeleted && (
-                                <span className="text-[7px] opacity-60 uppercase font-bold tracking-wider">edited</span>
-                              )}
-                              <span className={`text-[8px] font-light select-none ${
-                                isCurrentUser 
-                                  ? activeTheme === 'classic-wa' 
-                                    ? 'text-slate-500/80 dark:text-[#aebac1]/80' 
-                                    : 'text-[#8696a0]' 
-                                  : 'text-slate-500 dark:text-[#aebac1]/60'
-                              }`}>
-                                {new Date(message.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                              </span>
-                              {isCurrentUser && (
-                                <span>
-                                  {message.status === 'READ' ? (
-                                    <CheckCheck className={`w-3.5 h-3.5 ${activeTheme === 'classic-wa' ? 'text-[#53bdeb]' : 'text-cyan-200'}`} />
-                                  ) : message.status === 'DELIVERED' ? (
-                                    <CheckCheck className={`w-3.5 h-3.5 ${activeTheme === 'classic-wa' ? 'text-slate-500/60 dark:text-[#aebac1]/60' : 'opacity-60 text-white'}`} />
-                                  ) : (
-                                    <Check className={`w-3.5 h-3.5 ${activeTheme === 'classic-wa' ? 'text-slate-500/60 dark:text-[#aebac1]/60' : 'opacity-65 text-white'}`} />
-                                  )}
-                                </span>
-                              )}
-                            </div>
 
                             {/* 9. FLOATING EMOJI REACTION BADGE COUNTS */}
                             {messageReactions.length > 0 && (
