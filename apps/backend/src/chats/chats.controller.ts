@@ -29,6 +29,15 @@ export class ChatsController {
     return this.chatsService.getMessages(chatId, userId);
   }
 
+  @Patch(':chatId')
+  async updateGroupDetails(
+    @Param('chatId') chatId: string,
+    @GetUser('sub') userId: string,
+    @Body() body: { name?: string; description?: string },
+  ) {
+    return this.chatsService.updateGroupDetails(chatId, userId, body);
+  }
+
   @Patch(':chatId/pin')
   async togglePin(
     @Param('chatId') chatId: string,
@@ -76,6 +85,33 @@ export class ChatsController {
     @Body('memberIds') memberIds: string[],
   ) {
     return this.chatsService.addMembersToGroup(chatId, userId, memberIds);
+  }
+
+  @Patch(':chatId/members/:targetUserId/admin')
+  async toggleAdminRole(
+    @Param('chatId') chatId: string,
+    @Param('targetUserId') targetUserId: string,
+    @GetUser('sub') userId: string,
+    @Body('isAdmin') isAdmin: boolean,
+  ) {
+    return this.chatsService.toggleAdminRole(chatId, userId, targetUserId, isAdmin);
+  }
+
+  @Delete(':chatId/members/:targetUserId')
+  async removeMember(
+    @Param('chatId') chatId: string,
+    @Param('targetUserId') targetUserId: string,
+    @GetUser('sub') userId: string,
+  ) {
+    return this.chatsService.removeMember(chatId, userId, targetUserId);
+  }
+
+  @Post(':chatId/join')
+  async joinGroupViaInvite(
+    @Param('chatId') chatId: string,
+    @GetUser('sub') userId: string,
+  ) {
+    return this.chatsService.joinGroupViaInvite(chatId, userId);
   }
 
   @Delete(':chatId')

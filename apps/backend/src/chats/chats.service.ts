@@ -350,6 +350,19 @@ export class ChatsService {
         })),
         skipDuplicates: true,
       });
+
+      const addedUsers = await this.prisma.user.findMany({
+        where: { id: { in: newMembers } },
+        select: { displayName: true, username: true },
+      });
+      const names = addedUsers.map((u) => u.displayName || u.username).join(', ');
+      await this.prisma.message.create({
+        data: {
+          chatId,
+          senderId: userId,
+          content: `SYSTEM:added ${names}`,
+        },
+      }).catch(() => {});
     }
 
     return this.prisma.chat.findUnique({
@@ -371,6 +384,137 @@ export class ChatsService {
         },
       },
     });
+  }
+
+  async updateGroupDetails(chatId: string, userId: string, data: { name?: string; description?: string }) {
+    const chat = await this.prisma.chat.findUnique({
+      where: { id: chatId },
+      include: { members: true },
+    });
+    if (!chat || !chat.isGroup) throw new NotFoundException('Group not found');
+    const requester = chat.members.find((m) => m.userId === userId);
+    if (!requester) throw new NotFoundException('Access denied');
+
+    const updated = await this.prisma.chat.update({
+      where: { id: chatId },
+      data: {
+        name: data.name !== undefined ? data.name : chat.name,
+        description: data.description !== undefined ? data.description : chat.description,
+      },
+    });
+
+    if (data.name && data.name !== chat.name) {
+      await this.prisma.message.create({
+        data: {
+          chatId,
+          senderId: userId,
+          content: `SYSTEM:changed the group subject to "${data.name}"`,
+        },
+      }).catch(() => {});
+    }
+
+    return updated;
+  }
+
+  async toggleAdminRole(chatId: string, requesterId: string, targetUserId: string, isAdmin: boolean) {
+    const chat = await this.prisma.chat.findUnique({
+      where: { id: chatId },
+      include: { members: true },
+    });
+    if (!chat || !chat.isGroup) throw new NotFoundException('Group not found');
+    const requester = chat.members.find((m) => m.userId === requesterId);
+    if (!requester || !requester.isAdmin) {
+      throw new BadRequestException('Only group admins can manage admin roles');
+    }
+
+    const targetMember = chat.members.find((m) => m.userId === targetUserId);
+    if (!targetMember) throw new NotFoundException('Member not found in group');
+
+    await this.prisma.chatMember.update({
+      where: { id: targetMember.id },
+      data: { isAdmin },
+    });
+
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { displayName: true, username: true },
+    });
+    const name = targetUser?.displayName || targetUser?.username || 'Member';
+    await this.prisma.message.create({
+      data: {
+        chatId,
+        senderId: requesterId,
+        content: `SYSTEM:${isAdmin ? `${name} is now an admin` : `${name} is no longer an admin`}`,
+      },
+    }).catch(() => {});
+
+    return { success: true };
+  }
+
+  async removeMember(chatId: string, requesterId: string, targetUserId: string) {
+    const chat = await this.prisma.chat.findUnique({
+      where: { id: chatId },
+      include: { members: true },
+    });
+    if (!chat || !chat.isGroup) throw new NotFoundException('Group not found');
+    const requester = chat.members.find((m) => m.userId === requesterId);
+    if (!requester) throw new NotFoundException('Access denied');
+
+    if (requesterId !== targetUserId && !requester.isAdmin) {
+      throw new BadRequestException('Only admins can remove members');
+    }
+
+    await this.prisma.chatMember.deleteMany({
+      where: { chatId, userId: targetUserId },
+    });
+
+    const targetUser = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: { displayName: true, username: true },
+    });
+    const name = targetUser?.displayName || targetUser?.username || 'Member';
+    await this.prisma.message.create({
+      data: {
+        chatId,
+        senderId: requesterId,
+        content: `SYSTEM:${requesterId === targetUserId ? `${name} left the group` : `${name} was removed`}`,
+      },
+    }).catch(() => {});
+
+    return { success: true };
+  }
+
+  async joinGroupViaInvite(chatId: string, userId: string) {
+    const chat = await this.prisma.chat.findUnique({
+      where: { id: chatId },
+      include: { members: true },
+    });
+    if (!chat || !chat.isGroup) throw new NotFoundException('Group not found');
+
+    const existing = chat.members.find((m) => m.userId === userId);
+    if (!existing) {
+      await this.prisma.chatMember.create({
+        data: {
+          chatId,
+          userId,
+          isAdmin: false,
+        },
+      });
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { displayName: true, username: true },
+      });
+      const name = user?.displayName || user?.username || 'User';
+      await this.prisma.message.create({
+        data: {
+          chatId,
+          senderId: userId,
+          content: `SYSTEM:${name} joined using group link`,
+        },
+      }).catch(() => {});
+    }
+
+    return chat;
   }
 
   async deleteChat(chatId: string, userId: string) {

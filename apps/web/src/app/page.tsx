@@ -90,6 +90,10 @@ export default function Home() {
     updateProfileSettings,
     createGroupChat,
     addMembersToGroup,
+    toggleAdminRole,
+    removeMemberFromGroup,
+    updateGroupDetails,
+    joinGroupViaInvite,
     deleteChat,
     toggleReaction,
     refreshAllData,
@@ -188,6 +192,20 @@ export default function Home() {
   // MOBILE HORIZONTAL SWIPE GESTURES
   const swipeTouchStartXRef = useRef<number | null>(null);
   const swipeTouchStartYRef = useRef<number | null>(null);
+
+  // GROUP MEMBER @MENTION AUTOCOMPLETE
+  const [mentionQuery, setMentionQuery] = useState<string | null>(null);
+  const [showMentionMenu, setShowMentionMenu] = useState(false);
+
+  // GROUP INVITE VIA LINK MODAL
+  const [showInviteModal, setShowInviteModal] = useState(false);
+  const [copiedInvite, setCopiedInvite] = useState(false);
+
+  // INLINE GROUP SUBJECT & DESCRIPTION EDITING
+  const [isEditingGroupSubject, setIsEditingGroupSubject] = useState(false);
+  const [newGroupSubject, setNewGroupSubject] = useState('');
+  const [isEditingGroupDesc, setIsEditingGroupDesc] = useState(false);
+  const [newGroupDesc, setNewGroupDesc] = useState('');
 
   // AUDIO RECORDING STATES (Voice Notes)
   const [isRecording, setIsRecording] = useState(false);
@@ -1275,14 +1293,32 @@ export default function Home() {
   const themeLayout = getThemeLayout();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setMessageInput(e.target.value);
+    const val = e.target.value;
+    setMessageInput(val);
     sendTyping(true);
+
+    if (activeChat?.isGroup) {
+      const match = val.match(/@([a-zA-Z0-9_]*)$/);
+      if (match) {
+        setMentionQuery(match[1].toLowerCase());
+        setShowMentionMenu(true);
+      } else {
+        setShowMentionMenu(false);
+      }
+    } else {
+      setShowMentionMenu(false);
+    }
 
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
     
     typingTimeoutRef.current = setTimeout(() => {
       sendTyping(false);
     }, 1500);
+  };
+
+  const handleSelectMention = (memberName: string) => {
+    setMessageInput((prev) => prev.replace(/@[a-zA-Z0-9_]*$/, `@${memberName} `));
+    setShowMentionMenu(false);
   };
 
   const handleInputChangeValue = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -2369,6 +2405,17 @@ export default function Home() {
                   )}
                   <div className="flex-1"></div>
                   {messages.map((message) => {
+                    if (message.content?.startsWith('SYSTEM:')) {
+                      return (
+                        <div key={message.id} className="flex justify-center my-2 select-none animate-in fade-in duration-150">
+                          <div className="bg-[#182229]/95 border border-[#222e35] text-[#8696a0] text-[11px] px-3.5 py-1 rounded-lg shadow-sm font-normal text-center max-w-sm flex items-center gap-1.5">
+                            <Info className="w-3 h-3 text-[#00a884] shrink-0" />
+                            <span>{message.content.replace('SYSTEM:', '')}</span>
+                          </div>
+                        </div>
+                      );
+                    }
+
                     const isCurrentUser = message.senderId === user.id;
                     const isStarred = message.isStarred;
                     const isReplying = message.replyTo !== null;
@@ -2478,7 +2525,17 @@ export default function Home() {
                                /* Short Message: Content & Timestamp straight on the same line */
                                <div className="flex items-baseline gap-2.5">
                                  <span className="text-[13.5px] leading-snug break-words select-text">
-                                   {message.content}
+                                   {typeof message.content === 'string' && message.content.includes('@') ? (
+                                     message.content.split(/(@[a-zA-Z0-9_~\s]+?\b)/g).map((part, i) => 
+                                       part.startsWith('@') ? (
+                                         <span key={i} className="text-[#53bdeb] font-semibold bg-[#53bdeb]/10 px-1 py-0.2 rounded">
+                                           {part}
+                                         </span>
+                                       ) : part
+                                     )
+                                   ) : (
+                                     message.content
+                                   )}
                                  </span>
                                  <div className="flex items-center gap-1 text-[10px] text-[#8696a0] shrink-0 select-none ml-auto">
                                    {message.isEdited && !message.isDeleted && (
@@ -2504,7 +2561,17 @@ export default function Home() {
                                /* Multi-line or Longer Message: Text wrapped with floating bottom timestamp */
                                <div className="relative">
                                  <p className="text-[13.5px] leading-relaxed break-words whitespace-pre-wrap select-text pr-14">
-                                   {message.content}
+                                   {typeof message.content === 'string' && message.content.includes('@') ? (
+                                     message.content.split(/(@[a-zA-Z0-9_~\s]+?\b)/g).map((part, i) => 
+                                       part.startsWith('@') ? (
+                                         <span key={i} className="text-[#53bdeb] font-semibold bg-[#53bdeb]/10 px-1 py-0.2 rounded">
+                                           {part}
+                                         </span>
+                                       ) : part
+                                     )
+                                   ) : (
+                                     message.content
+                                   )}
                                  </p>
                                  <div className="flex items-center justify-end gap-1 text-[10px] text-[#8696a0] select-none -mt-1 ml-auto">
                                    {message.isEdited && !message.isDeleted && (
@@ -2710,6 +2777,41 @@ export default function Home() {
                   </div>
                 )}
 
+                {/* Floating @mention Autocomplete Menu */}
+                {showMentionMenu && activeChat?.isGroup && (
+                  <div className="absolute bottom-16 left-4 md:left-12 max-h-48 w-64 bg-[#202c33] border border-[#222e35] rounded-2xl shadow-2xl overflow-y-auto p-1.5 z-50 text-[#e9edef] animate-in slide-in-from-bottom duration-150">
+                    <div className="px-2 py-1 text-[10px] uppercase font-bold text-[#8696a0] tracking-wider border-b border-[#222e35]/60 mb-1">
+                      Mention member
+                    </div>
+                    {((activeChat.members || []).map((m: any) => m.user).filter((u: any) => Boolean(u)) as any[])
+                      .filter((u: any) => {
+                        if (!mentionQuery) return true;
+                        const name = (u.displayName || u.username || '').toLowerCase();
+                        return name.includes(mentionQuery);
+                      })
+                      .map((memberUser: any) => (
+                        <button
+                          key={memberUser.id}
+                          type="button"
+                          onClick={() => handleSelectMention(memberUser.displayName || memberUser.username)}
+                          className="w-full flex items-center gap-2.5 p-2 rounded-xl hover:bg-[#2a3942] text-left text-xs transition-colors"
+                        >
+                          <div className="w-7 h-7 rounded-full bg-[#111b21] flex items-center justify-center font-bold text-[11px] text-[#00a884]">
+                            {(memberUser.displayName || memberUser.username).slice(0, 2).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <span className="text-[#e9edef] font-medium block truncate">
+                              {memberUser.displayName || memberUser.username}
+                            </span>
+                            <span className="text-[10px] text-[#8696a0] block truncate">
+                              {memberUser.phoneNumber || '@' + memberUser.username}
+                            </span>
+                          </div>
+                        </button>
+                      ))}
+                  </div>
+                )}
+
                 {/* Chat Message Input Box (WhatsApp Web Dark Bar) */}
                 {!isRecording && (
                   <form 
@@ -2878,7 +2980,53 @@ export default function Home() {
                         )}
                       </div>
                       
-                      <h4 className="text-base font-normal text-[#e9edef] leading-tight">{activeChat.name}</h4>
+                      {isEditingGroupSubject ? (
+                        <div className="flex items-center gap-1.5 mt-1 justify-center">
+                          <input
+                            type="text"
+                            maxLength={25}
+                            value={newGroupSubject}
+                            onChange={(e) => setNewGroupSubject(e.target.value)}
+                            className="bg-[#202c33] border border-[#00a884] rounded-lg px-2 py-1 text-xs text-[#e9edef] outline-none"
+                          />
+                          <button
+                            type="button"
+                            onClick={async () => {
+                              if (newGroupSubject.trim()) {
+                                await updateGroupDetails(activeChat.id, { name: newGroupSubject.trim() });
+                              }
+                              setIsEditingGroupSubject(false);
+                            }}
+                            className="p-1 rounded bg-[#00a884] text-[#111b21] hover:scale-105"
+                          >
+                            <Check className="w-3.5 h-3.5 stroke-[2.5]" />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setIsEditingGroupSubject(false)}
+                            className="p-1 text-[#8696a0] hover:text-white"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center gap-2">
+                          <h4 className="text-base font-normal text-[#e9edef] leading-tight">{activeChat.name}</h4>
+                          {activeChat.isGroup && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setNewGroupSubject(activeChat.name);
+                                setIsEditingGroupSubject(true);
+                              }}
+                              className="text-[#8696a0] hover:text-[#00a884] transition-colors"
+                              title="Edit group subject"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+                      )}
                       <p className="text-xs text-[#8696a0] mt-1 font-normal">
                         {activeChat.isGroup 
                           ? 'Group conversation' 
@@ -2901,11 +3049,56 @@ export default function Home() {
                     <div className="pt-3">
                       <span className="text-xs font-semibold text-[#8696a0] uppercase tracking-wider block mb-1.5">About</span>
                       <div className="p-3 rounded-xl bg-[#202c33] border border-[#222e35]">
-                        <p className="text-xs text-[#e9edef] leading-relaxed break-words">
-                          {activeChat.isGroup 
-                            ? (activeChat.description || 'No group description set.')
-                            : (activeChat.otherMember?.bio || 'Hey there! I am using WhatsApp.')}
-                        </p>
+                        {activeChat.isGroup && isEditingGroupDesc ? (
+                          <div className="space-y-2">
+                            <textarea
+                              rows={2}
+                              value={newGroupDesc}
+                              onChange={(e) => setNewGroupDesc(e.target.value)}
+                              className="w-full bg-[#111b21] border border-[#00a884] rounded-lg p-2 text-xs text-[#e9edef] outline-none resize-none"
+                            />
+                            <div className="flex justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => setIsEditingGroupDesc(false)}
+                                className="px-2.5 py-1 text-xs text-[#8696a0] hover:text-white"
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  await updateGroupDetails(activeChat.id, { description: newGroupDesc.trim() });
+                                  setIsEditingGroupDesc(false);
+                                }}
+                                className="px-3 py-1 bg-[#00a884] text-[#111b21] rounded-lg text-xs font-semibold"
+                              >
+                                Save
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-start justify-between gap-2">
+                            <p className="text-xs text-[#e9edef] leading-relaxed break-words flex-1">
+                              {activeChat.isGroup 
+                                ? (activeChat.description || 'No group description set.')
+                                : (activeChat.otherMember?.bio || 'Hey there! I am using WhatsApp.')}
+                            </p>
+                            {activeChat.isGroup && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNewGroupDesc(activeChat.description || '');
+                                  setIsEditingGroupDesc(true);
+                                }}
+                                className="text-[#8696a0] hover:text-[#00a884] shrink-0"
+                                title="Edit description"
+                              >
+                                <Edit2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     </div>
 
@@ -2975,41 +3168,96 @@ export default function Home() {
                           </span>
                         </div>
 
-                        {/* Add Participants Action */}
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setAddMemberSelectedContacts([]);
-                            setShowAddMemberModal(true);
-                          }}
-                          className="w-full flex items-center gap-3 p-2.5 rounded-xl bg-[#202c33] hover:bg-[#2a3942] border border-[#222e35] text-[#00a884] font-medium text-xs transition-colors"
-                        >
-                          <div className="w-8 h-8 rounded-full bg-[#00a884]/20 flex items-center justify-center">
-                            <UserPlus className="w-4 h-4 text-[#00a884]" />
-                          </div>
-                          <span>Add participants</span>
-                        </button>
+                        <div className="space-y-1.5">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setAddMemberSelectedContacts([]);
+                              setShowAddMemberModal(true);
+                            }}
+                            className="w-full flex items-center gap-3 p-2.5 rounded-xl bg-[#202c33] hover:bg-[#2a3942] border border-[#222e35] text-[#00a884] font-medium text-xs transition-colors"
+                          >
+                            <div className="w-8 h-8 rounded-full bg-[#00a884]/20 flex items-center justify-center">
+                              <UserPlus className="w-4 h-4 text-[#00a884]" />
+                            </div>
+                            <span>Add participants</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setShowInviteModal(true)}
+                            className="w-full flex items-center gap-3 p-2.5 rounded-xl bg-[#202c33] hover:bg-[#2a3942] border border-[#222e35] text-[#00a884] font-medium text-xs transition-colors"
+                          >
+                            <div className="w-8 h-8 rounded-full bg-[#00a884]/20 flex items-center justify-center">
+                              <ExternalLink className="w-4 h-4 text-[#00a884]" />
+                            </div>
+                            <span>Invite to group via link</span>
+                          </button>
+                        </div>
 
                         {/* Participant list */}
                         <div className="space-y-1 max-h-48 overflow-y-auto pr-1 divide-y divide-[#222e35]/30">
                           {(activeChat.members || []).map((m: any) => {
                             const isMe = m.userId === user?.id;
+                            const isMeAdmin = Boolean((activeChat.members || []).find((mem: any) => mem.userId === user?.id)?.isAdmin);
                             const memberName = isMe ? 'You' : m.user?.displayName || m.user?.username || 'Member';
                             return (
-                              <div key={m.id || m.userId} className="flex items-center justify-between p-2 rounded-lg hover:bg-[#202c33]">
-                                <div className="flex items-center gap-2.5">
-                                  <div className="w-8 h-8 rounded-full bg-[#2a3942] flex items-center justify-center text-xs font-bold text-[#e9edef]">
-                                    {memberName.slice(0, 2).toUpperCase()}
+                              <div key={m.id || m.userId} className="p-2 rounded-xl hover:bg-[#202c33] transition-colors space-y-1.5">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-2.5">
+                                    <div className="w-8 h-8 rounded-full bg-[#2a3942] flex items-center justify-center text-xs font-bold text-[#e9edef]">
+                                      {memberName.slice(0, 2).toUpperCase()}
+                                    </div>
+                                    <div>
+                                      <span className="text-xs text-[#e9edef] font-medium block leading-tight">{memberName}</span>
+                                      <span className="text-[10px] text-[#8696a0]">{m.user?.phoneNumber || ''}</span>
+                                    </div>
                                   </div>
-                                  <div>
-                                    <span className="text-xs text-[#e9edef] font-medium block leading-tight">{memberName}</span>
-                                    <span className="text-[10px] text-[#8696a0]">{m.user?.phoneNumber || ''}</span>
-                                  </div>
+                                  {m.isAdmin && (
+                                    <span className="text-[9px] text-[#00a884] bg-[#00a884]/10 border border-[#00a884]/30 px-1.5 py-0.5 rounded font-medium">
+                                      Group Admin
+                                    </span>
+                                  )}
                                 </div>
-                                {m.isAdmin && (
-                                  <span className="text-[9px] text-[#00a884] bg-[#00a884]/10 border border-[#00a884]/30 px-1.5 py-0.5 rounded font-medium">
-                                    Group Admin
-                                  </span>
+                                {isMeAdmin && !isMe && (
+                                  <div className="flex items-center justify-end gap-1.5 pt-1 border-t border-[#222e35]/30">
+                                    {m.isAdmin ? (
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          if (window.confirm(`Dismiss ${memberName} as group admin?`)) {
+                                            await toggleAdminRole(activeChat.id, m.userId, false);
+                                          }
+                                        }}
+                                        className="text-[10px] text-amber-400 hover:text-amber-300 font-medium px-2 py-0.5 rounded bg-amber-500/10 hover:bg-amber-500/20 transition-colors"
+                                      >
+                                        Dismiss Admin
+                                      </button>
+                                    ) : (
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          if (window.confirm(`Make ${memberName} a group admin?`)) {
+                                            await toggleAdminRole(activeChat.id, m.userId, true);
+                                          }
+                                        }}
+                                        className="text-[10px] text-[#00a884] hover:text-[#25d366] font-medium px-2 py-0.5 rounded bg-[#00a884]/10 hover:bg-[#00a884]/20 transition-colors"
+                                      >
+                                        Make Admin
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={async () => {
+                                        if (window.confirm(`Remove ${memberName} from this group?`)) {
+                                          await removeMemberFromGroup(activeChat.id, m.userId);
+                                        }
+                                      }}
+                                      className="text-[10px] text-rose-400 hover:text-rose-300 font-medium px-2 py-0.5 rounded bg-rose-500/10 hover:bg-rose-500/20 transition-colors"
+                                    >
+                                      Remove
+                                    </button>
+                                  </div>
                                 )}
                               </div>
                             );
@@ -4455,6 +4703,63 @@ export default function Home() {
 
       {/* Hidden global audio element to play remote WebRTC streams */}
       <audio ref={remoteAudioRef} autoPlay className="hidden" />
+
+
+      {/* 13. GROUP INVITE VIA LINK MODAL */}
+      {showInviteModal && activeChat && activeChat.isGroup && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center px-4">
+          <div className="w-full max-w-md bg-[#202c33] border border-[#222e35] rounded-3xl p-6 shadow-2xl animate-in fade-in zoom-in-95 duration-200 flex flex-col text-[#e9edef]">
+            <div className="flex justify-between items-center mb-4 border-b border-[#222e35] pb-2.5">
+              <h3 className="text-sm font-semibold text-[#e9edef]">Invite to group via link</h3>
+              <button 
+                type="button"
+                onClick={() => { setShowInviteModal(false); setCopiedInvite(false); }}
+                className="w-7 h-7 rounded-full hover:bg-[#2a3942] flex items-center justify-center text-[#8696a0] hover:text-[#e9edef] transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            
+            <div className="flex flex-col items-center text-center space-y-3 py-2">
+              <div className="w-16 h-16 rounded-full bg-[#111b21] border border-[#222e35] flex items-center justify-center text-[#00a884]">
+                <Users className="w-8 h-8" />
+              </div>
+              <div>
+                <h4 className="text-base font-semibold text-[#e9edef]">{activeChat.name}</h4>
+                <p className="text-xs text-[#8696a0] mt-0.5">Anyone with WhatsApp can follow this link to join this group.</p>
+              </div>
+
+              {/* Link Box */}
+              <div className="w-full p-3 bg-[#111b21] rounded-xl border border-[#222e35] flex items-center justify-between gap-2 mt-2">
+                <span className="text-xs text-[#00a884] font-mono truncate select-all">
+                  https://friends-whatsapp.vercel.app/join/{activeChat.id}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(`https://friends-whatsapp.vercel.app/join/${activeChat.id}`);
+                    setCopiedInvite(true);
+                    setTimeout(() => setCopiedInvite(false), 2000);
+                  }}
+                  className="px-3 py-1.5 rounded-lg bg-[#00a884] hover:bg-[#008f6f] text-[#111b21] text-xs font-semibold shrink-0 transition-colors"
+                >
+                  {copiedInvite ? 'Copied!' : 'Copy Link'}
+                </button>
+              </div>
+
+              <div className="w-full pt-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setShowInviteModal(false)}
+                  className="px-4 py-2 bg-[#111b21] hover:bg-[#2a3942] rounded-xl text-xs font-semibold text-[#8696a0] hover:text-[#e9edef] transition-colors"
+                >
+                  Done
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -128,6 +128,10 @@ interface ChatContextType {
   updateProfileSettings: (data: { displayName?: string; bio?: string; avatarUrl?: string; showLastSeen?: boolean; showReadReceipts?: boolean; allowNotifications?: boolean }) => Promise<void>;
   createGroupChat: (name: string, memberIds: string[], description?: string) => Promise<string | null>;
   addMembersToGroup: (chatId: string, memberIds: string[]) => Promise<boolean>;
+  toggleAdminRole: (chatId: string, targetUserId: string, isAdmin: boolean) => Promise<boolean>;
+  removeMemberFromGroup: (chatId: string, targetUserId: string) => Promise<boolean>;
+  updateGroupDetails: (chatId: string, data: { name?: string; description?: string }) => Promise<boolean>;
+  joinGroupViaInvite: (chatId: string) => Promise<string | null>;
   deleteChat: (chatId: string) => Promise<boolean>;
   toggleReaction: (messageId: string, emoji: string) => void;
 }
@@ -1043,6 +1047,92 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  const toggleAdminRole = async (chatId: string, targetUserId: string, isAdmin: boolean): Promise<boolean> => {
+    if (!accessToken) return false;
+    try {
+      const res = await fetch(`${API_URL}/chats/${chatId}/members/${targetUserId}/admin`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({ isAdmin }),
+      });
+      if (res.ok) {
+        await fetchChats();
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Error toggling admin role:', err);
+      return false;
+    }
+  };
+
+  const removeMemberFromGroup = async (chatId: string, targetUserId: string): Promise<boolean> => {
+    if (!accessToken) return false;
+    try {
+      const res = await fetch(`${API_URL}/chats/${chatId}/members/${targetUserId}`, {
+        method: 'DELETE',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      if (res.ok) {
+        await fetchChats();
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Error removing member from group:', err);
+      return false;
+    }
+  };
+
+  const updateGroupDetails = async (chatId: string, data: { name?: string; description?: string }): Promise<boolean> => {
+    if (!accessToken) return false;
+    try {
+      const res = await fetch(`${API_URL}/chats/${chatId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        await fetchChats();
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error('Error updating group details:', err);
+      return false;
+    }
+  };
+
+  const joinGroupViaInvite = async (chatId: string): Promise<string | null> => {
+    if (!accessToken) return null;
+    try {
+      const res = await fetch(`${API_URL}/chats/${chatId}/join`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      if (res.ok) {
+        const chat = await res.json();
+        await fetchChats();
+        setActiveChatId(chat.id);
+        return chat.id;
+      }
+      return null;
+    } catch (err) {
+      console.error('Error joining group via invite:', err);
+      return null;
+    }
+  };
+
   const deleteChat = async (chatId: string): Promise<boolean> => {
     if (!accessToken) return false;
     try {
@@ -1119,6 +1209,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateProfileSettings,
         createGroupChat,
         addMembersToGroup,
+        toggleAdminRole,
+        removeMemberFromGroup,
+        updateGroupDetails,
+        joinGroupViaInvite,
         deleteChat,
         toggleReaction,
       }}
