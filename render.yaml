@@ -4,8 +4,8 @@ services:
     runtime: node
     plan: free
     rootDir: apps/backend
-    buildCommand: npm install --include=dev && npm run build
-    startCommand: npm run start:prod
+    buildCommand: npm install --include=dev && npx prisma generate && npx nest build
+    startCommand: node dist/main.js
     envVars:
       - key: PORT
         value: 5000

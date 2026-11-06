@@ -110,6 +110,7 @@ export default function Home() {
   const [chatWallpaper, setChatWallpaper] = useState<string>('wa-doodle');
   const [showSettingsDrawer, setShowSettingsDrawer] = useState(false);
   const [settingsTab, setSettingsTab] = useState<'profile' | 'appearance' | 'privacy'>('profile');
+  const [settingsSubPage, setSettingsSubPage] = useState<'main' | 'profile' | 'notifications' | 'privacy' | 'chats' | 'help'>('main');
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showSharedMedia, setShowSharedMedia] = useState(false); // Collapsible Shared Media sidebar
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
@@ -128,6 +129,7 @@ export default function Home() {
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [activeTab, setActiveTab] = useState<'chats' | 'contacts' | 'archived' | 'status'>('chats');
+  const [chatFilter, setChatFilter] = useState<'all' | 'unread' | 'groups'>('all');
   const [showAddContact, setShowAddContact] = useState(false);
 
   // FILTER CHATS IN SIDEBAR
@@ -1037,12 +1039,22 @@ export default function Home() {
     };
   }, [callModal, dragOffset, floatingPos]);
 
-  const getFilteredChats = () => {
+  const unreadChatsCount = React.useMemo(() => {
+    return chats.filter((c) => c.lastMessage && c.id !== activeChatId).length;
+  }, [chats, activeChatId]);
+
+  const filteredChatsList = React.useMemo(() => {
     let result = chats;
     if (activeTab === 'archived') {
       result = chats.filter((c) => c.isArchived);
     } else {
       result = chats.filter((c) => !c.isArchived);
+    }
+
+    if (chatFilter === 'unread') {
+      result = result.filter((c) => c.lastMessage && c.id !== activeChatId);
+    } else if (chatFilter === 'groups') {
+      result = result.filter((c) => c.isGroup);
     }
 
     if (localChatSearch.trim()) {
@@ -1069,9 +1081,7 @@ export default function Home() {
       if (!a.isPinned && b.isPinned) return 1;
       return new Date(b.updatedAt || 0).getTime() - new Date(a.updatedAt || 0).getTime();
     });
-  };
-
-  const filteredChatsList = getFilteredChats();
+  }, [chats, activeTab, chatFilter, localChatSearch, activeChatId]);
 
   // Theme Accent Selectors
   const getThemeClass = () => {
@@ -1539,7 +1549,7 @@ export default function Home() {
         
         {/* 2. CHATS SIDEBAR (AUTHENTIC WHATSAPP WEB STYLE) */}
         <div className={`w-full ${themeLayout.sidebarWidth} border-r border-[#222e35] bg-[#111b21] flex flex-col h-full overflow-hidden shrink-0 transition-all ${
-          mobileView === 'chat' ? 'hidden lg:flex' : 'flex'
+          mobileView === 'chat' ? 'hidden md:flex' : 'flex'
         }`}>
           
           {/* WhatsApp Sidebar Header */}
@@ -1589,12 +1599,12 @@ export default function Home() {
               )}
             </div>
 
-            {/* Filter Pills (All, Unread 122, Favourites, Groups) */}
+            {/* Filter Pills (All, Unread, Favourites, Groups) */}
             <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 text-xs select-none">
               <button
-                onClick={() => setActiveTab('chats')}
+                onClick={() => { setActiveTab('chats'); setChatFilter('all'); }}
                 className={`px-3 py-1 rounded-full font-medium transition-colors ${
-                  activeTab === 'chats'
+                  activeTab === 'chats' && chatFilter === 'all'
                     ? 'bg-[#00a884]/20 text-[#00a884] border border-[#00a884]/30'
                     : 'bg-[#202c33] text-[#8696a0] hover:text-[#e9edef]'
                 }`}
@@ -1602,11 +1612,19 @@ export default function Home() {
                 All
               </button>
               <button
-                onClick={() => setActiveTab('chats')}
-                className="px-3 py-1 rounded-full bg-[#202c33] text-[#8696a0] hover:text-[#e9edef] font-medium transition-colors flex items-center gap-1.5"
+                onClick={() => { setActiveTab('chats'); setChatFilter('unread'); }}
+                className={`px-3 py-1 rounded-full font-medium transition-colors flex items-center gap-1.5 ${
+                  activeTab === 'chats' && chatFilter === 'unread'
+                    ? 'bg-[#00a884]/20 text-[#00a884] border border-[#00a884]/30'
+                    : 'bg-[#202c33] text-[#8696a0] hover:text-[#e9edef]'
+                }`}
               >
                 <span>Unread</span>
-                <span className="text-[10px] bg-[#25d366]/20 text-[#25d366] px-1 rounded-full font-bold">122</span>
+                {unreadChatsCount > 0 && (
+                  <span className="text-[10px] bg-[#25d366]/20 text-[#25d366] px-1 rounded-full font-bold">
+                    {unreadChatsCount}
+                  </span>
+                )}
               </button>
               <button
                 onClick={() => setActiveTab(activeTab === 'contacts' ? 'chats' : 'contacts')}
@@ -1619,8 +1637,12 @@ export default function Home() {
                 Favourites
               </button>
               <button
-                onClick={() => setShowGroupWizard(true)}
-                className="px-3 py-1 rounded-full bg-[#202c33] text-[#8696a0] hover:text-[#e9edef] font-medium transition-colors"
+                onClick={() => { setActiveTab('chats'); setChatFilter('groups'); }}
+                className={`px-3 py-1 rounded-full font-medium transition-colors ${
+                  activeTab === 'chats' && chatFilter === 'groups'
+                    ? 'bg-[#00a884]/20 text-[#00a884] border border-[#00a884]/30'
+                    : 'bg-[#202c33] text-[#8696a0] hover:text-[#e9edef]'
+                }`}
               >
                 Groups
               </button>
@@ -1823,6 +1845,9 @@ export default function Home() {
                     const isChatActive = chat.id === activeChatId;
                     const isOnline = chat.otherMember?.isOnline || onlineUsers[chat.otherMember?.id || ''];
                     const isTyping = typingUsers[chat.otherMember?.id || ''];
+                    const otherMemberId = chat.otherMember?.id;
+                    const userStory = statuses.find((s) => s.userId === otherMemberId);
+                    const hasActiveStory = Boolean(userStory);
 
                     return (
                       <div 
@@ -1836,12 +1861,27 @@ export default function Home() {
                         }`}
                       >
                         <div className="flex items-center gap-3.5 min-w-0 flex-1">
-                          <div className="w-12 h-12 rounded-full bg-[#202c33] border border-[#222e35] flex items-center justify-center font-medium text-sm text-[#e9edef] relative shrink-0 overflow-hidden">
-                            {chat.otherMember?.avatarUrl ? (
-                              <img src={chat.otherMember.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
-                            ) : (
-                              <span>{chat.name.slice(0, 2).toUpperCase()}</span>
-                            )}
+                          <div 
+                            onClick={(e) => {
+                              if (hasActiveStory && userStory) {
+                                e.stopPropagation();
+                                setActiveStory(userStory);
+                              }
+                            }}
+                            className={`w-12 h-12 rounded-full relative shrink-0 transition-all ${
+                              hasActiveStory 
+                                ? 'p-0.5 border-2 border-[#00a884] ring-2 ring-[#00a884]/30 cursor-pointer hover:scale-105' 
+                                : 'border border-[#222e35]'
+                            }`}
+                            title={hasActiveStory ? `View ${chat.name}'s status` : chat.name}
+                          >
+                            <div className="w-full h-full rounded-full bg-[#202c33] flex items-center justify-center font-medium text-sm text-[#e9edef] overflow-hidden">
+                              {chat.otherMember?.avatarUrl ? (
+                                <img src={chat.otherMember.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                              ) : (
+                                <span>{chat.name.slice(0, 2).toUpperCase()}</span>
+                              )}
+                            </div>
                             {chat.isGroup && (
                               <div className="absolute -top-1 -right-1 w-4 h-4 bg-[#00a884] border border-[#111b21] rounded-full flex items-center justify-center text-[7px] text-[#111b21] font-bold">G</div>
                             )}
@@ -1902,45 +1942,119 @@ export default function Home() {
                       </div>
                     );
                   }
-                  return uniqueContacts.map((contact) => (
-                    <button
-                      key={contact.id}
-                      onClick={() => {
-                        startChatWithUser(contact.id);
-                        setActiveTab('chats');
-                        setMobileView('chat');
-                      }}
-                      className="w-full flex items-center gap-3 p-3 px-4 text-left hover:bg-[#202c33] text-[#e9edef] transition-colors border-b border-[#222e35]/60"
-                    >
-                      <div className="w-11 h-11 rounded-full bg-[#202c33] border border-[#222e35] flex items-center justify-center font-medium text-xs text-[#e9edef] relative shrink-0">
-                        {contact.displayName.slice(0, 2).toUpperCase()}
-                        {contact.isOnline && (
-                          <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#25d366] border-2 border-[#111b21] rounded-full"></div>
-                        )}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h5 className="text-[15px] font-normal truncate leading-none mb-1 text-[#e9edef]">{contact.displayName}</h5>
-                        <p className="text-xs text-[#8696a0] truncate leading-none">{contact.phoneNumber}</p>
-                      </div>
-                    </button>
-                  ));
+                  return uniqueContacts.map((contact) => {
+                    const contactStory = statuses.find((s) => s.userId === contact.id);
+                    const hasContactStory = Boolean(contactStory);
+                    return (
+                      <button
+                        key={contact.id}
+                        onClick={() => {
+                          startChatWithUser(contact.id);
+                          setActiveTab('chats');
+                          setMobileView('chat');
+                        }}
+                        className="w-full flex items-center gap-3 p-3 px-4 text-left hover:bg-[#202c33] text-[#e9edef] transition-colors border-b border-[#222e35]/60"
+                      >
+                        <div 
+                          onClick={(e) => {
+                            if (hasContactStory && contactStory) {
+                              e.stopPropagation();
+                              setActiveStory(contactStory);
+                            }
+                          }}
+                          className={`w-11 h-11 rounded-full relative shrink-0 transition-all ${
+                            hasContactStory 
+                              ? 'p-0.5 border-2 border-[#00a884] ring-2 ring-[#00a884]/30 cursor-pointer hover:scale-105' 
+                              : 'border border-[#222e35]'
+                          }`}
+                          title={hasContactStory ? `View ${contact.displayName}'s status` : contact.displayName}
+                        >
+                          <div className="w-full h-full rounded-full bg-[#202c33] flex items-center justify-center font-medium text-xs text-[#e9edef] overflow-hidden">
+                            {contact.avatarUrl ? (
+                              <img src={contact.avatarUrl} alt="Avatar" className="w-full h-full object-cover" />
+                            ) : (
+                              contact.displayName.slice(0, 2).toUpperCase()
+                            )}
+                          </div>
+                          {contact.isOnline && (
+                            <div className="absolute bottom-0 right-0 w-3 h-3 bg-[#25d366] border-2 border-[#111b21] rounded-full"></div>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <h5 className="text-[15px] font-normal truncate leading-none mb-1 text-[#e9edef]">{contact.displayName}</h5>
+                          <p className="text-xs text-[#8696a0] truncate leading-none">{contact.phoneNumber}</p>
+                        </div>
+                      </button>
+                    );
+                  });
                 })()
               )}
             </div>
           )}
 
-          {/* Bottom Windows promo bar */}
-          <div className="mt-auto p-3 px-4 bg-[#111b21] border-t border-[#222e35] flex items-center gap-3 select-none">
+          {/* Bottom Windows promo bar (Desktop) */}
+          <div className="hidden md:flex mt-auto p-3 px-4 bg-[#111b21] border-t border-[#222e35] items-center gap-3 select-none">
             <div className="w-7 h-7 rounded-lg bg-[#00a884] text-[#111b21] flex items-center justify-center font-bold text-xs shadow-sm">
               <Smartphone className="w-4 h-4" />
             </div>
             <span className="text-xs text-[#00a884] font-medium">Get WhatsApp for Windows</span>
           </div>
+
+          {/* WhatsApp Mobile Bottom Navigation Bar (< md) */}
+          <div className="md:hidden mt-auto flex items-center justify-around bg-[#202c33] border-t border-[#222e35] py-2 shrink-0 z-30 select-none">
+            <button 
+              onClick={() => { setActiveTab('chats'); setChatFilter('all'); }}
+              className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors ${
+                activeTab === 'chats' ? 'text-[#00a884]' : 'text-[#8696a0]'
+              }`}
+            >
+              <div className="relative">
+                <MessageSquare className="w-5 h-5" />
+                {unreadChatsCount > 0 && (
+                  <span className="absolute -top-1 -right-2 bg-[#25d366] text-[#111b21] font-bold text-[9px] px-1 rounded-full">
+                    {unreadChatsCount}
+                  </span>
+                )}
+              </div>
+              <span className="text-[10px] font-medium">Chats</span>
+            </button>
+
+            <button 
+              onClick={() => setActiveTab(activeTab === 'status' ? 'chats' : 'status')}
+              className={`flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors ${
+                activeTab === 'status' ? 'text-[#00a884]' : 'text-[#8696a0]'
+              }`}
+            >
+              <div className="relative">
+                <Compass className="w-5 h-5" />
+                {statuses.length > 0 && (
+                  <span className="absolute top-0 right-0 w-2 h-2 rounded-full bg-[#25d366]"></span>
+                )}
+              </div>
+              <span className="text-[10px] font-medium">Updates</span>
+            </button>
+
+            <button 
+              onClick={() => setShowGroupWizard(true)}
+              className="flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors text-[#8696a0]"
+            >
+              <Users className="w-5 h-5" />
+              <span className="text-[10px] font-medium">Communities</span>
+            </button>
+
+            <button 
+              onClick={() => setShowSettingsDrawer(true)}
+              className="flex flex-col items-center gap-1 py-1 px-3 rounded-xl transition-colors text-[#8696a0]"
+            >
+              <Settings className="w-5 h-5" />
+              <span className="text-[10px] font-medium">Settings</span>
+            </button>
+          </div>
         </div>
 
         {/* CHAT WINDOW (RIGHT SECTION - Responsive Toggling) */}
         <div className={`flex-1 flex flex-col h-full overflow-hidden relative ${
-          mobileView === 'list' ? 'hidden lg:flex' : 'flex'
+          mobileView === 'list' ? 'hidden md:flex' : 'flex'
         }`}>
           
           {activeChat ? (
@@ -1955,7 +2069,7 @@ export default function Home() {
                     
                     <button 
                       onClick={() => { selectChat(''); setMobileView('list'); }}
-                      className="block lg:hidden p-1.5 rounded-lg hover:bg-[#2a3942] text-[#aebac1] hover:text-[#e9edef] shrink-0 transition-colors"
+                      className="block md:hidden p-1.5 rounded-lg hover:bg-[#2a3942] text-[#aebac1] hover:text-[#e9edef] shrink-0 transition-colors"
                     >
                       <ArrowLeft className="w-5 h-5" />
                     </button>
@@ -2548,33 +2662,73 @@ export default function Home() {
                     <div className="pt-3 space-y-2.5">
                       <div className="flex justify-between items-center">
                         <span className="text-xs font-semibold text-[#8696a0] uppercase tracking-wider">Media, links and docs</span>
-                        <span className="text-xs text-[#00a884] font-medium cursor-pointer hover:underline">See all</span>
                       </div>
                       
-                      <div className="grid grid-cols-3 gap-2">
-                        {[1, 2, 3].map((num) => (
-                          <div key={num} className="aspect-square bg-[#202c33] hover:bg-[#2a3942] border border-[#222e35] rounded-lg flex flex-col items-center justify-center text-[#8696a0] hover:text-[#00a884] transition-colors cursor-pointer group">
-                            <ImageIcon className="w-5 h-5 group-hover:scale-105 transition-transform" />
-                            <span className="text-[9px] mt-1 text-[#8696a0]">media_{num}</span>
+                      {(() => {
+                        const mediaMessages = messages.filter(
+                          (m) => m.type === 'IMAGE' || (typeof m.content === 'string' && m.content.startsWith('data:image'))
+                        );
+                        if (mediaMessages.length === 0) {
+                          return (
+                            <div className="text-center py-4 bg-[#202c33]/50 rounded-xl border border-[#222e35] text-[#8696a0] text-xs">
+                              <ImageIcon className="w-5 h-5 mx-auto mb-1 opacity-40 text-[#00a884]" />
+                              No media shared yet
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="grid grid-cols-3 gap-2">
+                            {mediaMessages.slice(0, 9).map((m, idx) => (
+                              <div 
+                                key={m.id || idx}
+                                onClick={() => {
+                                  if (m.content) window.open(m.content, '_blank');
+                                }}
+                                className="aspect-square bg-[#202c33] hover:bg-[#2a3942] border border-[#222e35] rounded-lg overflow-hidden cursor-pointer group relative"
+                              >
+                                <img src={m.content} alt="Media" className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                              </div>
+                            ))}
                           </div>
-                        ))}
-                      </div>
+                        );
+                      })()}
                     </div>
 
                     {/* 5. Shared Mutual Groups */}
                     <div className="pt-3">
                       <span className="text-xs font-semibold text-[#8696a0] uppercase tracking-wider block mb-2">Groups in common</span>
-                      <div className="space-y-1.5">
-                        <div className="p-2.5 rounded-xl bg-[#202c33] border border-[#222e35] flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-full bg-[#00a884]/20 border border-[#00a884]/30 flex items-center justify-center font-bold text-xs text-[#00a884] shrink-0">
-                            WA
+                      {(() => {
+                        const commonGroups = chats.filter((c) => c.isGroup);
+                        if (commonGroups.length === 0) {
+                          return (
+                            <div className="text-center py-3 bg-[#202c33]/50 rounded-xl border border-[#222e35] text-[#8696a0] text-xs">
+                              No groups in common
+                            </div>
+                          );
+                        }
+                        return (
+                          <div className="space-y-1.5">
+                            {commonGroups.slice(0, 3).map((g) => (
+                              <div 
+                                key={g.id}
+                                onClick={() => {
+                                  selectChat(g.id);
+                                  setShowSharedMedia(false);
+                                }}
+                                className="p-2.5 rounded-xl bg-[#202c33] hover:bg-[#2a3942] border border-[#222e35] flex items-center gap-3 cursor-pointer transition-colors"
+                              >
+                                <div className="w-8 h-8 rounded-full bg-[#00a884]/20 border border-[#00a884]/30 flex items-center justify-center font-bold text-xs text-[#00a884] shrink-0">
+                                  {g.name.slice(0, 2).toUpperCase()}
+                                </div>
+                                <div className="text-left min-w-0">
+                                  <h5 className="text-xs font-medium text-[#e9edef] truncate leading-none">{g.name}</h5>
+                                  <span className="text-[10px] text-[#8696a0] mt-1 block">Group</span>
+                                </div>
+                              </div>
+                            ))}
                           </div>
-                          <div className="text-left min-w-0">
-                            <h5 className="text-xs font-medium text-[#e9edef] truncate leading-none">WhatsApp Developers</h5>
-                            <span className="text-[10px] text-[#8696a0] mt-1 block">4 members</span>
-                          </div>
-                        </div>
-                      </div>
+                        );
+                      })()}
                     </div>
 
                     {/* 6. Danger Zone Action Buttons */}
@@ -2636,7 +2790,7 @@ export default function Home() {
       </div>
 
       {/* ======================================================== */}
-      {/* SETTINGS DRAWER */}
+      {/* SETTINGS DRAWER (AUTHENTIC WHATSAPP WEB / MOBILE SETTINGS) */}
       {/* ======================================================== */}
       <div 
         className={`fixed inset-0 z-40 transition-opacity duration-300 ${
@@ -2646,183 +2800,328 @@ export default function Home() {
         <div onClick={() => setShowSettingsDrawer(false)} className="absolute inset-0 bg-black/60 backdrop-blur-xs" />
         
         <div 
-          className={`absolute top-0 left-0 h-full w-[310px] md:w-[340px] border-r shadow-2xl flex flex-col z-50 transition-transform duration-300 ease-out ${
+          className={`absolute top-0 left-0 h-full w-full sm:w-[380px] md:w-[420px] border-r border-[#222e35] shadow-2xl flex flex-col z-50 transition-transform duration-300 ease-out ${
             showSettingsDrawer ? 'translate-x-0' : '-translate-x-full'
-          } bg-[#111b21] border-r border-[#222e35] text-[#e9edef] shadow-2xl`}
+          } bg-[#111b21] text-[#e9edef] select-none`}
         >
           {/* Header Area */}
-          <div className="p-4 bg-[#202c33] border-b border-[#222e35] flex justify-between items-center shrink-0">
-            <span className="text-sm font-semibold text-[#e9edef]">Settings</span>
+          <div className="h-16 bg-[#202c33] border-b border-[#222e35] px-4 flex items-center gap-4 shrink-0">
             <button 
-              onClick={() => setShowSettingsDrawer(false)}
-              className="w-7 h-7 rounded-full flex items-center justify-center hover:bg-[#2a3942] text-[#8696a0] hover:text-[#e9edef] transition-colors"
+              onClick={() => {
+                if (settingsSubPage !== 'main') {
+                  setSettingsSubPage('main');
+                } else {
+                  setShowSettingsDrawer(false);
+                }
+              }}
+              className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#2a3942] text-[#8696a0] hover:text-[#e9edef] transition-colors"
+              title="Back"
             >
-              <X className="w-4 h-4" />
+              <ArrowLeft className="w-5 h-5 text-[#e9edef]" />
             </button>
+            <span className="text-base font-semibold text-[#e9edef]">
+              {settingsSubPage === 'main' ? 'Settings' : 
+               settingsSubPage === 'profile' ? 'Profile' : 
+               settingsSubPage === 'privacy' ? 'Privacy' : 
+               settingsSubPage === 'chats' ? 'Chats' : 
+               settingsSubPage === 'notifications' ? 'Notifications' : 'Help'}
+            </span>
           </div>
 
-          {/* Tab Selection Bar */}
-          <div className="p-2 flex gap-1 border-b border-[#222e35] bg-[#111b21] shrink-0">
-            {(['profile', 'appearance', 'privacy'] as const).map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setSettingsTab(tab)}
-                className={`flex-1 py-2 text-xs font-medium uppercase tracking-wider rounded-xl transition-all ${
-                  settingsTab === tab
-                    ? 'bg-[#00a884]/20 text-[#00a884] border border-[#00a884]/30'
-                    : 'bg-transparent text-[#8696a0] hover:text-[#e9edef] border border-transparent'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
+          {/* Body Content */}
+          <div className="flex-1 overflow-y-auto min-h-0 bg-[#111b21]">
+            {settingsSubPage === 'main' && (
+              <div className="divide-y divide-[#222e35]/60">
+                {/* 1. Profile Card Header */}
+                <div 
+                  onClick={() => setSettingsSubPage('profile')}
+                  className="p-4 flex items-center gap-4 hover:bg-[#202c33] cursor-pointer transition-colors"
+                >
+                  <div className="w-16 h-16 rounded-full bg-[#202c33] border-2 border-[#00a884] p-0.5 overflow-hidden shrink-0">
+                    {user.avatarUrl ? (
+                      <img src={user.avatarUrl} alt="Avatar" className="w-full h-full rounded-full object-cover" />
+                    ) : (
+                      <div className="w-full h-full rounded-full bg-[#111b21] flex items-center justify-center font-bold text-[#e9edef] text-lg">
+                        {user.displayName?.slice(0, 2).toUpperCase() || 'WA'}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h4 className="text-base font-normal text-[#e9edef] truncate">{user.displayName || 'You'}</h4>
+                    <p className="text-xs text-[#8696a0] truncate mt-0.5">{user.bio || 'Hey there! I am using WhatsApp.'}</p>
+                    <span className="text-[11px] text-[#00a884] block mt-0.5">{user.phoneNumber}</span>
+                  </div>
+                  <ArrowRight className="w-4 h-4 text-[#8696a0] shrink-0" />
+                </div>
 
-          {/* Tab Content List */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
-            {settingsTab === 'profile' && (
-              <form onSubmit={handleSaveSettings} className="space-y-4">
-                {/* Profile Identity Card */}
-                <div className="p-4 rounded-2xl bg-[#202c33] border border-[#222e35] space-y-4">
-                  <span className="text-xs font-semibold text-[#00a884] uppercase tracking-wider block text-center">My Profile</span>
-                  
-                  <div className="flex flex-col items-center gap-1.5 relative">
-                    <div className="relative group cursor-pointer hover:scale-105 transition-transform">
-                      <div className="w-20 h-20 rounded-full border-2 border-[#00a884] p-0.5 overflow-hidden">
-                        {editAvatarUrl ? (
-                          <img src={editAvatarUrl} alt="Avatar" className="w-full h-full rounded-full object-cover" />
-                        ) : (
-                          <div className="w-full h-full rounded-full bg-[#111b21] flex items-center justify-center font-bold text-[#e9edef] text-xl">
-                            {editDisplayName.slice(0, 2).toUpperCase() || 'WA'}
-                          </div>
-                        )}
-                      </div>
-                      <div className="absolute inset-0 bg-black/60 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Camera className="w-5 h-5 text-white" />
-                      </div>
+                {/* 2. WhatsApp Settings Options List */}
+                <div className="py-2">
+                  <div 
+                    onClick={() => setSettingsSubPage('notifications')}
+                    className="flex items-center gap-4 p-3.5 px-5 hover:bg-[#202c33] cursor-pointer transition-colors"
+                  >
+                    <Bell className="w-5 h-5 text-[#8696a0] shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-normal text-[#e9edef] block leading-tight">Notifications</span>
+                      <span className="text-xs text-[#8696a0] block mt-0.5">Message tones, alert sounds</span>
                     </div>
-                    <span className="text-[11px] text-[#8696a0] mt-0.5">Profile Photo</span>
+                    <ArrowRight className="w-4 h-4 text-[#8696a0] shrink-0" />
                   </div>
 
-                  <div className="space-y-3">
-                    <div>
-                      <label className="block text-xs font-medium text-[#8696a0] mb-1">Display Name</label>
-                      <input
-                        type="text"
-                        required
-                        placeholder="Enter display name"
-                        value={editDisplayName}
-                        onChange={(e) => setEditDisplayName(e.target.value)}
-                        className="w-full bg-[#111b21] border border-[#222e35] focus:border-[#00a884] text-[#e9edef] rounded-xl py-2 px-3 text-xs outline-none transition-all placeholder-[#8696a0]"
-                      />
+                  <div 
+                    onClick={() => setSettingsSubPage('privacy')}
+                    className="flex items-center gap-4 p-3.5 px-5 hover:bg-[#202c33] cursor-pointer transition-colors"
+                  >
+                    <Lock className="w-5 h-5 text-[#8696a0] shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-normal text-[#e9edef] block leading-tight">Privacy</span>
+                      <span className="text-xs text-[#8696a0] block mt-0.5">Last seen, read receipts, security</span>
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-[#8696a0] mb-1">About</label>
-                      <input
-                        type="text"
-                        placeholder="E.g. Hey there! I am using WhatsApp."
-                        value={editBio}
-                        onChange={(e) => setEditBio(e.target.value)}
-                        className="w-full bg-[#111b21] border border-[#222e35] focus:border-[#00a884] text-[#e9edef] rounded-xl py-2 px-3 text-xs outline-none transition-all placeholder-[#8696a0]"
-                      />
+                    <ArrowRight className="w-4 h-4 text-[#8696a0] shrink-0" />
+                  </div>
+
+                  <div 
+                    onClick={() => setSettingsSubPage('chats')}
+                    className="flex items-center gap-4 p-3.5 px-5 hover:bg-[#202c33] cursor-pointer transition-colors"
+                  >
+                    <Paintbrush className="w-5 h-5 text-[#8696a0] shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-normal text-[#e9edef] block leading-tight">Chats</span>
+                      <span className="text-xs text-[#8696a0] block mt-0.5">Theme, wallpapers, chat history</span>
                     </div>
-                    <div>
-                      <label className="block text-xs font-medium text-[#8696a0] mb-1">Avatar Image Upload</label>
-                      <div className="relative">
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={(e) => {
-                            const file = e.target.files?.[0];
-                            if (file) {
-                              const reader = new FileReader();
-                              reader.readAsDataURL(file);
-                              reader.onloadend = async () => {
-                                const compressed = await compressImage(reader.result as string, 200, 200);
-                                setEditAvatarUrl(compressed);
-                              };
-                            }
-                          }}
-                          className="hidden"
-                          id="profile-avatar-upload"
-                        />
-                        <label 
-                          htmlFor="profile-avatar-upload"
-                          className="w-full bg-[#111b21] border border-[#222e35] hover:border-[#00a884] text-[#8696a0] hover:text-[#e9edef] rounded-xl py-2 px-3 text-xs outline-none transition-colors cursor-pointer flex items-center justify-between"
-                        >
-                          <span className="truncate max-w-[190px]">
-                            {editAvatarUrl ? 'Image Selected' : 'Choose Image File...'}
-                          </span>
-                          <ImageIcon className="w-4 h-4 shrink-0 text-[#00a884]" />
-                        </label>
-                      </div>
+                    <ArrowRight className="w-4 h-4 text-[#8696a0] shrink-0" />
+                  </div>
+
+                  <div 
+                    onClick={() => setSettingsSubPage('help')}
+                    className="flex items-center gap-4 p-3.5 px-5 hover:bg-[#202c33] cursor-pointer transition-colors"
+                  >
+                    <Info className="w-5 h-5 text-[#8696a0] shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-normal text-[#e9edef] block leading-tight">Help</span>
+                      <span className="text-xs text-[#8696a0] block mt-0.5">Help centre, contact us, app info</span>
                     </div>
+                    <ArrowRight className="w-4 h-4 text-[#8696a0] shrink-0" />
+                  </div>
+                </div>
+
+                {/* 3. Log out button */}
+                <div className="p-3 px-5">
+                  <button 
+                    onClick={() => {
+                      if (window.confirm("Are you sure you want to log out of WhatsApp?")) {
+                        logout();
+                      }
+                    }}
+                    className="w-full flex items-center gap-4 p-2 text-left text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors"
+                  >
+                    <LogOut className="w-5 h-5 text-rose-400 shrink-0" />
+                    <span className="text-sm font-medium">Log out</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Profile Detail View */}
+            {settingsSubPage === 'profile' && (
+              <form onSubmit={handleSaveSettings} className="p-6 space-y-6">
+                <div className="flex flex-col items-center">
+                  <div className="relative group cursor-pointer mb-2">
+                    <div className="w-32 h-32 rounded-full border-2 border-[#00a884] p-0.5 overflow-hidden shadow-xl">
+                      {editAvatarUrl ? (
+                        <img src={editAvatarUrl} alt="Avatar" className="w-full h-full rounded-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full rounded-full bg-[#202c33] flex items-center justify-center font-bold text-[#e9edef] text-3xl">
+                          {editDisplayName.slice(0, 2).toUpperCase() || 'WA'}
+                        </div>
+                      )}
+                    </div>
+                    <label 
+                      htmlFor="profile-avatar-upload"
+                      className="absolute inset-0 bg-black/60 rounded-full flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer text-white"
+                    >
+                      <Camera className="w-6 h-6 mb-1" />
+                      <span className="text-[10px] font-medium uppercase tracking-wider">Change Photo</span>
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) {
+                          const reader = new FileReader();
+                          reader.readAsDataURL(file);
+                          reader.onloadend = async () => {
+                            const compressed = await compressImage(reader.result as string, 200, 200);
+                            setEditAvatarUrl(compressed);
+                          };
+                        }
+                      }}
+                      className="hidden"
+                      id="profile-avatar-upload"
+                    />
+                  </div>
+                  <span className="text-xs text-[#8696a0]">Tap to change profile picture</span>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="p-3 bg-[#202c33] rounded-xl border border-[#222e35]">
+                    <span className="text-xs font-semibold text-[#00a884] block mb-1">Your name</span>
+                    <input
+                      type="text"
+                      required
+                      placeholder="Enter your name"
+                      value={editDisplayName}
+                      onChange={(e) => setEditDisplayName(e.target.value)}
+                      className="w-full bg-transparent text-sm text-[#e9edef] outline-none"
+                    />
+                    <p className="text-[11px] text-[#8696a0] mt-1">This is not your username or pin. This name will be visible to your WhatsApp contacts.</p>
+                  </div>
+
+                  <div className="p-3 bg-[#202c33] rounded-xl border border-[#222e35]">
+                    <span className="text-xs font-semibold text-[#00a884] block mb-1">About</span>
+                    <input
+                      type="text"
+                      placeholder="Hey there! I am using WhatsApp."
+                      value={editBio}
+                      onChange={(e) => setEditBio(e.target.value)}
+                      className="w-full bg-transparent text-sm text-[#e9edef] outline-none"
+                    />
+                  </div>
+
+                  <div className="p-3 bg-[#202c33] rounded-xl border border-[#222e35]">
+                    <span className="text-xs font-semibold text-[#00a884] block mb-1">Phone number</span>
+                    <span className="text-sm text-[#e9edef] block">{user.phoneNumber}</span>
                   </div>
                 </div>
 
                 <button
                   type="submit"
                   disabled={isSavingSettings}
-                  className="w-full py-3 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all bg-[#00a884] hover:bg-[#008f6f] text-white shadow-md disabled:opacity-50"
+                  className="w-full py-3 rounded-xl text-xs font-semibold uppercase tracking-wider transition-all bg-[#00a884] hover:bg-[#008f6f] text-[#111b21] shadow-md disabled:opacity-50"
                 >
-                  {isSavingSettings ? 'Saving Updates...' : 'Save Profile Details'}
+                  {isSavingSettings ? 'Saving...' : 'Save Profile'}
                 </button>
               </form>
             )}
 
-            {settingsTab === 'appearance' && (
-              <div className="space-y-4">
-                <div className={`p-4 rounded-3xl border space-y-4 shadow-sm ${
-                  isDarkMode ? 'bg-slate-900/30 border-slate-850/50' : 'bg-slate-50/50 border-slate-200/80'
-                }`}>
-                  <span className="text-[9px] font-extrabold text-[#00a884] uppercase tracking-wider block text-center font-semibold">Theme Settings</span>
-                  
-                  {/* Dark Mode Switcher */}
-                  <div className={`flex justify-between items-center p-2.5 rounded-xl border ${
-                    isDarkMode ? 'bg-slate-950/40 border-slate-850' : 'bg-white border-slate-150'
-                  }`}>
-                    <span className={`text-[10px] font-medium ${isDarkMode ? 'text-slate-350' : 'text-slate-650'}`}>Dark Interface Mode</span>
+            {/* Privacy View */}
+            {settingsSubPage === 'privacy' && (
+              <div className="p-4 space-y-4">
+                <div className="p-4 rounded-2xl bg-[#202c33] border border-[#222e35] space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="text-sm font-medium text-[#e9edef] block">Last Seen and Online</span>
+                      <span className="text-xs text-[#8696a0] block mt-0.5">Allow contacts to see when you were last online</span>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => handleTogglePrivacy('showLastSeen', user.showLastSeen)}
+                      className="text-[#8696a0] hover:text-[#00a884] transition-colors"
+                    >
+                      {user.showLastSeen ? <ToggleRight className="w-7 h-7 text-[#00a884]" /> : <ToggleLeft className="w-7 h-7 opacity-60" />}
+                    </button>
+                  </div>
+
+                  <div className="flex justify-between items-center border-t border-[#222e35] pt-4">
+                    <div>
+                      <span className="text-sm font-medium text-[#e9edef] block">Read Receipts (Blue Ticks)</span>
+                      <span className="text-xs text-[#8696a0] block mt-0.5">If turned off, you won't send or receive read receipts</span>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => handleTogglePrivacy('showReadReceipts', user.showReadReceipts)}
+                      className="text-[#8696a0] hover:text-[#00a884] transition-colors"
+                    >
+                      {user.showReadReceipts ? <ToggleRight className="w-7 h-7 text-[#00a884]" /> : <ToggleLeft className="w-7 h-7 opacity-60" />}
+                    </button>
+                  </div>
+
+                  <div className="flex justify-between items-center border-t border-[#222e35] pt-4">
+                    <div>
+                      <span className="text-sm font-medium text-[#e9edef] block">Message Alerts & Notifications</span>
+                      <span className="text-xs text-[#8696a0] block mt-0.5">Receive audio and push chimes for messages</span>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => handleTogglePrivacy('allowNotifications', user.allowNotifications)}
+                      className="text-[#8696a0] hover:text-[#00a884] transition-colors"
+                    >
+                      {user.allowNotifications ? <ToggleRight className="w-7 h-7 text-[#00a884]" /> : <ToggleLeft className="w-7 h-7 opacity-60" />}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="p-4 rounded-2xl bg-[#202c33] border border-[#222e35] flex items-center gap-3">
+                  <Shield className="w-5 h-5 text-[#00a884] shrink-0" />
+                  <p className="text-xs text-[#8696a0] leading-relaxed">
+                    Your personal messages and calls are end-to-end encrypted. No one outside of this chat, not even WhatsApp, can read or listen to them.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Notifications View */}
+            {settingsSubPage === 'notifications' && (
+              <div className="p-4 space-y-4">
+                <div className="p-4 rounded-2xl bg-[#202c33] border border-[#222e35] space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="text-sm font-medium text-[#e9edef] block">Message Notifications</span>
+                      <span className="text-xs text-[#8696a0] block mt-0.5">Play audio sounds for incoming messages</span>
+                    </div>
+                    <button 
+                      type="button"
+                      onClick={() => handleTogglePrivacy('allowNotifications', user.allowNotifications)}
+                    >
+                      {user.allowNotifications ? <ToggleRight className="w-7 h-7 text-[#00a884]" /> : <ToggleLeft className="w-7 h-7 opacity-60" />}
+                    </button>
+                  </div>
+
+                  <div className="border-t border-[#222e35] pt-4">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        unlockAudio();
+                        playNotificationSound();
+                        if (typeof window !== 'undefined' && 'Notification' in window) {
+                          Notification.requestPermission();
+                        }
+                      }}
+                      className="w-full py-2.5 px-4 rounded-xl bg-[#111b21] hover:bg-[#2a3942] border border-[#222e35] text-xs font-medium text-[#00a884] flex items-center justify-center gap-2 transition-colors"
+                    >
+                      <Volume2 className="w-4 h-4" />
+                      <span>Test Notification Sound</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Chats & Appearance View */}
+            {settingsSubPage === 'chats' && (
+              <div className="p-4 space-y-4">
+                <div className="p-4 rounded-2xl bg-[#202c33] border border-[#222e35] space-y-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="text-sm font-medium text-[#e9edef] block">Theme</span>
+                      <span className="text-xs text-[#8696a0] block mt-0.5">{isDarkMode ? 'Dark' : 'Light'}</span>
+                    </div>
                     <button 
                       type="button"
                       onClick={() => setIsDarkMode(!isDarkMode)}
-                      className={`w-8 h-8 rounded-lg flex items-center justify-center transition-colors ${
-                        isDarkMode ? 'hover:bg-slate-900 text-slate-450' : 'hover:bg-slate-50 text-slate-550'
-                      }`}
+                      className="w-9 h-9 rounded-xl bg-[#111b21] border border-[#222e35] flex items-center justify-center text-[#8696a0] hover:text-[#e9edef] transition-colors"
                     >
                       {isDarkMode ? <Moon className="w-4 h-4 text-[#00a884]" /> : <Sun className="w-4 h-4 text-amber-500" />}
                     </button>
                   </div>
 
-                  {/* Accents Theme Selector */}
-                  <div className="space-y-1.5">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Color Accent Theme</span>
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {(['royal', 'emerald', 'ocean', 'rose', 'classic-wa', 'glass-wa'] as ThemeName[]).map((theme) => (
-                        <button
-                          key={theme}
-                          type="button"
-                          onClick={() => setActiveTheme(theme)}
-                          className={`py-1.5 rounded-lg text-[8px] font-bold uppercase tracking-wider transition-all border ${
-                            activeTheme === theme 
-                              ? 'bg-indigo-650/20 border-[#00a884] text-indigo-300 shadow-[0_0_10px_rgba(99,102,241,0.15)]'
-                              : isDarkMode
-                              ? 'bg-slate-950/40 border-slate-850 text-slate-500 hover:text-slate-355'
-                              : 'bg-white border-slate-200 text-slate-500 hover:text-slate-850 shadow-sm'
-                          }`}
-                        >
-                          {theme === 'classic-wa' ? 'WA Flat' : theme === 'glass-wa' ? 'WA Glass' : theme}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Wallpaper Grid */}
-                  <div className="space-y-1.5">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Select Wallpaper</span>
-                    <div className="grid grid-cols-2 gap-1.5">
+                  <div className="border-t border-[#222e35] pt-4 space-y-2">
+                    <span className="text-xs font-semibold text-[#8696a0] block">Chat Wallpaper</span>
+                    <div className="grid grid-cols-2 gap-2">
                       {[
+                        { id: 'wa-doodle', label: 'WhatsApp Doodle' },
                         { id: 'mesh-indigo', label: 'Indigo Glow' },
-                        { id: 'mesh-violet', label: 'Violet Twilight' },
                         { id: 'solid-slate', label: 'Dark Slate' },
                         { id: 'solid-dark', label: 'Deep Black' }
                       ].map((wallpaper) => (
@@ -2830,12 +3129,10 @@ export default function Home() {
                           key={wallpaper.id}
                           type="button"
                           onClick={() => setChatWallpaper(wallpaper.id)}
-                          className={`py-1.5 px-2 rounded-lg text-[9px] truncate transition-all border ${
+                          className={`py-2 px-3 rounded-xl text-xs truncate transition-all border ${
                             chatWallpaper === wallpaper.id
-                              ? 'bg-[#00a884]/10 border-[#00a884] text-indigo-300 shadow-sm'
-                              : isDarkMode
-                              ? 'bg-slate-955 border-slate-855 text-slate-500 hover:text-slate-350'
-                              : 'bg-white border-slate-200 text-slate-550 hover:text-slate-900 shadow-sm'
+                              ? 'bg-[#00a884]/20 border-[#00a884] text-[#00a884] font-medium'
+                              : 'bg-[#111b21] border-[#222e35] text-[#8696a0] hover:text-[#e9edef]'
                           }`}
                         >
                           {wallpaper.label}
@@ -2847,102 +3144,25 @@ export default function Home() {
               </div>
             )}
 
-            {settingsTab === 'privacy' && (
-              <div className="space-y-4">
-                {/* Privacy Options */}
-                {user && (
-                  <div className={`p-4 rounded-3xl border space-y-3 shadow-sm ${
-                    isDarkMode ? 'bg-slate-900/30 border-slate-850/50' : 'bg-slate-50/50 border-slate-200/80'
-                  }`}>
-                    <span className="text-[9px] font-extrabold text-[#00a884] uppercase tracking-wider block text-center font-semibold">Privacy & Security</span>
-                    
-                    <div className="space-y-3.5 pt-1">
-                      <div className="flex justify-between items-center">
-                        <span className={`text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-650'}`}>Show Last Seen status</span>
-                        <button 
-                          type="button"
-                          onClick={() => handleTogglePrivacy('showLastSeen', user.showLastSeen)}
-                          className="text-slate-450 hover:text-[#00a884] transition-colors"
-                        >
-                          {user.showLastSeen ? <ToggleRight className="w-6 h-6 text-[#00a884]" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
-                        </button>
-                      </div>
-
-                      <div className="flex justify-between items-center">
-                        <span className={`text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-650'}`}>Read Receipts (Blue Ticks)</span>
-                        <button 
-                          type="button"
-                          onClick={() => handleTogglePrivacy('showReadReceipts', user.showReadReceipts)}
-                          className="text-slate-455 hover:text-[#00a884] transition-colors"
-                        >
-                          {user.showReadReceipts ? <ToggleRight className="w-6 h-6 text-[#00a884]" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
-                        </button>
-                      </div>
-
-                      <div className="flex justify-between items-center">
-                        <span className={`text-[10px] ${isDarkMode ? 'text-slate-400' : 'text-slate-650'}`}>Sound & Push Alerts</span>
-                        <button 
-                          type="button"
-                          onClick={() => handleTogglePrivacy('allowNotifications', user.allowNotifications)}
-                          className="text-slate-455 hover:text-[#00a884] transition-colors"
-                        >
-                          {user.allowNotifications ? <ToggleRight className="w-6 h-6 text-[#00a884]" /> : <ToggleLeft className="w-6 h-6 opacity-60" />}
-                        </button>
-                      </div>
+            {/* Help View */}
+            {settingsSubPage === 'help' && (
+              <div className="p-4 space-y-4">
+                <div className="p-4 rounded-2xl bg-[#202c33] border border-[#222e35] space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-[#00a884]/20 text-[#00a884] flex items-center justify-center font-bold">
+                      WA
+                    </div>
+                    <div>
+                      <h4 className="text-sm font-semibold text-[#e9edef]">WhatsApp Web</h4>
+                      <span className="text-xs text-[#8696a0]">Version 2.0.0 (Production)</span>
                     </div>
                   </div>
-                )}
-
-                {/* Hardware Verification Card */}
-                <div className={`p-4 rounded-3xl border space-y-3 shadow-sm ${
-                  isDarkMode ? 'bg-slate-900/30 border-slate-850/50' : 'bg-slate-50/50 border-slate-200/80'
-                }`}>
-                  <span className="text-[9px] font-extrabold text-[#00a884] uppercase tracking-wider block text-center font-semibold">Hardware Access</span>
-                  
-                  <p className="text-[9px] text-slate-500 text-center font-light leading-normal">
-                    Verify camera and microphone hardware loops to troubleshoot device connection lags.
+                  <p className="text-xs text-[#8696a0] leading-relaxed pt-2 border-t border-[#222e35]">
+                    Connected to Supabase PostgreSQL real-time database and WebRTC peer-to-peer calling engine.
                   </p>
-
-                  <button
-                    type="button"
-                    onClick={async () => {
-                      try {
-                        const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                        stream.getTracks().forEach(track => track.stop());
-                        alert('Camera & Microphone access verified successfully! 🟢');
-                      } catch (err) {
-                        console.error('Permission request failed:', err);
-                        alert('Access Blocked! 🔴 Please enable camera and microphone permissions in your browser address bar.');
-                      }
-                    }}
-                    className={`w-full border rounded-xl py-2.5 px-3 text-xs font-semibold transition-all flex items-center justify-center gap-2 ${
-                      isDarkMode 
-                        ? 'bg-slate-950/40 hover:bg-[#00a884]/10 border-slate-850 text-slate-350 hover:text-[#00a884] hover:border-[#00a884]' 
-                        : 'bg-white hover:bg-indigo-50 border-slate-200 text-slate-650 hover:text-indigo-650 hover:border-indigo-400 shadow-sm'
-                    }`}
-                  >
-                    <Video className="w-4 h-4 shrink-0" />
-                    <span>Test Camera & Mic Access</span>
-                  </button>
                 </div>
               </div>
             )}
-
-            {/* Storage Progress Section (Rendered below content in all tabs) */}
-            <div className={`p-4 rounded-3xl border space-y-2.5 shadow-sm mt-2 shrink-0 ${
-              isDarkMode ? 'bg-slate-900/30 border-slate-850/50' : 'bg-slate-50/50 border-slate-200/80'
-            }`}>
-              <span className="text-[9px] font-bold text-[#00a884] uppercase tracking-wider block text-center font-semibold">Local Data Status</span>
-              <div className="flex justify-between items-baseline text-[8px] text-slate-500">
-                <span>Disk Storage Used</span>
-                <span>124 MB of 5.0 GB</span>
-              </div>
-              <div className={`w-full rounded-full h-1.5 overflow-hidden ${
-                isDarkMode ? 'bg-slate-950/80' : 'bg-slate-200 shadow-inner'
-              }`}>
-                <div className="bg-[#00a884] h-full w-[2.5%] rounded-full shadow-[0_0_10px_rgba(99,102,241,0.5)]"></div>
-              </div>
-            </div>
           </div>
         </div>
       </div>
